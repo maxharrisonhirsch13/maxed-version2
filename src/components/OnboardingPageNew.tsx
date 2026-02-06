@@ -431,22 +431,36 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </div>
               </div>
 
-              {/* Weight Slider */}
+              {/* Weight */}
               <div>
                 <label className="text-sm font-medium mb-3 block">Weight (lbs)</label>
+                <div className="flex items-center gap-3 mb-4">
+                  <input
+                    type="number"
+                    min="80"
+                    max="500"
+                    value={data.weight}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value);
+                      if (!isNaN(v) && v >= 0) setData({ ...data, weight: Math.min(v, 500) });
+                    }}
+                    className="w-28 bg-[#0a0a0a] border border-gray-800 rounded-xl px-4 py-3 text-white text-center text-2xl font-bold focus:outline-none focus:border-[#00ff00] transition-colors"
+                  />
+                  <span className="text-gray-500 text-sm">lbs</span>
+                </div>
                 <div className="relative">
                   <input
                     type="range"
                     min="100"
                     max="350"
                     step="1"
-                    value={data.weight}
+                    value={Math.max(100, Math.min(350, data.weight))}
                     onChange={(e) => setData({ ...data, weight: parseInt(e.target.value) })}
                     className="w-full h-2 rounded-lg appearance-none cursor-pointer slider-green"
                   />
                   <style>{`
                     .slider-green {
-                      background: linear-gradient(to right, #00ff00 0%, #00ff00 ${((data.weight - 100) / 250) * 100}%, #1a1a1a ${((data.weight - 100) / 250) * 100}%, #1a1a1a 100%);
+                      background: linear-gradient(to right, #00ff00 0%, #00ff00 ${((Math.max(100, Math.min(350, data.weight)) - 100) / 250) * 100}%, #1a1a1a ${((Math.max(100, Math.min(350, data.weight)) - 100) / 250) * 100}%, #1a1a1a 100%);
                     }
                     .slider-green::-webkit-slider-thumb {
                       appearance: none;
@@ -468,9 +482,9 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     }
                   `}</style>
                 </div>
-                <div className="text-center mt-3">
-                  <span className="text-3xl font-bold">{data.weight}</span>
-                  <span className="text-gray-500 ml-2">lbs</span>
+                <div className="flex justify-between mt-1.5 text-xs text-gray-600">
+                  <span>100</span>
+                  <span>350</span>
                 </div>
               </div>
             </>
@@ -536,7 +550,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   <HomeIcon className="w-5 h-5" />
                   <div className="text-left flex-1">
                     <div className="font-bold text-base">I work out at home</div>
-                    <div className="text-xs text-gray-400">Bodyweight & home equipment</div>
+                    <div className="text-xs text-gray-400">{data.isHomeGym ? 'Tap to deselect' : 'Bodyweight & home equipment'}</div>
                   </div>
                   {data.isHomeGym && <Check className="w-5 h-5 text-[#00ff00]" />}
                 </button>
@@ -750,61 +764,61 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
               <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Name</p>
                     <p className="font-medium">{data.name}</p>
                   </div>
-                  <button onClick={() => setStep(1)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
+                  <button onClick={() => setStep(1)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                    Edit
                   </button>
                 </div>
                 <div className="h-px bg-gray-800" />
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Stats</p>
                     <p className="font-medium">{data.heightFeet} ft {data.heightInches} in · {data.weight} lbs</p>
                   </div>
-                  <button onClick={() => setStep(2)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
+                  <button onClick={() => setStep(2)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                    Edit
                   </button>
                 </div>
                 <div className="h-px bg-gray-800" />
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Experience</p>
                     <p className="font-medium capitalize">{data.experience}</p>
                   </div>
-                  <button onClick={() => setStep(3)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
+                  <button onClick={() => setStep(3)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                    Edit
                   </button>
                 </div>
                 <div className="h-px bg-gray-800" />
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Training Location</p>
                     <p className="font-medium">{data.gym}</p>
                   </div>
-                  <button onClick={() => setStep(4)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
+                  <button onClick={() => setStep(4)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                    Edit
                   </button>
                 </div>
                 {data.wearables.length > 0 && (
                   <>
                     <div className="h-px bg-gray-800" />
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-xs text-gray-500">Connected Wearables</p>
                         <p className="font-medium">{data.wearables.length} device{data.wearables.length > 1 ? 's' : ''} connected</p>
                       </div>
-                      <button onClick={() => setStep(5)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
-                        <Pencil className="w-3.5 h-3.5" />
+                      <button onClick={() => setStep(5)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                        Edit
                       </button>
                     </div>
                   </>
                 )}
                 <div className="h-px bg-gray-800" />
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Goal</p>
                     <p className="font-medium">
                       {data.goal === 'Ask AI' ? data.customGoal :
@@ -815,13 +829,13 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                        data.goal === 'athletic' ? 'Athletic Performance' : data.goal}
                     </p>
                   </div>
-                  <button onClick={() => setStep(6)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
+                  <button onClick={() => setStep(6)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                    Edit
                   </button>
                 </div>
                 <div className="h-px bg-gray-800" />
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Training Split</p>
                     <p className="font-medium">
                       {data.split === 'ppl' ? 'Push Pull Legs' :
@@ -831,8 +845,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                        data.split === 'custom' ? 'Custom Split' : data.split}
                     </p>
                   </div>
-                  <button onClick={() => setStep(7)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
+                  <button onClick={() => setStep(7)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                    Edit
                   </button>
                 </div>
               </div>
