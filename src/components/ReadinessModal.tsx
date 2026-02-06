@@ -1,5 +1,9 @@
-import { X, Activity, Moon, Heart, Zap, TrendingUp, Brain, Link2 } from 'lucide-react';
+import { X, Activity, Moon, Heart, Zap, TrendingUp, Brain, Link2, Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 import { useWhoopData } from '../hooks/useWhoopData';
+import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
+import { useAuth } from '../context/AuthContext';
+import { useAICoach } from '../hooks/useAICoach';
 
 interface ReadinessModalProps {
   onClose: () => void;
@@ -31,8 +35,42 @@ function getRating(value: number, thresholds: [number, number]): string {
 
 export function ReadinessModal({ onClose }: ReadinessModalProps) {
   const { data: whoop } = useWhoopData();
+  const { profile } = useAuth();
+  const { workouts } = useWorkoutHistory({ limit: 10 });
+  const { readiness, readinessLoading, fetchReadiness } = useAICoach();
   const hasData = whoop?.connected && (whoop.recovery || whoop.sleep || whoop.strain);
-  const score = whoop?.recovery?.score ?? null;
+
+  // Fetch AI readiness when data is available
+  useEffect(() => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentWorkouts = workouts
+      .filter(w => new Date(w.startedAt) >= sevenDaysAgo)
+      .map(w => ({
+        date: w.startedAt.split('T')[0],
+        type: w.workoutType,
+        durationMinutes: w.durationMinutes || 0,
+      }));
+
+    fetchReadiness({
+      whoopData: whoop ? {
+        recovery: whoop.recovery,
+        sleep: whoop.sleep ? {
+          qualityDuration: whoop.sleep.qualityDuration,
+          deepSleepDuration: whoop.sleep.deepSleepDuration,
+          sleepScore: whoop.sleep.sleepScore,
+        } : null,
+        strain: whoop.strain ? { score: whoop.strain.score, kilojoules: whoop.strain.kilojoules } : null,
+      } : { recovery: null, sleep: null, strain: null },
+      recentWorkouts,
+      userProfile: {
+        experience: profile?.experience || null,
+        goal: profile?.goal || null,
+      },
+    });
+  }, [whoop?.connected, workouts.length]);
+
+  // Use AI score if available, otherwise fall back to WHOOP raw score
+  const score = readiness?.readinessScore ?? whoop?.recovery?.score ?? null;
   const scoreColor = score != null ? getScoreColor(score) : '#00ff00';
   const scoreInfo = score != null ? getScoreLabel(score) : { label: 'No Data', detail: 'Connect a wearable for insights' };
 
@@ -84,24 +122,33 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
             <h4 className="font-bold text-sm mb-3 flex items-center gap-2"><Brain className="w-4 h-4 text-[#00ff00]" />What This Means For You</h4>
             <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
               <p className="text-sm text-gray-300 leading-relaxed mb-3">
-                {hasData && score != null
-                  ? score >= 67
-                    ? "Based on your WHOOP data, you're in great shape for today's workout. Your body has recovered well and is primed for a challenging session."
-                    : score >= 34
-                      ? "Your recovery is moderate today. Consider reducing intensity or focusing on technique-based work rather than max effort."
-                      : "Your body needs more recovery. Consider active rest like walking or yoga, and prioritize sleep tonight."
-                  : "Connect your WHOOP to get personalized training recommendations based on your recovery data."}
+                {readinessLoading
+                  ? "Analyzing your biometric data and training history..."
+                  : readiness?.coachingText
+                    ? readiness.coachingText
+                    : hasData && score != null
+                      ? score >= 67
+                        ? "Based on your data, you're in great shape for today's workout. Your body has recovered well and is primed for a challenging session."
+                        : score >= 34
+                          ? "Your recovery is moderate today. Consider reducing intensity or focusing on technique-based work rather than max effort."
+                          : "Your body needs more recovery. Consider active rest like walking or yoga, and prioritize sleep tonight."
+                      : "Connect your WHOOP to get personalized training recommendations based on your recovery data."}
               </p>
               <div className="border rounded-xl p-3" style={{ background: `${scoreColor}10`, borderColor: `${scoreColor}20` }}>
-                <p className="text-xs font-semibold mb-1" style={{ color: scoreColor }}>AI Recommendation</p>
+                <p className="text-xs font-semibold mb-1 flex items-center gap-1.5" style={{ color: scoreColor }}>
+                  AI Recommendation
+                  {readinessLoading && <Loader2 className="w-3 h-3 animate-spin" />}
+                </p>
                 <p className="text-xs text-gray-400">
-                  {hasData && score != null
-                    ? score >= 67
-                      ? <>We've adjusted your training intensity to <span className="text-white font-semibold">85-95%</span> of your max capacity. This is a perfect day to push for higher weight or increased volume on compound lifts.</>
-                      : score >= 34
-                        ? <>We recommend training at <span className="text-white font-semibold">60-75%</span> intensity today. Focus on form and moderate volume.</>
-                        : <>We recommend <span className="text-white font-semibold">active recovery</span> today — light cardio, mobility work, or stretching.</>
-                    : <>Connect WHOOP to unlock AI-powered intensity recommendations tailored to your daily recovery.</>}
+                  {readiness
+                    ? <>We recommend training at <span className="text-white font-semibold">{readiness.intensityRecommendation}</span> intensity today. {readiness.recommendation}</>
+                    : hasData && score != null
+                      ? score >= 67
+                        ? <>We've adjusted your training intensity to <span className="text-white font-semibold">85-95%</span> of your max capacity. This is a perfect day to push for higher weight or increased volume on compound lifts.</>
+                        : score >= 34
+                          ? <>We recommend training at <span className="text-white font-semibold">60-75%</span> intensity today. Focus on form and moderate volume.</>
+                          : <>We recommend <span className="text-white font-semibold">active recovery</span> today — light cardio, mobility work, or stretching.</>
+                      : <>Connect WHOOP to unlock AI-powered intensity recommendations tailored to your daily recovery.</>}
                 </p>
               </div>
             </div>

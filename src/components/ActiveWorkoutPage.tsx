@@ -1,6 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Settings, Sparkles, ChevronLeft, ChevronRight, Check, Eye, EyeOff, RefreshCw, Plus, List, Search, Dumbbell, Loader2 } from 'lucide-react';
 import { useWorkouts } from '../hooks/useWorkouts';
+import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
+import { useWhoopData } from '../hooks/useWhoopData';
+import { useAuth } from '../context/AuthContext';
+import { useAICoach } from '../hooks/useAICoach';
 
 interface ActiveWorkoutPageProps {
   onClose: () => void;
@@ -202,7 +206,14 @@ const allExercises: Exercise[] = Object.values(exerciseLibrary).flat().filter(
 
 export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild }: ActiveWorkoutPageProps) {
   const { saveWorkout, saving } = useWorkouts();
+  const { profile } = useAuth();
+  const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 20 });
+  const { data: whoopData } = useWhoopData();
+  const { workoutSuggestions, workoutLoading, fetchWorkoutSuggestions } = useAICoach();
   const startedAt = useRef(new Date().toISOString());
+  const userModifiedWeight = useRef(false);
+  const aiFetched = useRef(false);
+  const [aiNote, setAiNote] = useState<string | null>(null);
 
   // Compute initial exercises with modifiers applied
   const computeInitialExercises = (): Exercise[] => {
@@ -259,6 +270,75 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
       }))
     );
   };
+
+  // Fetch AI suggestions when exercises and history are ready
+  useEffect(() => {
+    if (aiFetched.current || exercises.length === 0 || customBuild) return;
+    aiFetched.current = true;
+
+    // Build per-exercise history from recent workouts
+    const exercisePayload = exercises.map(ex => {
+      const history: { date: string; sets: { weight: number; reps: number }[] }[] = [];
+      for (const w of recentWorkouts) {
+        const matchingEx = w.exercises.find(e => e.exerciseName === ex.name);
+        if (matchingEx) {
+          history.push({
+            date: w.startedAt.split('T')[0],
+            sets: matchingEx.sets.map(s => ({ weight: s.weightLbs || 0, reps: s.reps || 0 })),
+          });
+        }
+        if (history.length >= 3) break;
+      }
+      return {
+        name: ex.name,
+        muscleGroups: ex.muscleGroups,
+        sets: ex.sets,
+        defaultSuggestion: ex.aiSuggestion,
+        history,
+      };
+    });
+
+    fetchWorkoutSuggestions({
+      exercises: exercisePayload,
+      userProfile: {
+        experience: profile?.experience || null,
+        goal: profile?.goal || null,
+        weightLbs: profile?.weight || null,
+      },
+      recovery: whoopData?.recovery ? {
+        score: whoopData.recovery.score,
+        hrv: whoopData.recovery.hrv,
+        sleepScore: whoopData.sleep?.sleepScore ?? null,
+      } : null,
+    });
+  }, [exercises.length, recentWorkouts.length]);
+
+  // Apply AI suggestions when they arrive
+  useEffect(() => {
+    if (!workoutSuggestions) return;
+    setExercises(prev => prev.map(ex => {
+      const s = workoutSuggestions.find(sg => sg.exerciseName === ex.name);
+      if (!s) return ex;
+      return { ...ex, aiSuggestion: { weight: s.weight, reps: s.reps }, sets: s.sets };
+    }));
+
+    // Update current weight/reps if user hasn't manually changed them
+    if (!userModifiedWeight.current) {
+      const currentSuggestion = workoutSuggestions.find(s => s.exerciseName === exercises[currentExerciseIndex]?.name);
+      if (currentSuggestion) {
+        setWeight(currentSuggestion.weight);
+        setReps(parseInt(currentSuggestion.reps.split('-')[0]) || 8);
+        setAiNote(currentSuggestion.note);
+      }
+    }
+  }, [workoutSuggestions]);
+
+  // Update AI note when switching exercises
+  useEffect(() => {
+    if (!workoutSuggestions || !currentExercise) return;
+    const s = workoutSuggestions.find(sg => sg.exerciseName === currentExercise.name);
+    setAiNote(s?.note || null);
+  }, [currentExerciseIndex, workoutSuggestions]);
 
   const logSetData = (exerciseIdx: number, setNum: number, setData: LoggedSet) => {
     setLoggedData(prev => ({
@@ -587,12 +667,19 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-[#00ff00]" />
-                        <span className="text-[11px] text-[#00ff00] font-semibold tracking-wide">AI RECOMMENDS</span>
+                        {workoutLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 text-[#00ff00] animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5 text-[#00ff00]" />
+                        )}
+                        <span className="text-[11px] text-[#00ff00] font-semibold tracking-wide">
+                          {workoutLoading ? 'AI ANALYZING...' : workoutSuggestions ? 'AI PERSONALIZED' : 'AI RECOMMENDS'}
+                        </span>
                       </div>
                       <p className="text-xl font-bold">
                         {currentExercise.aiSuggestion.weight === 0 ? 'Bodyweight' : `${currentExercise.aiSuggestion.weight} lbs`} <span className="text-gray-600">&times;</span> {currentExercise.aiSuggestion.reps}
                       </p>
+                      {aiNote && <p className="text-[10px] text-gray-500 mt-1">{aiNote}</p>}
                     </div>
                     <button
                       onClick={handleUseAISuggestion}
@@ -610,7 +697,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                     <div className="bg-[#1a1a1a] rounded-2xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <button
-                          onClick={() => setWeight(Math.max(0, weight - 5))}
+                          onClick={() => { userModifiedWeight.current = true; setWeight(Math.max(0, weight - 5)); }}
                           className="w-9 h-9 bg-[#252525] hover:bg-[#333333] rounded-xl flex items-center justify-center transition-all active:scale-90"
                         >
                           <span className="text-xl font-bold text-gray-400">&minus;</span>
@@ -620,7 +707,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                           {weight > 0 && <span className="text-xs text-gray-500 ml-1">lbs</span>}
                         </div>
                         <button
-                          onClick={() => setWeight(weight + 5)}
+                          onClick={() => { userModifiedWeight.current = true; setWeight(weight + 5); }}
                           className="w-9 h-9 bg-[#252525] hover:bg-[#333333] rounded-xl flex items-center justify-center transition-all active:scale-90"
                         >
                           <span className="text-xl font-bold text-gray-400">+</span>
