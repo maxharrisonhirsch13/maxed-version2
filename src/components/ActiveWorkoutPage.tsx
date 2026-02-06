@@ -6,42 +6,61 @@ interface ActiveWorkoutPageProps {
   muscleGroup?: string;
 }
 
-const exerciseData = [
-  {
-    id: 1,
-    name: 'Squat',
-    muscleGroups: 'Quads • Glutes • Barbell',
-    videoId: 'ultWZbUMPL8',
-    sets: 5,
-    aiSuggestion: { weight: 225, reps: '8-10' },
-  },
-  {
-    id: 2,
-    name: 'Bench Press',
-    muscleGroups: 'Chest • Triceps • Barbell',
-    videoId: 'rT7DgCr-3pg',
-    sets: 4,
-    aiSuggestion: { weight: 185, reps: '8-12' },
-  },
-  {
-    id: 3,
-    name: 'Deadlift',
-    muscleGroups: 'Back • Hamstrings • Barbell',
-    videoId: 'op9kVnSso6Q',
-    sets: 5,
-    aiSuggestion: { weight: 315, reps: '5-8' },
-  },
-  {
-    id: 4,
-    name: 'Overhead Press',
-    muscleGroups: 'Shoulders • Triceps • Barbell',
-    videoId: '2yjwXTZQDDI',
-    sets: 4,
-    aiSuggestion: { weight: 115, reps: '8-10' },
-  },
-];
+const exercisesByMuscleGroup: Record<string, Array<{
+  id: number;
+  name: string;
+  muscleGroups: string;
+  videoId: string;
+  sets: number;
+  aiSuggestion: { weight: number; reps: string };
+}>> = {
+  'Shoulders/Arms': [
+    { id: 1, name: 'Overhead Press', muscleGroups: 'Shoulders • Triceps • Barbell', videoId: '2yjwXTZQDDI', sets: 4, aiSuggestion: { weight: 115, reps: '8-10' } },
+    { id: 2, name: 'Lateral Raises', muscleGroups: 'Side Delts • Dumbbells', videoId: '3VcKaXpzqRo', sets: 4, aiSuggestion: { weight: 25, reps: '12-15' } },
+    { id: 3, name: 'Barbell Curl', muscleGroups: 'Biceps • Barbell', videoId: 'kwG2ipFRgFo', sets: 4, aiSuggestion: { weight: 75, reps: '10-12' } },
+    { id: 4, name: 'Tricep Pushdowns', muscleGroups: 'Triceps • Cable', videoId: '2-LAMcpzODU', sets: 4, aiSuggestion: { weight: 60, reps: '10-12' } },
+    { id: 5, name: 'Face Pulls', muscleGroups: 'Rear Delts • Cable', videoId: 'rep-qVOkqgk', sets: 3, aiSuggestion: { weight: 40, reps: '15-20' } },
+    { id: 6, name: 'Hammer Curls', muscleGroups: 'Biceps • Brachialis • Dumbbells', videoId: 'zC3nLlEvin4', sets: 3, aiSuggestion: { weight: 35, reps: '10-12' } },
+  ],
+  'Chest': [
+    { id: 1, name: 'Bench Press', muscleGroups: 'Chest • Triceps • Barbell', videoId: 'rT7DgCr-3pg', sets: 4, aiSuggestion: { weight: 185, reps: '8-10' } },
+    { id: 2, name: 'Incline Dumbbell Press', muscleGroups: 'Upper Chest • Dumbbells', videoId: '8iPEnn-ltC8', sets: 4, aiSuggestion: { weight: 70, reps: '10-12' } },
+    { id: 3, name: 'Cable Flyes', muscleGroups: 'Chest • Cable', videoId: 'Iwe6AmxVf7o', sets: 3, aiSuggestion: { weight: 40, reps: '12-15' } },
+    { id: 4, name: 'Dips', muscleGroups: 'Lower Chest • Triceps • Bodyweight', videoId: '2z8JmcrW-As', sets: 3, aiSuggestion: { weight: 0, reps: '10-15' } },
+  ],
+  'Back': [
+    { id: 1, name: 'Deadlift', muscleGroups: 'Back • Hamstrings • Barbell', videoId: 'op9kVnSso6Q', sets: 5, aiSuggestion: { weight: 315, reps: '5-8' } },
+    { id: 2, name: 'Barbell Rows', muscleGroups: 'Back • Biceps • Barbell', videoId: 'FWJR5Ve8bnQ', sets: 4, aiSuggestion: { weight: 155, reps: '8-10' } },
+    { id: 3, name: 'Pull-ups', muscleGroups: 'Lats • Biceps • Bodyweight', videoId: 'eGo4IYlbE5g', sets: 4, aiSuggestion: { weight: 0, reps: '8-12' } },
+    { id: 4, name: 'Lat Pulldown', muscleGroups: 'Lats • Cable', videoId: 'CAwf7n6Luuc', sets: 3, aiSuggestion: { weight: 140, reps: '10-12' } },
+  ],
+  'Legs': [
+    { id: 1, name: 'Squat', muscleGroups: 'Quads • Glutes • Barbell', videoId: 'ultWZbUMPL8', sets: 5, aiSuggestion: { weight: 225, reps: '8-10' } },
+    { id: 2, name: 'Romanian Deadlift', muscleGroups: 'Hamstrings • Glutes • Barbell', videoId: 'jEy_czb3RKA', sets: 4, aiSuggestion: { weight: 185, reps: '8-10' } },
+    { id: 3, name: 'Leg Press', muscleGroups: 'Quads • Glutes • Machine', videoId: 'IZxyjW7MPJQ', sets: 4, aiSuggestion: { weight: 360, reps: '10-12' } },
+    { id: 4, name: 'Leg Curls', muscleGroups: 'Hamstrings • Machine', videoId: '1Tq3QdYUuHs', sets: 3, aiSuggestion: { weight: 100, reps: '12-15' } },
+    { id: 5, name: 'Calf Raises', muscleGroups: 'Calves • Machine', videoId: 'gwLzBJYoWlI', sets: 4, aiSuggestion: { weight: 150, reps: '15-20' } },
+  ],
+  'Push': [
+    { id: 1, name: 'Bench Press', muscleGroups: 'Chest • Triceps • Barbell', videoId: 'rT7DgCr-3pg', sets: 4, aiSuggestion: { weight: 185, reps: '8-10' } },
+    { id: 2, name: 'Overhead Press', muscleGroups: 'Shoulders • Triceps • Barbell', videoId: '2yjwXTZQDDI', sets: 4, aiSuggestion: { weight: 115, reps: '8-10' } },
+    { id: 3, name: 'Incline Dumbbell Press', muscleGroups: 'Upper Chest • Dumbbells', videoId: '8iPEnn-ltC8', sets: 3, aiSuggestion: { weight: 70, reps: '10-12' } },
+    { id: 4, name: 'Lateral Raises', muscleGroups: 'Side Delts • Dumbbells', videoId: '3VcKaXpzqRo', sets: 3, aiSuggestion: { weight: 25, reps: '12-15' } },
+    { id: 5, name: 'Tricep Pushdowns', muscleGroups: 'Triceps • Cable', videoId: '2-LAMcpzODU', sets: 3, aiSuggestion: { weight: 60, reps: '10-12' } },
+  ],
+  'Pull': [
+    { id: 1, name: 'Barbell Rows', muscleGroups: 'Back • Biceps • Barbell', videoId: 'FWJR5Ve8bnQ', sets: 4, aiSuggestion: { weight: 155, reps: '8-10' } },
+    { id: 2, name: 'Pull-ups', muscleGroups: 'Lats • Biceps • Bodyweight', videoId: 'eGo4IYlbE5g', sets: 4, aiSuggestion: { weight: 0, reps: '8-12' } },
+    { id: 3, name: 'Face Pulls', muscleGroups: 'Rear Delts • Cable', videoId: 'rep-qVOkqgk', sets: 3, aiSuggestion: { weight: 40, reps: '15-20' } },
+    { id: 4, name: 'Barbell Curl', muscleGroups: 'Biceps • Barbell', videoId: 'kwG2ipFRgFo', sets: 3, aiSuggestion: { weight: 75, reps: '10-12' } },
+    { id: 5, name: 'Hammer Curls', muscleGroups: 'Biceps • Brachialis • Dumbbells', videoId: 'zC3nLlEvin4', sets: 3, aiSuggestion: { weight: 35, reps: '10-12' } },
+  ],
+};
+
+const defaultExercises = exercisesByMuscleGroup['Shoulders/Arms'];
 
 export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPageProps) {
+  const exerciseData = (muscleGroup && exercisesByMuscleGroup[muscleGroup]) || defaultExercises;
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
   const [weight, setWeight] = useState(exerciseData[0].aiSuggestion.weight);

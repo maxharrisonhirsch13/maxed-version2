@@ -536,15 +536,13 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                       : 'bg-black/30 hover:bg-black/50 border border-transparent'
                   } ${isToday ? 'ring-2 ring-[#00ff00]/50' : ''}`}
                 >
-                  <span className={`text-[11px] font-bold ${workouts.length > 0 ? 'text-white mb-0.5' : 'text-gray-600'}`}>
+                  <span className={`text-[11px] font-bold ${workouts.length > 0 ? 'text-white' : 'text-gray-600'}`}>
                     {day}
                   </span>
                   {workouts.length > 0 && (
-                    <div className="flex flex-col gap-0.5 items-center w-full">
-                      {workouts.map((workout, idx) => (
-                        <span key={idx} className="text-[10px] text-[#00ff00] font-bold leading-tight text-center">
-                          {workout.workoutType}
-                        </span>
+                    <div className="flex gap-0.5 items-center mt-0.5">
+                      {workouts.map((_, idx) => (
+                        <div key={idx} className="w-1.5 h-1.5 rounded-full bg-[#00ff00]" />
                       ))}
                     </div>
                   )}

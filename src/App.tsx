@@ -344,7 +344,7 @@ export default function App() {
       </nav>
 
       {/* Workout Start Page */}
-      {showWorkoutStart && <WorkoutStartPage onClose={() => setShowWorkoutStart(false)} />}
+      {showWorkoutStart && <WorkoutStartPage onClose={() => setShowWorkoutStart(false)} muscleGroup="Shoulders/Arms" />}
 
       {/* Integrations Page */}
       {showIntegrations && <IntegrationsPage onBack={() => setShowIntegrations(false)} />}
