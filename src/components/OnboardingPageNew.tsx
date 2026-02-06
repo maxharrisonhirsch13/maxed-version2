@@ -1,0 +1,746 @@
+import { ChevronRight, User, Phone, Ruler, Weight, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+interface OnboardingData {
+  name: string;
+  phoneNumber: string;
+  verificationCode: string;
+  heightFeet: number;
+  heightInches: number;
+  weight: number;
+  experience: 'beginner' | 'intermediate' | 'advanced' | '';
+  gym: string;
+  isHomeGym: boolean;
+  wearables: string[];
+  goal: string;
+  customGoal: string;
+  split: string;
+  customSplit: { day: number; muscles: string[] }[];
+}
+
+interface OnboardingPageProps {
+  onComplete: (data: OnboardingData) => void;
+}
+
+export function OnboardingPage({ onComplete }: OnboardingPageProps) {
+  const [step, setStep] = useState(1);
+  const [data, setData] = useState<OnboardingData>({
+    name: '',
+    phoneNumber: '',
+    verificationCode: '',
+    heightFeet: 5,
+    heightInches: 10,
+    weight: 175,
+    experience: '',
+    gym: '',
+    isHomeGym: false,
+    wearables: [],
+    goal: '',
+    customGoal: '',
+    split: '',
+    customSplit: []
+  });
+
+  const [showAIGoalInput, setShowAIGoalInput] = useState(false);
+  const [showCustomSplit, setShowCustomSplit] = useState(false);
+  const [splitDays, setSplitDays] = useState(6);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
+  const totalSteps = 10;
+
+  const formatPhoneNumber = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    const limited = cleaned.slice(0, 10);
+    
+    if (limited.length <= 3) return limited;
+    if (limited.length <= 6) return `(${limited.slice(0, 3)}) ${limited.slice(3)}`;
+    return `(${limited.slice(0, 3)}) ${limited.slice(3, 6)}-${limited.slice(6)}`;
+  };
+
+  const handleNext = () => {
+    if (step === 8 && data.goal === 'Ask AI') {
+      setShowAIGoalInput(true);
+      return;
+    }
+    if (step === 9 && data.split === 'custom') {
+      setShowCustomSplit(true);
+      return;
+    }
+    if (step < totalSteps) {
+      setStep(step + 1);
+    } else {
+      setIsLoading(true);
+    }
+  };
+
+  // Loading animation
+  useEffect(() => {
+    if (isLoading) {
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setTimeout(() => {
+              onComplete(data);
+            }, 500);
+            return 100;
+          }
+          return prev + 2;
+        });
+      }, 50);
+      return () => clearInterval(interval);
+    }
+  }, [isLoading, data, onComplete]);
+
+  const isStepValid = () => {
+    switch (step) {
+      case 1: return data.name.trim().length > 0;
+      case 2: return data.phoneNumber.replace(/\D/g, '').length === 10;
+      case 3: return data.verificationCode.length === 6;
+      case 4: return data.heightFeet > 0 && data.weight > 0;
+      case 5: return data.experience !== '';
+      case 6: return data.isHomeGym || data.gym.length > 0;
+      case 7: return true; // Wearables are optional
+      case 8: return data.goal !== '';
+      case 9: return data.split !== '';
+      case 10: return true;
+      default: return false;
+    }
+  };
+
+  const wearableOptions = [
+    { value: 'whoop', label: 'WHOOP', icon: <Activity className="w-5 h-5" />, color: 'from-red-500 to-pink-600' },
+    { value: 'oura', label: 'Oura Ring', icon: <Zap className="w-5 h-5" />, color: 'from-purple-500 to-indigo-600' },
+    { value: 'apple-health', label: 'Apple Health', icon: <Heart className="w-5 h-5" />, color: 'from-red-500 to-pink-500' },
+    { value: 'fitbit', label: 'Fitbit', icon: <Activity className="w-5 h-5" />, color: 'from-teal-500 to-cyan-600' },
+    { value: 'garmin', label: 'Garmin', icon: <Watch className="w-5 h-5" />, color: 'from-blue-500 to-indigo-600' },
+  ];
+
+  const muscleGroups = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio'];
+
+  const toggleWearable = (value: string) => {
+    if (data.wearables.includes(value)) {
+      setData({ ...data, wearables: data.wearables.filter(w => w !== value) });
+    } else {
+      setData({ ...data, wearables: [...data.wearables, value] });
+    }
+  };
+
+  // Loading Screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-5">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-full mx-auto mb-6 flex items-center justify-center animate-pulse">
+              <Sparkles className="w-10 h-10 text-black" />
+            </div>
+            <h1 className="text-3xl font-bold mb-2">Get Maxed</h1>
+            <p className="text-gray-400 text-sm">Curating your personalized workout plan...</p>
+          </div>
+
+          <div className="bg-[#0a0a0a] rounded-full h-3 overflow-hidden mb-3">
+            <div 
+              className="h-full bg-gradient-to-r from-[#00ff00] to-[#00cc00] transition-all duration-300 ease-out"
+              style={{ width: `${loadingProgress}%` }}
+            />
+          </div>
+          <p className="text-center text-xs text-gray-500">{loadingProgress}%</p>
+
+          <div className="mt-8 space-y-2 text-center text-sm text-gray-400">
+            {loadingProgress < 30 && <p>Analyzing your fitness profile...</p>}
+            {loadingProgress >= 30 && loadingProgress < 60 && <p>Building your workout split...</p>}
+            {loadingProgress >= 60 && loadingProgress < 90 && <p>Selecting optimal exercises...</p>}
+            {loadingProgress >= 90 && <p>Finalizing your plan...</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // AI Goal Input Screen
+  if (showAIGoalInput) {
+    return (
+      <div className="min-h-screen bg-black text-white px-5 py-8">
+        <div className="max-w-md mx-auto">
+          <button onClick={() => setShowAIGoalInput(false)} className="text-gray-400 text-sm mb-8">
+            ← Back
+          </button>
+
+          <div className="mb-8">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+              <Sparkles className="w-6 h-6 text-black" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Tell Us Your Goals</h2>
+            <p className="text-gray-400 text-sm">Describe what you want to achieve and we'll personalize your plan</p>
+          </div>
+
+          <textarea
+            value={data.customGoal}
+            onChange={(e) => setData({ ...data, customGoal: e.target.value })}
+            placeholder="I want to build muscle while staying lean, focusing on upper body strength and improving my endurance..."
+            className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl px-4 py-4 text-white placeholder-gray-600 text-sm resize-none h-48 focus:outline-none focus:border-[#00ff00] transition-colors"
+          />
+
+          <button
+            onClick={() => {
+              setShowAIGoalInput(false);
+              setStep(9);
+            }}
+            disabled={data.customGoal.trim().length < 10}
+            className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2 mt-6"
+          >
+            Continue
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Custom Split Screen
+  if (showCustomSplit) {
+    return (
+      <div className="min-h-screen bg-black text-white px-5 py-8 pb-24">
+        <div className="max-w-md mx-auto">
+          <button onClick={() => setShowCustomSplit(false)} className="text-gray-400 text-sm mb-8">
+            ← Back
+          </button>
+
+          <div className="mb-8">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+              <Calendar className="w-6 h-6 text-black" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Custom Split</h2>
+            <p className="text-gray-400 text-sm mb-4">Select muscle groups for each training day</p>
+
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-sm font-medium">Days per week:</label>
+              <select
+                value={splitDays}
+                onChange={(e) => {
+                  const days = parseInt(e.target.value);
+                  setSplitDays(days);
+                  setData({
+                    ...data,
+                    customSplit: Array.from({ length: days }, (_, i) => ({
+                      day: i + 1,
+                      muscles: data.customSplit[i]?.muscles || []
+                    }))
+                  });
+                }}
+                className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#00ff00]"
+              >
+                {[3, 4, 5, 6, 7].map(num => (
+                  <option key={num} value={num}>{num}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-4 mb-6">
+            {Array.from({ length: splitDays }, (_, idx) => {
+              const dayData = data.customSplit[idx] || { day: idx + 1, muscles: [] };
+              return (
+                <div key={idx} className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-4">
+                  <h3 className="font-bold text-sm mb-3">Day {idx + 1}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {muscleGroups.map(muscle => {
+                      const isSelected = dayData.muscles.includes(muscle);
+                      return (
+                        <button
+                          key={muscle}
+                          onClick={() => {
+                            const newCustomSplit = [...data.customSplit];
+                            if (!newCustomSplit[idx]) {
+                              newCustomSplit[idx] = { day: idx + 1, muscles: [] };
+                            }
+                            const muscles = newCustomSplit[idx].muscles;
+                            if (isSelected) {
+                              newCustomSplit[idx].muscles = muscles.filter(m => m !== muscle);
+                            } else {
+                              newCustomSplit[idx].muscles = [...muscles, muscle];
+                            }
+                            setData({ ...data, customSplit: newCustomSplit });
+                          }}
+                          className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                            isSelected
+                              ? 'bg-[#00ff00] text-black'
+                              : 'bg-black/50 text-gray-400 hover:bg-black/70'
+                          }`}
+                        >
+                          {muscle}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => {
+              setShowCustomSplit(false);
+              setStep(10);
+            }}
+            disabled={!data.customSplit.every(day => day.muscles.length > 0)}
+            className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
+          >
+            Continue
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-white px-5 py-8">
+      <div className="max-w-md mx-auto">
+        {/* Progress Indicator */}
+        <div className="flex gap-2 mb-12">
+          {Array.from({ length: totalSteps }).map((_, idx) => (
+            <div
+              key={idx}
+              className={`h-1 flex-1 rounded-full transition-all ${
+                idx + 1 <= step ? 'bg-[#00ff00]' : 'bg-gray-800'
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Step Content */}
+        <div className="mb-12">
+          {/* Step 1: Name */}
+          {step === 1 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <User className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">What's your name?</h2>
+              <p className="text-gray-400 text-sm mb-8">Let's personalize your experience</p>
+              <input
+                type="text"
+                value={data.name}
+                onChange={(e) => setData({ ...data, name: e.target.value })}
+                placeholder="Enter your full name"
+                className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl px-4 py-4 text-white placeholder-gray-600 text-base focus:outline-none focus:border-[#00ff00] transition-colors"
+                autoFocus
+              />
+            </>
+          )}
+
+          {/* Step 2: Phone */}
+          {step === 2 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Phone className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Phone number</h2>
+              <p className="text-gray-400 text-sm mb-8">We'll send you a verification code</p>
+              <input
+                type="tel"
+                value={data.phoneNumber}
+                onChange={(e) => setData({ ...data, phoneNumber: formatPhoneNumber(e.target.value) })}
+                placeholder="(555) 123-4567"
+                className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl px-4 py-4 text-white placeholder-gray-600 text-base focus:outline-none focus:border-[#00ff00] transition-colors"
+                autoFocus
+              />
+            </>
+          )}
+
+          {/* Step 3: Verification Code */}
+          {step === 3 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Check className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Enter verification code</h2>
+              <p className="text-gray-400 text-sm mb-8">We sent a code to {data.phoneNumber}</p>
+              <input
+                type="text"
+                value={data.verificationCode}
+                onChange={(e) => setData({ ...data, verificationCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                placeholder="000000"
+                className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl px-4 py-4 text-white placeholder-gray-600 text-base focus:outline-none focus:border-[#00ff00] transition-colors text-center tracking-widest text-2xl font-bold"
+                autoFocus
+                maxLength={6}
+              />
+              <button className="w-full mt-4 text-sm text-gray-500 hover:text-white transition-colors">
+                Resend code
+              </button>
+            </>
+          )}
+
+          {/* Step 4: Height & Weight */}
+          {step === 4 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Ruler className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Your stats</h2>
+              <p className="text-gray-400 text-sm mb-8">Help us track your progress</p>
+
+              {/* Height Inputs */}
+              <div className="mb-6">
+                <label className="text-sm font-medium mb-3 block">Height</label>
+                <div className="flex gap-3 items-center">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      min="3"
+                      max="8"
+                      value={data.heightFeet}
+                      onChange={(e) => setData({ ...data, heightFeet: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-[#0a0a0a] border border-gray-800 rounded-xl px-4 py-3 text-white text-center text-lg focus:outline-none focus:border-[#00ff00] transition-colors"
+                      placeholder="5"
+                    />
+                    <p className="text-center text-xs text-gray-500 mt-1.5">feet</p>
+                  </div>
+                  <span className="text-2xl text-gray-600 pb-5">'</span>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="11"
+                      value={data.heightInches}
+                      onChange={(e) => setData({ ...data, heightInches: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-[#0a0a0a] border border-gray-800 rounded-xl px-4 py-3 text-white text-center text-lg focus:outline-none focus:border-[#00ff00] transition-colors"
+                      placeholder="10"
+                    />
+                    <p className="text-center text-xs text-gray-500 mt-1.5">inches</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Weight Slider */}
+              <div>
+                <label className="text-sm font-medium mb-3 block">Weight (lbs)</label>
+                <div className="relative">
+                  <input
+                    type="range"
+                    min="100"
+                    max="350"
+                    step="1"
+                    value={data.weight}
+                    onChange={(e) => setData({ ...data, weight: parseInt(e.target.value) })}
+                    className="w-full h-2 rounded-lg appearance-none cursor-pointer slider-green"
+                  />
+                  <style>{`
+                    .slider-green {
+                      background: linear-gradient(to right, #00ff00 0%, #00ff00 ${((data.weight - 100) / 250) * 100}%, #1a1a1a ${((data.weight - 100) / 250) * 100}%, #1a1a1a 100%);
+                    }
+                    .slider-green::-webkit-slider-thumb {
+                      appearance: none;
+                      width: 20px;
+                      height: 20px;
+                      border-radius: 50%;
+                      background: #00ff00;
+                      cursor: pointer;
+                      box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+                    }
+                    .slider-green::-moz-range-thumb {
+                      width: 20px;
+                      height: 20px;
+                      border-radius: 50%;
+                      background: #00ff00;
+                      cursor: pointer;
+                      border: none;
+                      box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+                    }
+                  `}</style>
+                </div>
+                <div className="text-center mt-3">
+                  <span className="text-3xl font-bold">{data.weight}</span>
+                  <span className="text-gray-500 ml-2">lbs</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Step 5: Experience */}
+          {step === 5 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Dumbbell className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Lifting experience?</h2>
+              <p className="text-gray-400 text-sm mb-8">This helps us recommend the right workouts</p>
+              
+              <div className="space-y-3">
+                {[
+                  { value: 'beginner', label: 'Beginner', desc: 'New to lifting or less than 1 year' },
+                  { value: 'intermediate', label: 'Intermediate', desc: '1-3 years of consistent training' },
+                  { value: 'advanced', label: 'Advanced', desc: '3+ years with solid technique' }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setData({ ...data, experience: option.value as any })}
+                    className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
+                      data.experience === option.value
+                        ? 'border-[#00ff00] bg-[#00ff00]/10'
+                        : 'border-gray-800 bg-[#0a0a0a] hover:border-gray-700'
+                    }`}
+                  >
+                    <div className="font-bold text-base mb-1">{option.label}</div>
+                    <div className="text-xs text-gray-400">{option.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Step 6: Gym Location */}
+          {step === 6 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <MapPin className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Where do you train?</h2>
+              <p className="text-gray-400 text-sm mb-8">Find gyms near you or train at home</p>
+
+              <div className="space-y-3 mb-4">
+                <button
+                  onClick={() => setData({ ...data, isHomeGym: true, gym: 'Home Gym' })}
+                  className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
+                    data.isHomeGym
+                      ? 'border-[#00ff00] bg-[#00ff00]/10'
+                      : 'border-gray-800 bg-[#0a0a0a] hover:border-gray-700'
+                  }`}
+                >
+                  <HomeIcon className="w-5 h-5" />
+                  <div className="text-left flex-1">
+                    <div className="font-bold text-base">I work out at home</div>
+                    <div className="text-xs text-gray-400">Bodyweight & home equipment</div>
+                  </div>
+                </button>
+              </div>
+
+              {!data.isHomeGym && (
+                <>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-px bg-gray-800 flex-1" />
+                    <span className="text-xs text-gray-500">OR</span>
+                    <div className="h-px bg-gray-800 flex-1" />
+                  </div>
+
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <input
+                      type="text"
+                      value={data.isHomeGym ? '' : data.gym}
+                      onChange={(e) => setData({ ...data, gym: e.target.value, isHomeGym: false })}
+                      placeholder="Enter area code or gym name"
+                      className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl pl-12 pr-4 py-4 text-white placeholder-gray-600 text-base focus:outline-none focus:border-[#00ff00] transition-colors"
+                    />
+                  </div>
+
+                  {data.gym && !data.isHomeGym && (
+                    <div className="mt-4 space-y-2">
+                      {['Gold\'s Gym - Downtown', 'LA Fitness - Main St', 'Planet Fitness - Oak Ave'].map((gym, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setData({ ...data, gym, isHomeGym: false })}
+                          className="w-full p-3 bg-[#0a0a0a] border border-gray-800 rounded-xl text-left hover:border-gray-700 transition-colors"
+                        >
+                          <div className="font-medium text-sm">{gym}</div>
+                          <div className="text-xs text-gray-500">2.3 mi away</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* Step 7: Wearables */}
+          {step === 7 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Watch className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Connect wearables</h2>
+              <p className="text-gray-400 text-sm mb-8">Sync your fitness data automatically (optional)</p>
+
+              <div className="space-y-3 mb-4">
+                {wearableOptions.map((wearable) => (
+                  <button
+                    key={wearable.value}
+                    onClick={() => toggleWearable(wearable.value)}
+                    className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
+                      data.wearables.includes(wearable.value)
+                        ? 'border-[#00ff00] bg-[#00ff00]/10'
+                        : 'border-gray-800 bg-[#0a0a0a] hover:border-gray-700'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 bg-gradient-to-br ${wearable.color} rounded-xl flex items-center justify-center text-white`}>
+                      {wearable.icon}
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-bold text-base">{wearable.label}</div>
+                    </div>
+                    {data.wearables.includes(wearable.value) && (
+                      <Check className="w-5 h-5 text-[#00ff00]" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setStep(8)}
+                className="w-full text-sm text-gray-500 hover:text-white transition-colors"
+              >
+                Skip for now
+              </button>
+            </>
+          )}
+
+          {/* Step 8: Goals */}
+          {step === 8 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Target className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">What's your goal?</h2>
+              <p className="text-gray-400 text-sm mb-8">We'll customize your plan to help you achieve it</p>
+
+              <div className="space-y-3">
+                {[
+                  { value: 'lean', label: 'Get Lean', desc: 'Cut fat while maintaining muscle' },
+                  { value: 'muscle', label: 'Build Muscle', desc: 'Maximize hypertrophy and size' },
+                  { value: 'strength', label: 'Gain Strength', desc: 'Increase your max lifts' },
+                  { value: 'fitness', label: 'General Fitness', desc: 'Stay healthy and active' },
+                  { value: 'athletic', label: 'Athletic Performance', desc: 'Power, speed, and explosiveness' },
+                  { value: 'Ask AI', label: 'Ask AI', desc: 'Describe your custom goals', icon: <Sparkles className="w-4 h-4" /> }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setData({ ...data, goal: option.value })}
+                    className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
+                      data.goal === option.value
+                        ? 'border-[#00ff00] bg-[#00ff00]/10'
+                        : 'border-gray-800 bg-[#0a0a0a] hover:border-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="font-bold text-base">{option.label}</div>
+                      {option.icon && <span className="text-[#00ff00]">{option.icon}</span>}
+                    </div>
+                    <div className="text-xs text-gray-400">{option.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Step 9: Split */}
+          {step === 9 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Calendar className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Choose your split</h2>
+              <p className="text-gray-400 text-sm mb-8">Pick a training program that fits your schedule</p>
+
+              <div className="space-y-3">
+                {[
+                  { value: 'ppl', label: 'Push Pull Legs', desc: '6 days/week - Balanced muscle development' },
+                  { value: 'arnold', label: "Arnold Split", desc: '6 days/week - Classic bodybuilding routine' },
+                  { value: 'bro', label: 'Bro Split', desc: '5 days/week - One muscle group per day' },
+                  { value: 'upper-lower', label: 'Upper/Lower', desc: '4 days/week - Strength focused' },
+                  { value: 'custom', label: 'Custom Split', desc: 'Build your own training schedule', icon: <Sparkles className="w-4 h-4" /> }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setData({ ...data, split: option.value })}
+                    className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
+                      data.split === option.value
+                        ? 'border-[#00ff00] bg-[#00ff00]/10'
+                        : 'border-gray-800 bg-[#0a0a0a] hover:border-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="font-bold text-base">{option.label}</div>
+                      {option.icon && <span className="text-[#00ff00]">{option.icon}</span>}
+                    </div>
+                    <div className="text-xs text-gray-400">{option.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Step 10: Final Review */}
+          {step === 10 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Sparkles className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">You're all set!</h2>
+              <p className="text-gray-400 text-sm mb-8">Review your profile and let's get started</p>
+
+              <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-4 space-y-3">
+                <div>
+                  <p className="text-xs text-gray-500">Name</p>
+                  <p className="font-medium">{data.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Stats</p>
+                  <p className="font-medium">{data.heightFeet}'{data.heightInches}", {data.weight} lbs</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Experience</p>
+                  <p className="font-medium capitalize">{data.experience}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Training Location</p>
+                  <p className="font-medium">{data.gym}</p>
+                </div>
+                {data.wearables.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500">Connected Wearables</p>
+                    <p className="font-medium">{data.wearables.length} device{data.wearables.length > 1 ? 's' : ''} connected</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-gray-500">Goal</p>
+                  <p className="font-medium">
+                    {data.goal === 'Ask AI' ? data.customGoal : 
+                     data.goal === 'lean' ? 'Get Lean' :
+                     data.goal === 'muscle' ? 'Build Muscle' :
+                     data.goal === 'strength' ? 'Gain Strength' :
+                     data.goal === 'fitness' ? 'General Fitness' :
+                     data.goal === 'athletic' ? 'Athletic Performance' : data.goal}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Training Split</p>
+                  <p className="font-medium">
+                    {data.split === 'ppl' ? 'Push Pull Legs' :
+                     data.split === 'arnold' ? 'Arnold Split' :
+                     data.split === 'bro' ? 'Bro Split' :
+                     data.split === 'upper-lower' ? 'Upper/Lower' :
+                     data.split === 'custom' ? 'Custom Split' : data.split}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Next Button */}
+        <button
+          onClick={handleNext}
+          disabled={!isStepValid()}
+          className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
+        >
+          {step === 10 ? 'Get Maxed' : 'Continue'}
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
