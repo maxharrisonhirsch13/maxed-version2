@@ -21,61 +21,177 @@ interface Exercise {
   aiSuggestion: { weight: number; reps: string };
 }
 
-const exercisesByMuscleGroup: Record<string, Exercise[]> = {
-  'Shoulders/Arms': [
-    { id: 1, name: 'Overhead Press', muscleGroups: 'Shoulders • Triceps • Barbell', videoId: '2yjwXTZQDDI', sets: 4, aiSuggestion: { weight: 115, reps: '8-10' } },
-    { id: 2, name: 'Lateral Raises', muscleGroups: 'Side Delts • Dumbbells', videoId: '3VcKaXpzqRo', sets: 4, aiSuggestion: { weight: 25, reps: '12-15' } },
-    { id: 3, name: 'Barbell Curl', muscleGroups: 'Biceps • Barbell', videoId: 'kwG2ipFRgFo', sets: 4, aiSuggestion: { weight: 75, reps: '10-12' } },
-    { id: 4, name: 'Tricep Pushdowns', muscleGroups: 'Triceps • Cable', videoId: '2-LAMcpzODU', sets: 4, aiSuggestion: { weight: 60, reps: '10-12' } },
-    { id: 5, name: 'Face Pulls', muscleGroups: 'Rear Delts • Cable', videoId: 'rep-qVOkqgk', sets: 3, aiSuggestion: { weight: 40, reps: '15-20' } },
-    { id: 6, name: 'Hammer Curls', muscleGroups: 'Biceps • Brachialis • Dumbbells', videoId: 'zC3nLlEvin4', sets: 3, aiSuggestion: { weight: 35, reps: '10-12' } },
-  ],
+// Master exercise library organized by primary muscle
+const exerciseLibrary: Record<string, Exercise[]> = {
   'Chest': [
-    { id: 1, name: 'Bench Press', muscleGroups: 'Chest • Triceps • Barbell', videoId: 'rT7DgCr-3pg', sets: 4, aiSuggestion: { weight: 185, reps: '8-10' } },
-    { id: 2, name: 'Incline Dumbbell Press', muscleGroups: 'Upper Chest • Dumbbells', videoId: '8iPEnn-ltC8', sets: 4, aiSuggestion: { weight: 70, reps: '10-12' } },
-    { id: 3, name: 'Cable Flyes', muscleGroups: 'Chest • Cable', videoId: 'Iwe6AmxVf7o', sets: 3, aiSuggestion: { weight: 40, reps: '12-15' } },
-    { id: 4, name: 'Dips', muscleGroups: 'Lower Chest • Triceps • Bodyweight', videoId: '2z8JmcrW-As', sets: 3, aiSuggestion: { weight: 0, reps: '10-15' } },
+    { id: 101, name: 'Bench Press', muscleGroups: 'Chest • Triceps • Barbell', videoId: 'rT7DgCr-3pg', sets: 4, aiSuggestion: { weight: 185, reps: '8-10' } },
+    { id: 102, name: 'Incline Dumbbell Press', muscleGroups: 'Upper Chest • Dumbbells', videoId: '8iPEnn-ltC8', sets: 4, aiSuggestion: { weight: 70, reps: '10-12' } },
+    { id: 103, name: 'Cable Flyes', muscleGroups: 'Chest • Cable', videoId: 'Iwe6AmxVf7o', sets: 3, aiSuggestion: { weight: 40, reps: '12-15' } },
+    { id: 104, name: 'Dips', muscleGroups: 'Lower Chest • Triceps • Bodyweight', videoId: '2z8JmcrW-As', sets: 3, aiSuggestion: { weight: 0, reps: '10-15' } },
+    { id: 105, name: 'Dumbbell Flyes', muscleGroups: 'Chest • Dumbbells', videoId: 'eozdVDA78K0', sets: 3, aiSuggestion: { weight: 35, reps: '12-15' } },
+    { id: 106, name: 'Incline Barbell Press', muscleGroups: 'Upper Chest • Barbell', videoId: 'SrqOu55lrYU', sets: 4, aiSuggestion: { weight: 155, reps: '8-10' } },
+    { id: 107, name: 'Decline Bench Press', muscleGroups: 'Lower Chest • Barbell', videoId: 'LfyQBUKR8SE', sets: 3, aiSuggestion: { weight: 175, reps: '8-10' } },
+    { id: 108, name: 'Chest Press Machine', muscleGroups: 'Chest • Machine', videoId: 'xUm0BiZCWlQ', sets: 3, aiSuggestion: { weight: 140, reps: '10-12' } },
+    { id: 109, name: 'Push-ups', muscleGroups: 'Chest • Bodyweight', videoId: 'IODxDxX7oi4', sets: 3, aiSuggestion: { weight: 0, reps: '15-20' } },
+    { id: 110, name: 'Pec Deck', muscleGroups: 'Chest • Machine', videoId: 'Z57CtFmRMxA', sets: 3, aiSuggestion: { weight: 120, reps: '12-15' } },
   ],
   'Back': [
-    { id: 1, name: 'Deadlift', muscleGroups: 'Back • Hamstrings • Barbell', videoId: 'op9kVnSso6Q', sets: 5, aiSuggestion: { weight: 315, reps: '5-8' } },
-    { id: 2, name: 'Barbell Rows', muscleGroups: 'Back • Biceps • Barbell', videoId: 'FWJR5Ve8bnQ', sets: 4, aiSuggestion: { weight: 155, reps: '8-10' } },
-    { id: 3, name: 'Pull-ups', muscleGroups: 'Lats • Biceps • Bodyweight', videoId: 'eGo4IYlbE5g', sets: 4, aiSuggestion: { weight: 0, reps: '8-12' } },
-    { id: 4, name: 'Lat Pulldown', muscleGroups: 'Lats • Cable', videoId: 'CAwf7n6Luuc', sets: 3, aiSuggestion: { weight: 140, reps: '10-12' } },
+    { id: 201, name: 'Deadlift', muscleGroups: 'Back • Hamstrings • Barbell', videoId: 'op9kVnSso6Q', sets: 5, aiSuggestion: { weight: 315, reps: '5-8' } },
+    { id: 202, name: 'Barbell Rows', muscleGroups: 'Back • Biceps • Barbell', videoId: 'FWJR5Ve8bnQ', sets: 4, aiSuggestion: { weight: 155, reps: '8-10' } },
+    { id: 203, name: 'Pull-ups', muscleGroups: 'Lats • Biceps • Bodyweight', videoId: 'eGo4IYlbE5g', sets: 4, aiSuggestion: { weight: 0, reps: '8-12' } },
+    { id: 204, name: 'Lat Pulldown', muscleGroups: 'Lats • Cable', videoId: 'CAwf7n6Luuc', sets: 3, aiSuggestion: { weight: 140, reps: '10-12' } },
+    { id: 205, name: 'Seated Cable Row', muscleGroups: 'Back • Cable', videoId: 'GZbfZ033f74', sets: 3, aiSuggestion: { weight: 130, reps: '10-12' } },
+    { id: 206, name: 'Dumbbell Rows', muscleGroups: 'Back • Dumbbells', videoId: 'pYcpY20QaE8', sets: 3, aiSuggestion: { weight: 70, reps: '10-12' } },
+    { id: 207, name: 'T-Bar Rows', muscleGroups: 'Back • Barbell', videoId: 'j3Igk5nyZE4', sets: 4, aiSuggestion: { weight: 135, reps: '8-10' } },
+    { id: 208, name: 'Chin-ups', muscleGroups: 'Lats • Biceps • Bodyweight', videoId: 'brhRXlOhsAM', sets: 3, aiSuggestion: { weight: 0, reps: '8-12' } },
+    { id: 209, name: 'Straight Arm Pulldown', muscleGroups: 'Lats • Cable', videoId: 'AjCCGN2tU3Q', sets: 3, aiSuggestion: { weight: 50, reps: '12-15' } },
+  ],
+  'Shoulders': [
+    { id: 301, name: 'Overhead Press', muscleGroups: 'Shoulders • Triceps • Barbell', videoId: '2yjwXTZQDDI', sets: 4, aiSuggestion: { weight: 115, reps: '8-10' } },
+    { id: 302, name: 'Lateral Raises', muscleGroups: 'Side Delts • Dumbbells', videoId: '3VcKaXpzqRo', sets: 4, aiSuggestion: { weight: 25, reps: '12-15' } },
+    { id: 303, name: 'Face Pulls', muscleGroups: 'Rear Delts • Cable', videoId: 'rep-qVOkqgk', sets: 3, aiSuggestion: { weight: 40, reps: '15-20' } },
+    { id: 304, name: 'Dumbbell Shoulder Press', muscleGroups: 'Shoulders • Dumbbells', videoId: 'qEwKCR5JCog', sets: 4, aiSuggestion: { weight: 50, reps: '8-10' } },
+    { id: 305, name: 'Arnold Press', muscleGroups: 'Shoulders • Dumbbells', videoId: '6Z15_WdXmVw', sets: 3, aiSuggestion: { weight: 45, reps: '10-12' } },
+    { id: 306, name: 'Reverse Flyes', muscleGroups: 'Rear Delts • Dumbbells', videoId: 'oLrBD5bBkZg', sets: 3, aiSuggestion: { weight: 20, reps: '12-15' } },
+    { id: 307, name: 'Cable Lateral Raises', muscleGroups: 'Side Delts • Cable', videoId: 'PPrzBWZDOhA', sets: 3, aiSuggestion: { weight: 15, reps: '12-15' } },
+    { id: 308, name: 'Front Raises', muscleGroups: 'Front Delts • Dumbbells', videoId: '-t7fuZ0KhDA', sets: 3, aiSuggestion: { weight: 25, reps: '12-15' } },
+    { id: 309, name: 'Upright Rows', muscleGroups: 'Shoulders • Traps • Barbell', videoId: 'amCU-ziHITM', sets: 3, aiSuggestion: { weight: 65, reps: '10-12' } },
+    { id: 310, name: 'Shrugs', muscleGroups: 'Traps • Dumbbells', videoId: 'cJRVVxmytaM', sets: 3, aiSuggestion: { weight: 70, reps: '12-15' } },
+  ],
+  'Biceps': [
+    { id: 401, name: 'Barbell Curl', muscleGroups: 'Biceps • Barbell', videoId: 'kwG2ipFRgFo', sets: 4, aiSuggestion: { weight: 75, reps: '10-12' } },
+    { id: 402, name: 'Hammer Curls', muscleGroups: 'Biceps • Brachialis • Dumbbells', videoId: 'zC3nLlEvin4', sets: 3, aiSuggestion: { weight: 35, reps: '10-12' } },
+    { id: 403, name: 'Incline Dumbbell Curl', muscleGroups: 'Biceps • Dumbbells', videoId: 'soxrZlIl35U', sets: 3, aiSuggestion: { weight: 30, reps: '10-12' } },
+    { id: 404, name: 'Preacher Curls', muscleGroups: 'Biceps • Machine', videoId: 'fIWP-FRFNU0', sets: 3, aiSuggestion: { weight: 55, reps: '10-12' } },
+    { id: 405, name: 'Cable Curls', muscleGroups: 'Biceps • Cable', videoId: 'NFzTWp2qpiE', sets: 3, aiSuggestion: { weight: 40, reps: '12-15' } },
+    { id: 406, name: 'Concentration Curls', muscleGroups: 'Biceps • Dumbbells', videoId: '0AUGkch3tzc', sets: 3, aiSuggestion: { weight: 30, reps: '10-12' } },
+    { id: 407, name: 'EZ Bar Curl', muscleGroups: 'Biceps • EZ Bar', videoId: 'zG2xJ0Q5QtI', sets: 3, aiSuggestion: { weight: 65, reps: '10-12' } },
+    { id: 408, name: 'Spider Curls', muscleGroups: 'Biceps • Dumbbells', videoId: 'yN6Q1UI_xkE', sets: 3, aiSuggestion: { weight: 25, reps: '10-12' } },
+    { id: 409, name: 'Reverse Curls', muscleGroups: 'Forearms • Biceps • Barbell', videoId: 'nRgxYX2Ve9w', sets: 3, aiSuggestion: { weight: 45, reps: '12-15' } },
+  ],
+  'Triceps': [
+    { id: 501, name: 'Tricep Pushdowns', muscleGroups: 'Triceps • Cable', videoId: '2-LAMcpzODU', sets: 4, aiSuggestion: { weight: 60, reps: '10-12' } },
+    { id: 502, name: 'Skull Crushers', muscleGroups: 'Triceps • EZ Bar', videoId: 'd_KZxkY_0cM', sets: 3, aiSuggestion: { weight: 65, reps: '10-12' } },
+    { id: 503, name: 'Overhead Tricep Extension', muscleGroups: 'Triceps • Cable', videoId: 'kiuVA0gs3EI', sets: 3, aiSuggestion: { weight: 50, reps: '10-12' } },
+    { id: 504, name: 'Close-Grip Bench Press', muscleGroups: 'Triceps • Chest • Barbell', videoId: 'nEF0bv2FW94', sets: 3, aiSuggestion: { weight: 135, reps: '8-10' } },
+    { id: 505, name: 'Tricep Kickbacks', muscleGroups: 'Triceps • Dumbbells', videoId: 'ZO81bExngMI', sets: 3, aiSuggestion: { weight: 20, reps: '12-15' } },
+    { id: 506, name: 'Diamond Push-ups', muscleGroups: 'Triceps • Bodyweight', videoId: 'J0DnG1_S3li', sets: 3, aiSuggestion: { weight: 0, reps: '12-15' } },
+    { id: 507, name: 'Rope Pushdowns', muscleGroups: 'Triceps • Cable', videoId: 'vB5OHsJ3EME', sets: 3, aiSuggestion: { weight: 45, reps: '12-15' } },
   ],
   'Legs': [
-    { id: 1, name: 'Squat', muscleGroups: 'Quads • Glutes • Barbell', videoId: 'ultWZbUMPL8', sets: 5, aiSuggestion: { weight: 225, reps: '8-10' } },
-    { id: 2, name: 'Romanian Deadlift', muscleGroups: 'Hamstrings • Glutes • Barbell', videoId: 'jEy_czb3RKA', sets: 4, aiSuggestion: { weight: 185, reps: '8-10' } },
-    { id: 3, name: 'Leg Press', muscleGroups: 'Quads • Glutes • Machine', videoId: 'IZxyjW7MPJQ', sets: 4, aiSuggestion: { weight: 360, reps: '10-12' } },
-    { id: 4, name: 'Leg Curls', muscleGroups: 'Hamstrings • Machine', videoId: '1Tq3QdYUuHs', sets: 3, aiSuggestion: { weight: 100, reps: '12-15' } },
-    { id: 5, name: 'Calf Raises', muscleGroups: 'Calves • Machine', videoId: 'gwLzBJYoWlI', sets: 4, aiSuggestion: { weight: 150, reps: '15-20' } },
+    { id: 601, name: 'Squat', muscleGroups: 'Quads • Glutes • Barbell', videoId: 'ultWZbUMPL8', sets: 5, aiSuggestion: { weight: 225, reps: '8-10' } },
+    { id: 602, name: 'Romanian Deadlift', muscleGroups: 'Hamstrings • Glutes • Barbell', videoId: 'jEy_czb3RKA', sets: 4, aiSuggestion: { weight: 185, reps: '8-10' } },
+    { id: 603, name: 'Leg Press', muscleGroups: 'Quads • Glutes • Machine', videoId: 'IZxyjW7MPJQ', sets: 4, aiSuggestion: { weight: 360, reps: '10-12' } },
+    { id: 604, name: 'Leg Curls', muscleGroups: 'Hamstrings • Machine', videoId: '1Tq3QdYUuHs', sets: 3, aiSuggestion: { weight: 100, reps: '12-15' } },
+    { id: 605, name: 'Calf Raises', muscleGroups: 'Calves • Machine', videoId: 'gwLzBJYoWlI', sets: 4, aiSuggestion: { weight: 150, reps: '15-20' } },
+    { id: 606, name: 'Leg Extensions', muscleGroups: 'Quads • Machine', videoId: 'YyvSfVjQeL0', sets: 3, aiSuggestion: { weight: 120, reps: '12-15' } },
+    { id: 607, name: 'Bulgarian Split Squats', muscleGroups: 'Quads • Glutes • Dumbbells', videoId: '2C-uNgKwPLE', sets: 3, aiSuggestion: { weight: 50, reps: '10-12' } },
+    { id: 608, name: 'Hip Thrusts', muscleGroups: 'Glutes • Barbell', videoId: 'SEdqd1s0UcI', sets: 4, aiSuggestion: { weight: 185, reps: '10-12' } },
+    { id: 609, name: 'Lunges', muscleGroups: 'Quads • Glutes • Dumbbells', videoId: 'QOVaHwm-Q6U', sets: 3, aiSuggestion: { weight: 40, reps: '10-12' } },
+    { id: 610, name: 'Hack Squat', muscleGroups: 'Quads • Machine', videoId: '0tn5K9NlCfo', sets: 4, aiSuggestion: { weight: 180, reps: '10-12' } },
   ],
-  'Push': [
-    { id: 1, name: 'Bench Press', muscleGroups: 'Chest • Triceps • Barbell', videoId: 'rT7DgCr-3pg', sets: 4, aiSuggestion: { weight: 185, reps: '8-10' } },
-    { id: 2, name: 'Overhead Press', muscleGroups: 'Shoulders • Triceps • Barbell', videoId: '2yjwXTZQDDI', sets: 4, aiSuggestion: { weight: 115, reps: '8-10' } },
-    { id: 3, name: 'Incline Dumbbell Press', muscleGroups: 'Upper Chest • Dumbbells', videoId: '8iPEnn-ltC8', sets: 3, aiSuggestion: { weight: 70, reps: '10-12' } },
-    { id: 4, name: 'Lateral Raises', muscleGroups: 'Side Delts • Dumbbells', videoId: '3VcKaXpzqRo', sets: 3, aiSuggestion: { weight: 25, reps: '12-15' } },
-    { id: 5, name: 'Tricep Pushdowns', muscleGroups: 'Triceps • Cable', videoId: '2-LAMcpzODU', sets: 3, aiSuggestion: { weight: 60, reps: '10-12' } },
-  ],
-  'Pull': [
-    { id: 1, name: 'Barbell Rows', muscleGroups: 'Back • Biceps • Barbell', videoId: 'FWJR5Ve8bnQ', sets: 4, aiSuggestion: { weight: 155, reps: '8-10' } },
-    { id: 2, name: 'Pull-ups', muscleGroups: 'Lats • Biceps • Bodyweight', videoId: 'eGo4IYlbE5g', sets: 4, aiSuggestion: { weight: 0, reps: '8-12' } },
-    { id: 3, name: 'Face Pulls', muscleGroups: 'Rear Delts • Cable', videoId: 'rep-qVOkqgk', sets: 3, aiSuggestion: { weight: 40, reps: '15-20' } },
-    { id: 4, name: 'Barbell Curl', muscleGroups: 'Biceps • Barbell', videoId: 'kwG2ipFRgFo', sets: 3, aiSuggestion: { weight: 75, reps: '10-12' } },
-    { id: 5, name: 'Hammer Curls', muscleGroups: 'Biceps • Brachialis • Dumbbells', videoId: 'zC3nLlEvin4', sets: 3, aiSuggestion: { weight: 35, reps: '10-12' } },
+  'Core': [
+    { id: 701, name: 'Cable Crunches', muscleGroups: 'Abs • Cable', videoId: 'AV5PmknP4ow', sets: 3, aiSuggestion: { weight: 80, reps: '15-20' } },
+    { id: 702, name: 'Hanging Leg Raises', muscleGroups: 'Abs • Bodyweight', videoId: 'hdng3Nm1x_E', sets: 3, aiSuggestion: { weight: 0, reps: '12-15' } },
+    { id: 703, name: 'Ab Wheel Rollouts', muscleGroups: 'Abs • Equipment', videoId: 'rqiTPdK1c_I', sets: 3, aiSuggestion: { weight: 0, reps: '10-15' } },
+    { id: 704, name: 'Plank', muscleGroups: 'Core • Bodyweight', videoId: 'ASdvN_XEl_c', sets: 3, aiSuggestion: { weight: 0, reps: '45-60s' } },
+    { id: 705, name: 'Russian Twists', muscleGroups: 'Obliques • Dumbbells', videoId: 'wkD8rjkodUI', sets: 3, aiSuggestion: { weight: 25, reps: '20' } },
+    { id: 706, name: 'Decline Sit-ups', muscleGroups: 'Abs • Bodyweight', videoId: '-MNCtOlSEJY', sets: 3, aiSuggestion: { weight: 0, reps: '15-20' } },
   ],
 };
 
-const defaultExercises = exercisesByMuscleGroup['Shoulders/Arms'];
+// Map workout names to which muscle groups to pull exercises from
+function getExercisesForWorkout(muscleGroup: string): Exercise[] {
+  const lower = muscleGroup.toLowerCase();
 
-// All exercises across all groups for the "Add from Library" feature
-const allExercises: Exercise[] = Object.values(exercisesByMuscleGroup).flat().filter(
+  // Direct match
+  for (const key of Object.keys(exerciseLibrary)) {
+    if (lower === key.toLowerCase()) return exerciseLibrary[key];
+  }
+
+  // Compound workout mappings
+  const muscleKeywords: Record<string, string[]> = {
+    'chest': ['Chest'],
+    'back': ['Back'],
+    'shoulders': ['Shoulders'],
+    'arms': ['Biceps', 'Triceps'],
+    'biceps': ['Biceps'],
+    'triceps': ['Triceps'],
+    'legs': ['Legs'],
+    'quads': ['Legs'],
+    'hamstrings': ['Legs'],
+    'glutes': ['Legs'],
+    'calves': ['Legs'],
+    'core': ['Core'],
+    'abs': ['Core'],
+    'push': ['Chest', 'Shoulders', 'Triceps'],
+    'pull': ['Back', 'Biceps'],
+  };
+
+  // Find all matching muscle groups from the workout name
+  const matchedGroups = new Set<string>();
+  for (const [keyword, groups] of Object.entries(muscleKeywords)) {
+    if (lower.includes(keyword)) {
+      groups.forEach(g => matchedGroups.add(g));
+    }
+  }
+
+  if (matchedGroups.size > 0) {
+    const exercises: Exercise[] = [];
+    for (const group of matchedGroups) {
+      const groupExercises = exerciseLibrary[group] || [];
+      // Take top exercises from each group proportionally
+      const take = Math.max(2, Math.ceil(6 / matchedGroups.size));
+      exercises.push(...groupExercises.slice(0, take));
+    }
+    return exercises;
+  }
+
+  // Fallback: return shoulders/arms
+  return [...(exerciseLibrary['Shoulders'] || []).slice(0, 3), ...(exerciseLibrary['Biceps'] || []).slice(0, 2), ...(exerciseLibrary['Triceps'] || []).slice(0, 1)];
+}
+
+// Get ALL exercises from the same muscle groups as the current workout (for swapping)
+function getRelatedExercises(muscleGroup: string): Exercise[] {
+  const lower = muscleGroup.toLowerCase();
+  const matchedGroups = new Set<string>();
+
+  const muscleKeywords: Record<string, string[]> = {
+    'chest': ['Chest'], 'back': ['Back'], 'shoulders': ['Shoulders'],
+    'arms': ['Biceps', 'Triceps'], 'biceps': ['Biceps'], 'triceps': ['Triceps'],
+    'legs': ['Legs'], 'quads': ['Legs'], 'hamstrings': ['Legs'],
+    'glutes': ['Legs'], 'calves': ['Legs'], 'core': ['Core'], 'abs': ['Core'],
+    'push': ['Chest', 'Shoulders', 'Triceps'], 'pull': ['Back', 'Biceps'],
+  };
+
+  for (const key of Object.keys(exerciseLibrary)) {
+    if (lower === key.toLowerCase() || lower.includes(key.toLowerCase())) {
+      matchedGroups.add(key);
+    }
+  }
+  for (const [keyword, groups] of Object.entries(muscleKeywords)) {
+    if (lower.includes(keyword)) {
+      groups.forEach(g => matchedGroups.add(g));
+    }
+  }
+  if (matchedGroups.size === 0) matchedGroups.add('Shoulders');
+
+  const exercises: Exercise[] = [];
+  for (const group of matchedGroups) {
+    exercises.push(...(exerciseLibrary[group] || []));
+  }
+  return exercises.filter((e, i, self) => self.findIndex(x => x.name === e.name) === i);
+}
+
+// All exercises for "Add from Library"
+const allExercises: Exercise[] = Object.values(exerciseLibrary).flat().filter(
   (exercise, index, self) => self.findIndex(e => e.name === exercise.name) === index
 );
 
 export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPageProps) {
   const { saveWorkout, saving } = useWorkouts();
   const startedAt = useRef(new Date().toISOString());
-  const initialExercises = (muscleGroup && exercisesByMuscleGroup[muscleGroup]) || defaultExercises;
+  const initialExercises = muscleGroup ? getExercisesForWorkout(muscleGroup) : getExercisesForWorkout('Shoulders/Arms');
   const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
@@ -269,21 +385,11 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
     setCustomReps('8-10');
   };
 
-  // Get swap alternatives: same muscle group exercises not currently in the workout
+  // Get swap alternatives: ONLY same muscle group exercises not currently in the workout
   const getSwapAlternatives = () => {
     const currentNames = exercises.map(e => e.name);
-    const alternatives: Exercise[] = [];
-    // First add exercises from the same muscle group
-    if (muscleGroup && exercisesByMuscleGroup[muscleGroup]) {
-      alternatives.push(...exercisesByMuscleGroup[muscleGroup].filter(e => !currentNames.includes(e.name)));
-    }
-    // Then add from other groups
-    for (const [group, groupExercises] of Object.entries(exercisesByMuscleGroup)) {
-      if (group !== muscleGroup) {
-        alternatives.push(...groupExercises.filter(e => !currentNames.includes(e.name) && !alternatives.find(a => a.name === e.name)));
-      }
-    }
-    return alternatives;
+    const related = getRelatedExercises(muscleGroup || 'Shoulders/Arms');
+    return related.filter(e => !currentNames.includes(e.name));
   };
 
   const filteredLibraryExercises = allExercises.filter(e =>

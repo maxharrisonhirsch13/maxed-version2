@@ -20,6 +20,7 @@ export default function App() {
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
+  const [activeMuscleGroup, setActiveMuscleGroup] = useState('Shoulders/Arms');
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [showWorkoutSwitch, setShowWorkoutSwitch] = useState(false);
   const [showCardioSetup, setShowCardioSetup] = useState(false);
@@ -253,7 +254,7 @@ export default function App() {
       </nav>
 
       {/* Workout Start Page */}
-      {showWorkoutStart && <WorkoutStartPage onClose={() => setShowWorkoutStart(false)} muscleGroup="Shoulders/Arms" />}
+      {showWorkoutStart && <WorkoutStartPage onClose={() => setShowWorkoutStart(false)} muscleGroup={activeMuscleGroup} />}
 
       {/* Integrations Page */}
       {showIntegrations && <IntegrationsPage onBack={() => setShowIntegrations(false)} />}
@@ -263,8 +264,13 @@ export default function App() {
         <WorkoutSwitchPage
           onClose={() => setShowWorkoutSwitch(false)}
           onSelectWorkout={(type, details) => {
-            console.log('Selected workout:', type, details);
             setShowWorkoutSwitch(false);
+            // Map the selection to a muscle group key
+            if (type === 'split' && details.name) {
+              setActiveMuscleGroup(details.name);
+            } else if (type === 'custom' && details.muscles) {
+              setActiveMuscleGroup(details.muscles.join(' & '));
+            }
             setShowWorkoutStart(true);
           }}
           userSplit={profile?.split || ''}
