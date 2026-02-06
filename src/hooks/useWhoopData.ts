@@ -22,9 +22,11 @@ export function useWhoopData() {
         const json = await res.json()
         setData(json)
       } else {
+        console.error('WHOOP data fetch failed:', res.status, await res.text().catch(() => ''))
         setData(null)
       }
-    } catch {
+    } catch (err) {
+      console.error('WHOOP data fetch error:', err)
       setData(null)
     }
     setLoading(false)

@@ -1,6 +1,7 @@
 import { X, Activity, Moon, Heart, Zap, TrendingUp, Brain, Link2, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useWhoopData } from '../hooks/useWhoopData';
+import { useWearableData } from '../hooks/useWearableData';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useAuth } from '../context/AuthContext';
 import { useAICoach } from '../hooks/useAICoach';
@@ -35,10 +36,12 @@ function getRating(value: number, thresholds: [number, number]): string {
 
 export function ReadinessModal({ onClose }: ReadinessModalProps) {
   const { data: whoop } = useWhoopData();
+  const { data: wearable } = useWearableData();
   const { profile } = useAuth();
   const { workouts } = useWorkoutHistory({ limit: 10 });
   const { readiness, readinessLoading, fetchReadiness } = useAICoach();
-  const hasData = whoop?.connected && (whoop.recovery || whoop.sleep || whoop.strain);
+  const hasWhoopData = whoop?.connected && (whoop.recovery || whoop.sleep || whoop.strain);
+  const hasData = hasWhoopData || wearable != null;
 
   // Fetch AI readiness when data is available
   useEffect(() => {
@@ -51,26 +54,33 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
         durationMinutes: w.durationMinutes || 0,
       }));
 
+    // Build wearable data payload from whichever source has data
+    const wearablePayload = whoop?.connected ? {
+      recovery: whoop.recovery,
+      sleep: whoop.sleep ? {
+        qualityDuration: whoop.sleep.qualityDuration,
+        deepSleepDuration: whoop.sleep.deepSleepDuration,
+        sleepScore: whoop.sleep.sleepScore,
+      } : null,
+      strain: whoop.strain ? { score: whoop.strain.score, kilojoules: whoop.strain.kilojoules } : null,
+    } : wearable ? {
+      recovery: wearable.recoveryScore != null ? { score: wearable.recoveryScore, restingHeartRate: wearable.restingHeartRate, hrv: wearable.hrv } : null,
+      sleep: wearable.sleepScore != null ? { sleepScore: wearable.sleepScore, qualityDuration: wearable.sleepDurationMs, deepSleepDuration: wearable.deepSleepMs } : null,
+      strain: wearable.strainScore != null ? { score: wearable.strainScore, kilojoules: null } : null,
+    } : { recovery: null, sleep: null, strain: null };
+
     fetchReadiness({
-      whoopData: whoop ? {
-        recovery: whoop.recovery,
-        sleep: whoop.sleep ? {
-          qualityDuration: whoop.sleep.qualityDuration,
-          deepSleepDuration: whoop.sleep.deepSleepDuration,
-          sleepScore: whoop.sleep.sleepScore,
-        } : null,
-        strain: whoop.strain ? { score: whoop.strain.score, kilojoules: whoop.strain.kilojoules } : null,
-      } : { recovery: null, sleep: null, strain: null },
+      whoopData: wearablePayload,
       recentWorkouts,
       userProfile: {
         experience: profile?.experience || null,
         goal: profile?.goal || null,
       },
     });
-  }, [whoop?.connected, workouts.length]);
+  }, [whoop?.connected, wearable?.recoveryScore, workouts.length]);
 
-  // Use AI score if available, otherwise fall back to WHOOP raw score — floor at 55
-  const rawScore = readiness?.readinessScore ?? whoop?.recovery?.score ?? null;
+  // Use AI score if available, otherwise fall back to WHOOP or wearable data — floor at 55
+  const rawScore = readiness?.readinessScore ?? whoop?.recovery?.score ?? wearable?.recoveryScore ?? null;
   const score = rawScore != null ? Math.max(rawScore, 55) : null;
   const scoreColor = score != null ? getScoreColor(score) : '#00ff00';
   const scoreInfo = score != null ? getScoreLabel(score) : { label: 'No Data', detail: 'Connect a wearable for insights' };
@@ -107,13 +117,13 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
             </div>
           </div>
 
-          {/* WHOOP not connected banner */}
-          {!whoop?.connected && (
+          {/* No wearable connected banner */}
+          {!hasData && (
             <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900 flex items-start gap-3">
               <div className="p-2 bg-[#00ff00]/10 rounded-lg"><Link2 className="w-4 h-4 text-[#00ff00]" /></div>
               <div>
-                <h5 className="font-semibold text-sm mb-1">Connect WHOOP for Real-Time Metrics</h5>
-                <p className="text-xs text-gray-400">Link your WHOOP band in Integrations to see live recovery, HRV, sleep quality, and strain data here.</p>
+                <h5 className="font-semibold text-sm mb-1">Connect a Wearable for Real-Time Metrics</h5>
+                <p className="text-xs text-gray-400">Link WHOOP, Garmin, or Oura Ring in Integrations to see live recovery, HRV, sleep quality, and training data here.</p>
               </div>
             </div>
           )}
@@ -133,7 +143,7 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
                         : score >= 34
                           ? "Your recovery is moderate today. Consider reducing intensity or focusing on technique-based work rather than max effort."
                           : "Your body needs more recovery. Consider active rest like walking or yoga, and prioritize sleep tonight."
-                      : "Connect your WHOOP to get personalized training recommendations based on your recovery data."}
+                      : "Connect a wearable (WHOOP, Garmin, or Oura) to get personalized training recommendations based on your recovery data."}
               </p>
               <div className="border rounded-xl p-3" style={{ background: `${scoreColor}10`, borderColor: `${scoreColor}20` }}>
                 <p className="text-xs font-semibold mb-1 flex items-center gap-1.5" style={{ color: scoreColor }}>
@@ -149,7 +159,7 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
                         : score >= 34
                           ? <>We recommend training at <span className="text-white font-semibold">60-75%</span> intensity today. Focus on form and moderate volume.</>
                           : <>We recommend <span className="text-white font-semibold">active recovery</span> today — light cardio, mobility work, or stretching.</>
-                      : <>Connect WHOOP to unlock AI-powered intensity recommendations tailored to your daily recovery.</>}
+                      : <>Connect a wearable to unlock AI-powered intensity recommendations tailored to your daily recovery.</>}
                 </p>
               </div>
             </div>
@@ -160,88 +170,111 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
             <h4 className="font-bold text-sm mb-3">Key Factors Contributing to Your Score</h4>
             <div className="space-y-3">
               {/* Sleep */}
-              <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
-                <div className="flex items-start gap-3"><div className="p-2 bg-blue-500/10 rounded-lg"><Moon className="w-4 h-4 text-blue-400" /></div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h5 className="font-semibold text-sm">Sleep Quality</h5>
-                      <span className="text-xs font-semibold" style={{ color: whoop?.sleep?.sleepScore != null ? getScoreColor(whoop.sleep.sleepScore) : '#6b7280' }}>
-                        {whoop?.sleep?.sleepScore != null ? getRating(whoop.sleep.sleepScore, [50, 75]) : '—'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 mb-2">
-                      {whoop?.sleep
-                        ? `${formatDuration(whoop.sleep.qualityDuration)} total • ${formatDuration(whoop.sleep.deepSleepDuration)} deep sleep`
-                        : 'No sleep data available'}
-                    </p>
-                    <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-400 rounded-full" style={{ width: `${whoop?.sleep?.sleepScore ?? 0}%` }}></div>
+              {(() => {
+                const sleepScore = whoop?.sleep?.sleepScore ?? wearable?.sleepScore ?? null;
+                const sleepDuration = whoop?.sleep?.qualityDuration ?? wearable?.sleepDurationMs ?? null;
+                const deepSleep = whoop?.sleep?.deepSleepDuration ?? wearable?.deepSleepMs ?? null;
+                return (
+                  <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
+                    <div className="flex items-start gap-3"><div className="p-2 bg-blue-500/10 rounded-lg"><Moon className="w-4 h-4 text-blue-400" /></div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h5 className="font-semibold text-sm">Sleep Quality</h5>
+                          <span className="text-xs font-semibold" style={{ color: sleepScore != null ? getScoreColor(sleepScore) : '#6b7280' }}>
+                            {sleepScore != null ? getRating(sleepScore, [50, 75]) : '—'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2">
+                          {sleepDuration != null
+                            ? `${formatDuration(sleepDuration)} total${deepSleep != null ? ` • ${formatDuration(deepSleep)} deep sleep` : ''}`
+                            : sleepScore != null ? `Sleep score: ${sleepScore}/100` : 'No sleep data available'}
+                        </p>
+                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-400 rounded-full" style={{ width: `${sleepScore ?? 0}%` }}></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* HRV */}
-              <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
-                <div className="flex items-start gap-3"><div className="p-2 bg-red-500/10 rounded-lg"><Heart className="w-4 h-4 text-red-400" /></div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h5 className="font-semibold text-sm">Heart Rate Variability</h5>
-                      <span className="text-xs font-semibold" style={{ color: whoop?.recovery?.hrv != null ? getScoreColor(Math.min(whoop.recovery.hrv, 100)) : '#6b7280' }}>
-                        {whoop?.recovery?.hrv != null ? getRating(whoop.recovery.hrv, [40, 65]) : '—'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 mb-2">
-                      {whoop?.recovery?.hrv != null ? `${whoop.recovery.hrv} ms` : 'No HRV data available'}
-                    </p>
-                    <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-400 rounded-full" style={{ width: `${Math.min((whoop?.recovery?.hrv ?? 0) / 1.2, 100)}%` }}></div>
+              {(() => {
+                const hrv = whoop?.recovery?.hrv ?? wearable?.hrv ?? null;
+                return (
+                  <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
+                    <div className="flex items-start gap-3"><div className="p-2 bg-red-500/10 rounded-lg"><Heart className="w-4 h-4 text-red-400" /></div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h5 className="font-semibold text-sm">Heart Rate Variability</h5>
+                          <span className="text-xs font-semibold" style={{ color: hrv != null ? getScoreColor(Math.min(hrv, 100)) : '#6b7280' }}>
+                            {hrv != null ? getRating(hrv, [40, 65]) : '—'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2">
+                          {hrv != null ? `${hrv} ms` : 'No HRV data available'}
+                        </p>
+                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                          <div className="h-full bg-red-400 rounded-full" style={{ width: `${Math.min((hrv ?? 0) / 1.2, 100)}%` }}></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Recovery / Resting HR */}
-              <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
-                <div className="flex items-start gap-3"><div className="p-2 bg-orange-500/10 rounded-lg"><Activity className="w-4 h-4 text-orange-400" /></div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h5 className="font-semibold text-sm">Recovery Status</h5>
-                      <span className="text-xs font-semibold" style={{ color: score != null ? getScoreColor(score) : '#6b7280' }}>
-                        {score != null ? (score >= 67 ? 'Recovered' : score >= 34 ? 'Recovering' : 'Strained') : '—'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 mb-2">
-                      {whoop?.recovery?.restingHeartRate != null ? `Resting HR: ${whoop.recovery.restingHeartRate} bpm` : 'No recovery data available'}
-                    </p>
-                    <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                      <div className="h-full bg-orange-400 rounded-full" style={{ width: `${score ?? 0}%` }}></div>
+              {(() => {
+                const restingHR = whoop?.recovery?.restingHeartRate ?? wearable?.restingHeartRate ?? null;
+                return (
+                  <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
+                    <div className="flex items-start gap-3"><div className="p-2 bg-orange-500/10 rounded-lg"><Activity className="w-4 h-4 text-orange-400" /></div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h5 className="font-semibold text-sm">Recovery Status</h5>
+                          <span className="text-xs font-semibold" style={{ color: score != null ? getScoreColor(score) : '#6b7280' }}>
+                            {score != null ? (score >= 67 ? 'Recovered' : score >= 34 ? 'Recovering' : 'Strained') : '—'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2">
+                          {restingHR != null ? `Resting HR: ${restingHR} bpm` : 'No recovery data available'}
+                        </p>
+                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                          <div className="h-full bg-orange-400 rounded-full" style={{ width: `${score ?? 0}%` }}></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Strain / Training Load */}
-              <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
-                <div className="flex items-start gap-3"><div className="p-2 bg-purple-500/10 rounded-lg"><TrendingUp className="w-4 h-4 text-purple-400" /></div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h5 className="font-semibold text-sm">Training Load</h5>
-                      <span className="text-xs font-semibold" style={{ color: whoop?.strain ? (whoop.strain.score <= 14 ? '#facc15' : '#ef4444') : '#6b7280' }}>
-                        {whoop?.strain ? (whoop.strain.score <= 10 ? 'Light' : whoop.strain.score <= 14 ? 'Balanced' : 'Overreaching') : '—'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 mb-2">
-                      {whoop?.strain
-                        ? `Strain: ${whoop.strain.score} / 21 • ${Math.round(whoop.strain.kilojoules)} kJ burned`
-                        : 'No strain data available'}
-                    </p>
-                    <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-400 rounded-full" style={{ width: `${whoop?.strain ? Math.round((whoop.strain.score / 21) * 100) : 0}%` }}></div>
+              {(() => {
+                const strainScore = whoop?.strain?.score ?? wearable?.strainScore ?? null;
+                const kilojoules = whoop?.strain?.kilojoules ?? (wearable?.calories != null ? Math.round(wearable.calories * 4.184) : null);
+                return (
+                  <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
+                    <div className="flex items-start gap-3"><div className="p-2 bg-purple-500/10 rounded-lg"><TrendingUp className="w-4 h-4 text-purple-400" /></div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h5 className="font-semibold text-sm">Training Load</h5>
+                          <span className="text-xs font-semibold" style={{ color: strainScore != null ? (strainScore <= 14 ? '#facc15' : '#ef4444') : '#6b7280' }}>
+                            {strainScore != null ? (strainScore <= 10 ? 'Light' : strainScore <= 14 ? 'Balanced' : 'Overreaching') : '—'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2">
+                          {strainScore != null
+                            ? `Strain: ${strainScore} / 21${kilojoules != null ? ` • ${kilojoules} kJ burned` : ''}`
+                            : 'No strain data available'}
+                        </p>
+                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                          <div className="h-full bg-purple-400 rounded-full" style={{ width: `${strainScore != null ? Math.round((strainScore / 21) * 100) : 0}%` }}></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
 

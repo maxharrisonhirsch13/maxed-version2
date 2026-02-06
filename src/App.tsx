@@ -15,6 +15,7 @@ import { WorkoutDetailModal } from './components/WorkoutDetailModal';
 import { useAuth } from './context/AuthContext';
 import { useWorkoutHistory } from './hooks/useWorkoutHistory';
 import { useWhoopData } from './hooks/useWhoopData';
+import { useWearableData } from './hooks/useWearableData';
 
 // Compute scheduled workout from user's split and day of week
 function getScheduledWorkout(split: string | undefined, customSplit?: { day: number; muscles: string[] }[]) {
@@ -55,9 +56,10 @@ export default function App() {
   const { session, profile, loading, refreshProfile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
   const { data: whoopData } = useWhoopData();
+  const { data: wearableData } = useWearableData();
 
-  // Readiness score from WHOOP recovery data — floor at 55
-  const rawReadiness = whoopData?.recovery?.score ?? null;
+  // Readiness score: prefer WHOOP direct API, fall back to wearable_snapshots (any source)
+  const rawReadiness = whoopData?.recovery?.score ?? wearableData?.recoveryScore ?? null;
   const readinessScore = rawReadiness != null ? Math.max(rawReadiness, 55) : null;
   const readinessColor = readinessScore != null
     ? readinessScore >= 67 ? '#00ff00' : readinessScore >= 34 ? '#facc15' : '#ef4444'
@@ -67,7 +69,7 @@ export default function App() {
     : 'Connect wearable';
   const readinessDetail = readinessScore != null
     ? readinessScore >= 67 ? 'Peak performance expected' : readinessScore >= 34 ? 'Consider lighter intensity' : 'Active recovery recommended'
-    : 'Link WHOOP for insights';
+    : 'Link a wearable for insights';
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
   const [activeMuscleGroup, setActiveMuscleGroup] = useState('');

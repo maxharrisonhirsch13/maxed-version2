@@ -134,6 +134,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Also store in wearable_snapshots for unified readiness access
+    const today = new Date().toISOString().split('T')[0]
+    if (recovery || sleep) {
+      await supabase.from('wearable_snapshots').upsert({
+        user_id: user.id,
+        source: 'whoop',
+        snapshot_date: today,
+        recovery_score: recovery?.score ?? null,
+        resting_heart_rate: recovery?.restingHeartRate ?? null,
+        hrv: recovery?.hrv ?? null,
+        sleep_score: sleep?.sleepScore ?? null,
+        sleep_duration_ms: sleep?.qualityDuration ?? null,
+        deep_sleep_ms: sleep?.deepSleepDuration ?? null,
+        strain_score: strain?.score ?? null,
+        calories: strain?.kilojoules ? Math.round(strain.kilojoules * 0.239) : null,
+        stress_score: null,
+        body_battery: null,
+        raw_data: { recovery, sleep, strain },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,source,snapshot_date' }).then(({ error }) => {
+        if (error) console.error('Failed to store WHOOP snapshot:', error)
+      })
+    }
+
     return res.json({ connected: true, recovery, sleep, strain })
   } catch (err) {
     console.error('WHOOP data fetch error:', err)
