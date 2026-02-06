@@ -5,6 +5,9 @@ import { useWorkouts } from '../hooks/useWorkouts';
 interface ActiveWorkoutPageProps {
   onClose: () => void;
   muscleGroup?: string;
+  fewerSets?: boolean;     // Cap all exercises at 3 sets
+  quickVersion?: boolean;  // Only 4 exercises, 3 sets each
+  customBuild?: boolean;   // Start empty, user adds exercises
 }
 
 interface LoggedSet {
@@ -196,14 +199,27 @@ const allExercises: Exercise[] = Object.values(exerciseLibrary).flat().filter(
   (exercise, index, self) => self.findIndex(e => e.name === exercise.name) === index
 );
 
-export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPageProps) {
+export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild }: ActiveWorkoutPageProps) {
   const { saveWorkout, saving } = useWorkouts();
   const startedAt = useRef(new Date().toISOString());
-  const initialExercises = muscleGroup ? getExercisesForWorkout(muscleGroup) : getExercisesForWorkout('Shoulders/Arms');
+
+  // Compute initial exercises with modifiers applied
+  const computeInitialExercises = (): Exercise[] => {
+    if (customBuild) return [];
+    let exs = muscleGroup ? getExercisesForWorkout(muscleGroup) : getExercisesForWorkout('Full Body');
+    if (quickVersion) {
+      exs = exs.slice(0, 4).map(e => ({ ...e, sets: Math.min(e.sets, 3) }));
+    } else if (fewerSets) {
+      exs = exs.map(e => ({ ...e, sets: Math.min(e.sets, 3) }));
+    }
+    return exs;
+  };
+
+  const initialExercises = computeInitialExercises();
   const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
-  const [weight, setWeight] = useState(initialExercises[0].aiSuggestion.weight);
+  const [weight, setWeight] = useState(initialExercises[0]?.aiSuggestion.weight ?? 0);
   const [reps, setReps] = useState(8);
   const [completedSets, setCompletedSets] = useState<number[]>([]);
 
@@ -217,7 +233,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
   const [showVideo, setShowVideo] = useState(true);
   const [logMode, setLogMode] = useState<'set' | 'bulk'>('set');
   const [showSwapModal, setShowSwapModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(customBuild ? true : false);
   const [addMode, setAddMode] = useState<'library' | 'custom' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -368,7 +384,13 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
   };
 
   const handleAddExercise = (exercise: Exercise) => {
-    setExercises([...exercises, exercise]);
+    const newList = [...exercises, exercise];
+    setExercises(newList);
+    // If this is the first exercise (custom build), set weight/reps to its suggestion
+    if (exercises.length === 0) {
+      setWeight(exercise.aiSuggestion.weight);
+      setReps(parseInt(exercise.aiSuggestion.reps.split('-')[0]) || 8);
+    }
     setShowAddModal(false);
     setAddMode(null);
     setSearchQuery('');
@@ -419,8 +441,8 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
           </button>
 
           <div className="absolute left-1/2 -translate-x-1/2">
-            <h1 className="font-bold text-base">{currentExercise.name}</h1>
-            <p className="text-[10px] text-gray-500 text-center">{currentExerciseIndex + 1} of {exercises.length}</p>
+            <h1 className="font-bold text-base">{currentExercise?.name || 'Custom Workout'}</h1>
+            <p className="text-[10px] text-gray-500 text-center">{exercises.length > 0 ? `${currentExerciseIndex + 1} of ${exercises.length}` : 'Add exercises to start'}</p>
           </div>
 
           <button
@@ -479,8 +501,23 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
         )}
 
         <div className="flex-1 overflow-y-auto scrollbar-hide">
+          {/* Empty state for custom build */}
+          {exercises.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 px-5">
+              <Plus className="w-12 h-12 text-gray-600 mb-3" />
+              <h2 className="font-bold text-lg mb-1">Build Your Workout</h2>
+              <p className="text-sm text-gray-500 text-center mb-4">Add exercises from the library or create custom ones</p>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-[#00ff00] text-black font-bold px-6 py-3 rounded-2xl text-sm"
+              >
+                Add Exercise
+              </button>
+            </div>
+          )}
+
           {/* Video Section */}
-          {showVideo && currentExercise.videoId && (
+          {exercises.length > 0 && showVideo && currentExercise?.videoId && (
             <div className="px-5 pt-3 pb-4">
               <div className="aspect-[16/9] w-full relative overflow-hidden rounded-2xl">
                 <iframe
@@ -498,13 +535,13 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
           )}
 
           {/* Muscle groups label when video hidden */}
-          {(!showVideo || !currentExercise.videoId) && (
+          {exercises.length > 0 && (!showVideo || !currentExercise?.videoId) && (
             <div className="px-5 pt-3 pb-2">
-              <p className="text-xs text-gray-500 text-center">{currentExercise.muscleGroups}</p>
+              <p className="text-xs text-gray-500 text-center">{currentExercise?.muscleGroups}</p>
             </div>
           )}
 
-          <div className="px-5 pb-6 space-y-4">
+          {exercises.length > 0 && <div className="px-5 pb-6 space-y-4">
             {/* Set-by-Set Mode */}
             {logMode === 'set' && (
               <>
@@ -702,7 +739,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
                 </button>
               </div>
             )}
-          </div>
+          </div>}
         </div>
       </div>
 
