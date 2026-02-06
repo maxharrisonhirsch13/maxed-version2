@@ -52,6 +52,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     customSplit: []
   });
 
+  const [editingFromReview, setEditingFromReview] = useState(false);
   const [showAIGoalInput, setShowAIGoalInput] = useState(false);
   const [showCustomSplit, setShowCustomSplit] = useState(false);
   const [splitDays, setSplitDays] = useState(6);
@@ -70,6 +71,11 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     }
     if (step === 7 && data.split === 'custom') {
       setShowCustomSplit(true);
+      return;
+    }
+    if (editingFromReview) {
+      setEditingFromReview(false);
+      setStep(8);
       return;
     }
     if (step < totalSteps) {
@@ -361,11 +367,18 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
         {/* Back Button */}
         {step > 1 && (
           <button
-            onClick={() => setStep(step - 1)}
+            onClick={() => {
+              if (editingFromReview) {
+                setEditingFromReview(false);
+                setStep(8);
+              } else {
+                setStep(step - 1);
+              }
+            }}
             className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors mb-6 -ml-1"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span className="text-sm font-medium">Back</span>
+            <span className="text-sm font-medium">{editingFromReview ? 'Back to review' : 'Back'}</span>
           </button>
         )}
 
@@ -507,7 +520,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 ].map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => setData({ ...data, experience: data.experience === option.value ? '' as any : option.value as any })}
+                    onClick={() => {
+                      const newVal = data.experience === option.value ? '' as any : option.value as any;
+                      setData({ ...data, experience: newVal });
+                      if (editingFromReview && newVal) {
+                        setEditingFromReview(false);
+                        setTimeout(() => setStep(8), 150);
+                      }
+                    }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                       data.experience === option.value
                         ? 'border-[#00ff00] bg-[#00ff00]/10'
@@ -539,6 +559,10 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     } else {
                       setData({ ...data, isHomeGym: true, gym: 'Home Gym', gymPlaceId: '', gymAddress: '', gymLat: null, gymLng: null });
                       setGymSearchQuery('');
+                      if (editingFromReview) {
+                        setEditingFromReview(false);
+                        setTimeout(() => setStep(8), 150);
+                      }
                     }
                   }}
                   className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
@@ -622,6 +646,10 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                               gymLng: gym.lng,
                             });
                             setGymSearchQuery(gym.name);
+                            if (editingFromReview) {
+                              setEditingFromReview(false);
+                              setTimeout(() => setStep(8), 150);
+                            }
                           }}
                           className="w-full p-3 bg-[#0a0a0a] border border-gray-800 rounded-xl text-left hover:border-gray-700 transition-colors"
                         >
@@ -698,7 +726,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 ].map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => setData({ ...data, goal: data.goal === option.value ? '' : option.value })}
+                    onClick={() => {
+                      const newVal = data.goal === option.value ? '' : option.value;
+                      setData({ ...data, goal: newVal });
+                      if (editingFromReview && newVal && newVal !== 'Ask AI') {
+                        setEditingFromReview(false);
+                        setTimeout(() => setStep(8), 150);
+                      }
+                    }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                       data.goal === option.value
                         ? 'border-[#00ff00] bg-[#00ff00]/10'
@@ -735,7 +770,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 ].map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => setData({ ...data, split: data.split === option.value ? '' : option.value })}
+                    onClick={() => {
+                      const newVal = data.split === option.value ? '' : option.value;
+                      setData({ ...data, split: newVal });
+                      if (editingFromReview && newVal && newVal !== 'custom') {
+                        setEditingFromReview(false);
+                        setTimeout(() => setStep(8), 150);
+                      }
+                    }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                       data.split === option.value
                         ? 'border-[#00ff00] bg-[#00ff00]/10'
@@ -768,7 +810,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <p className="text-xs text-gray-500">Name</p>
                     <p className="font-medium">{data.name}</p>
                   </div>
-                  <button onClick={() => setStep(1)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(1); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -778,7 +820,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <p className="text-xs text-gray-500">Stats</p>
                     <p className="font-medium">{data.heightFeet} ft {data.heightInches} in · {data.weight} lbs</p>
                   </div>
-                  <button onClick={() => setStep(2)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(2); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -788,7 +830,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <p className="text-xs text-gray-500">Experience</p>
                     <p className="font-medium capitalize">{data.experience}</p>
                   </div>
-                  <button onClick={() => setStep(3)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(3); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -798,7 +840,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <p className="text-xs text-gray-500">Training Location</p>
                     <p className="font-medium">{data.gym}</p>
                   </div>
-                  <button onClick={() => setStep(4)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(4); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -810,7 +852,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                         <p className="text-xs text-gray-500">Connected Wearables</p>
                         <p className="font-medium">{data.wearables.length} device{data.wearables.length > 1 ? 's' : ''} connected</p>
                       </div>
-                      <button onClick={() => setStep(5)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                      <button onClick={() => { setEditingFromReview(true); setStep(5); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                         Edit
                       </button>
                     </div>
@@ -829,7 +871,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                        data.goal === 'athletic' ? 'Athletic Performance' : data.goal}
                     </p>
                   </div>
-                  <button onClick={() => setStep(6)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(6); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -845,7 +887,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                        data.split === 'custom' ? 'Custom Split' : data.split}
                     </p>
                   </div>
-                  <button onClick={() => setStep(7)} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(7); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -860,7 +902,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           disabled={!isStepValid()}
           className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
         >
-          {step === 8 ? 'Get Maxed' : 'Continue'}
+          {step === 8 ? 'Get Maxed' : editingFromReview ? 'Save & Back' : 'Continue'}
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
