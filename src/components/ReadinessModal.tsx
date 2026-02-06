@@ -69,8 +69,9 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
     });
   }, [whoop?.connected, workouts.length]);
 
-  // Use AI score if available, otherwise fall back to WHOOP raw score
-  const score = readiness?.readinessScore ?? whoop?.recovery?.score ?? null;
+  // Use AI score if available, otherwise fall back to WHOOP raw score — floor at 55
+  const rawScore = readiness?.readinessScore ?? whoop?.recovery?.score ?? null;
+  const score = rawScore != null ? Math.max(rawScore, 55) : null;
   const scoreColor = score != null ? getScoreColor(score) : '#00ff00';
   const scoreInfo = score != null ? getScoreLabel(score) : { label: 'No Data', detail: 'Connect a wearable for insights' };
 

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
+import { useGarminStatus } from '../hooks/useGarminStatus';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -40,6 +41,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const { updateProfile } = useProfile();
   const { workouts: rawWorkouts } = useWorkoutHistory();
   const { connected: whoopConnected } = useWhoopStatus();
+  const { connected: garminConnected } = useGarminStatus();
 
   // Convert real workout data to calendar-friendly format
   const workoutHistory: WorkoutLog[] = rawWorkouts.map(w => ({
@@ -405,8 +407,13 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                   <Zap className="w-3 h-3 text-white" />
                 </div>
               )}
+              {garminConnected && (
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-[#0a0a0a] flex items-center justify-center">
+                  <Activity className="w-3 h-3 text-white" />
+                </div>
+              )}
             </div>
-            <span className="text-[10px] text-gray-500">{3 + (whoopConnected ? 1 : 0)} connected</span>
+            <span className="text-[10px] text-gray-500">{3 + (whoopConnected ? 1 : 0) + (garminConnected ? 1 : 0)} connected</span>
           </div>
         </button>
 

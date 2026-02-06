@@ -56,8 +56,9 @@ export default function App() {
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
   const { data: whoopData } = useWhoopData();
 
-  // Readiness score from WHOOP recovery data
-  const readinessScore = whoopData?.recovery?.score ?? null;
+  // Readiness score from WHOOP recovery data — floor at 55
+  const rawReadiness = whoopData?.recovery?.score ?? null;
+  const readinessScore = rawReadiness != null ? Math.max(rawReadiness, 55) : null;
   const readinessColor = readinessScore != null
     ? readinessScore >= 67 ? '#00ff00' : readinessScore >= 34 ? '#facc15' : '#ef4444'
     : '#6b7280';

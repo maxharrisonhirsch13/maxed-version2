@@ -2,6 +2,7 @@ import { ArrowLeft, Check, Link2, Activity, Heart, Watch, Bike, Zap, Moon, Trend
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
+import { useGarminStatus } from '../hooks/useGarminStatus';
 import { supabase } from '../lib/supabase';
 
 interface IntegrationsPageProps {
@@ -21,14 +22,16 @@ interface IntegrationApp {
 export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
   const { user } = useAuth();
   const { connected: whoopConnected, loading: whoopLoading, refetch: refetchWhoop } = useWhoopStatus();
+  const { connected: garminConnected, loading: garminLoading, refetch: refetchGarmin } = useGarminStatus();
   const [whoopConnecting, setWhoopConnecting] = useState(false);
   const [whoopDisconnecting, setWhoopDisconnecting] = useState(false);
+  const [garminConnecting, setGarminConnecting] = useState(false);
+  const [garminDisconnecting, setGarminDisconnecting] = useState(false);
 
   const [apps, setApps] = useState<IntegrationApp[]>([
     { id: 'apple-health', name: 'Apple Health', description: 'Sync workouts, heart rate, and activity data', icon: <Heart className="w-6 h-6" />, color: 'from-red-500 to-pink-500', dataTypes: ['Heart Rate', 'Steps', 'Calories', 'Sleep', 'Workouts'], connected: true },
     { id: 'strava', name: 'Strava', description: 'Share your workouts with the Strava community', icon: <Bike className="w-6 h-6" />, color: 'from-orange-500 to-red-500', dataTypes: ['Running', 'Cycling', 'Activities'], connected: true },
     { id: 'fitbit', name: 'Fitbit', description: 'Import heart rate and activity tracking', icon: <Activity className="w-6 h-6" />, color: 'from-blue-400 to-cyan-400', dataTypes: ['Heart Rate', 'Steps', 'Sleep', 'Active Minutes'], connected: false },
-    { id: 'garmin', name: 'Garmin Connect', description: 'Sync activities and training data', icon: <Watch className="w-6 h-6" />, color: 'from-blue-600 to-blue-800', dataTypes: ['Workouts', 'Heart Rate', 'VO2 Max', 'Training Load'], connected: false },
     { id: 'myfitnesspal', name: 'MyFitnessPal', description: 'Connect nutrition with your workouts', icon: <TrendingUp className="w-6 h-6" />, color: 'from-blue-500 to-indigo-600', dataTypes: ['Calories', 'Macros', 'Weight', 'Nutrition'], connected: true },
     { id: 'oura', name: 'Oura Ring', description: 'Track sleep quality and readiness', icon: <Moon className="w-6 h-6" />, color: 'from-purple-600 to-indigo-700', dataTypes: ['Sleep', 'Readiness', 'HRV', 'Body Temperature'], connected: false }
   ]);
@@ -74,9 +77,46 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     setWhoopDisconnecting(false);
   };
 
-  const connectedCount = apps.filter(app => app.connected).length + (whoopConnected ? 1 : 0);
+  const handleGarminConnect = async () => {
+    if (!user) {
+      alert('Not logged in');
+      return;
+    }
+    setGarminConnecting(true);
+    try {
+      const res = await fetch(`/api/garmin-auth?userId=${user.id}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      } else {
+        alert('Garmin auth error: ' + (data.error || 'No URL returned'));
+      }
+    } catch (err) {
+      alert('Failed to connect Garmin: ' + (err instanceof Error ? err.message : 'Network error'));
+    }
+    setGarminConnecting(false);
+  };
 
-  // Build the WHOOP card separately
+  const handleGarminDisconnect = async () => {
+    const { session } = (await supabase.auth.getSession()).data;
+    if (!session) return;
+    setGarminDisconnecting(true);
+    try {
+      await fetch('/api/garmin-disconnect', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      await refetchGarmin();
+    } catch (err) {
+      console.error('Failed to disconnect Garmin:', err);
+    }
+    setGarminDisconnecting(false);
+  };
+
+  const connectedCount = apps.filter(app => app.connected).length + (whoopConnected ? 1 : 0) + (garminConnected ? 1 : 0);
+
+  // Build WHOOP and Garmin cards separately (real integrations)
   const whoopApp = {
     id: 'whoop',
     name: 'WHOOP',
@@ -87,9 +127,27 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     connected: whoopConnected,
   };
 
+  const garminApp = {
+    id: 'garmin',
+    name: 'Garmin Connect',
+    description: 'Sync activities, body battery, and training data',
+    icon: <Watch className="w-6 h-6" />,
+    color: 'from-blue-600 to-blue-800',
+    dataTypes: ['Body Battery', 'Heart Rate', 'Sleep', 'Stress'],
+    connected: garminConnected,
+  };
+
   // All apps for rendering: connected first, then available
-  const connectedApps = [...apps.filter(app => app.connected), ...(whoopConnected ? [whoopApp] : [])];
-  const availableApps = [...apps.filter(app => !app.connected), ...(!whoopConnected ? [whoopApp] : [])];
+  const connectedApps = [
+    ...apps.filter(app => app.connected),
+    ...(whoopConnected ? [whoopApp] : []),
+    ...(garminConnected ? [garminApp] : []),
+  ];
+  const availableApps = [
+    ...apps.filter(app => !app.connected),
+    ...(!whoopConnected ? [whoopApp] : []),
+    ...(!garminConnected ? [garminApp] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
@@ -116,8 +174,11 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
                 <IntegrationCard
                   key={app.id}
                   app={app}
-                  onToggle={app.id === 'whoop' ? handleWhoopDisconnect : () => handleToggleConnection(app.id)}
-                  isLoading={app.id === 'whoop' && (whoopDisconnecting || whoopLoading)}
+                  onToggle={app.id === 'whoop' ? handleWhoopDisconnect : app.id === 'garmin' ? handleGarminDisconnect : () => handleToggleConnection(app.id)}
+                  isLoading={
+                    (app.id === 'whoop' && (whoopDisconnecting || whoopLoading)) ||
+                    (app.id === 'garmin' && (garminDisconnecting || garminLoading))
+                  }
                 />
               ))}
             </div>
@@ -132,8 +193,11 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
                 <IntegrationCard
                   key={app.id}
                   app={app}
-                  onToggle={app.id === 'whoop' ? handleWhoopConnect : () => handleToggleConnection(app.id)}
-                  isLoading={app.id === 'whoop' && (whoopConnecting || whoopLoading)}
+                  onToggle={app.id === 'whoop' ? handleWhoopConnect : app.id === 'garmin' ? handleGarminConnect : () => handleToggleConnection(app.id)}
+                  isLoading={
+                    (app.id === 'whoop' && (whoopConnecting || whoopLoading)) ||
+                    (app.id === 'garmin' && (garminConnecting || garminLoading))
+                  }
                 />
               ))}
             </div>
