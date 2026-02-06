@@ -591,7 +591,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                         <span className="text-[11px] text-[#00ff00] font-semibold tracking-wide">AI RECOMMENDS</span>
                       </div>
                       <p className="text-xl font-bold">
-                        {currentExercise.aiSuggestion.weight} lbs <span className="text-gray-600">&times;</span> {currentExercise.aiSuggestion.reps}
+                        {currentExercise.aiSuggestion.weight === 0 ? 'Bodyweight' : `${currentExercise.aiSuggestion.weight} lbs`} <span className="text-gray-600">&times;</span> {currentExercise.aiSuggestion.reps}
                       </p>
                     </div>
                     <button
@@ -606,7 +606,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                 {/* Weight & Reps Inputs */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] text-gray-500 mb-2 font-medium tracking-wide">WEIGHT</label>
+                    <label className="block text-[11px] text-gray-500 mb-2 font-medium tracking-wide">{currentExercise.aiSuggestion.weight === 0 ? 'ADDED WEIGHT' : 'WEIGHT'}</label>
                     <div className="bg-[#1a1a1a] rounded-2xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <button
@@ -616,8 +616,8 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                           <span className="text-xl font-bold text-gray-400">&minus;</span>
                         </button>
                         <div className="text-center">
-                          <span className="text-2xl font-bold">{weight}</span>
-                          <span className="text-xs text-gray-500 ml-1">lbs</span>
+                          <span className="text-2xl font-bold">{weight === 0 ? 'BW' : weight}</span>
+                          {weight > 0 && <span className="text-xs text-gray-500 ml-1">lbs</span>}
                         </div>
                         <button
                           onClick={() => setWeight(weight + 5)}
@@ -676,7 +676,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                     {/* Header row */}
                     <div className="grid grid-cols-[40px_1fr_1fr] gap-2 text-[10px] text-gray-500 font-medium px-1">
                       <span>SET</span>
-                      <span>WEIGHT (lbs)</span>
+                      <span>{currentExercise?.aiSuggestion.weight === 0 ? 'ADDED WT' : 'WEIGHT (lbs)'}</span>
                       <span>REPS</span>
                     </div>
 
