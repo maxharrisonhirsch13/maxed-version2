@@ -1,10 +1,11 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
+import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -38,6 +39,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const { signOut } = useAuth();
   const { updateProfile } = useProfile();
   const { workouts: rawWorkouts } = useWorkoutHistory();
+  const { connected: whoopConnected } = useWhoopStatus();
 
   // Convert real workout data to calendar-friendly format
   const workoutHistory: WorkoutLog[] = rawWorkouts.map(w => ({
@@ -390,8 +392,13 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
               <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-[#0a0a0a] flex items-center justify-center">
                 <TrendingUp className="w-3 h-3 text-white" />
               </div>
+              {whoopConnected && (
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 border-2 border-[#0a0a0a] flex items-center justify-center">
+                  <Zap className="w-3 h-3 text-white" />
+                </div>
+              )}
             </div>
-            <span className="text-[10px] text-gray-500">3 connected</span>
+            <span className="text-[10px] text-gray-500">{3 + (whoopConnected ? 1 : 0)} connected</span>
           </div>
         </button>
 
