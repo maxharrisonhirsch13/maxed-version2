@@ -7,10 +7,12 @@ interface WorkoutStartPageProps {
   muscleGroup?: string;
 }
 
-const workoutTemplates = [
-  { type: 'ai', title: 'AI-Powered', subtitle: 'Personalized to your history and goals', icon: Sparkles, isRecommended: true },
-  { type: 'standard', title: 'Standard Shoulders/Arms', subtitle: '6 exercises', icon: Calendar, isRecommended: false },
-];
+function getWorkoutTemplates(muscleGroup?: string) {
+  return [
+    { type: 'ai', title: 'AI-Powered', subtitle: 'Personalized to your history and goals', icon: Sparkles, isRecommended: true },
+    { type: 'standard', title: `Standard ${muscleGroup || 'Workout'}`, subtitle: '6 exercises', icon: Calendar, isRecommended: false },
+  ];
+}
 
 const celebrityWorkouts = [
   { id: 1, name: "Arnold's Shoulders & Arms", celebrity: 'Arnold Schwarzenegger', exercises: 6, difficulty: 'Advanced' },
@@ -50,7 +52,7 @@ export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps
 
       <div className="px-4 py-4 space-y-4">
         <div className="space-y-3">
-          {workoutTemplates.map((template) => {
+          {getWorkoutTemplates(muscleGroup).map((template) => {
             const Icon = template.icon;
             return (
               <button key={template.type} onClick={() => setActiveWorkout(true)} className={`w-full rounded-2xl p-4 flex items-center gap-4 transition-all hover:scale-[1.02] ${template.isRecommended ? 'bg-gradient-to-br from-green-900/40 to-emerald-900/40 border border-[#00ff00]/30' : 'bg-[#1a1a1a] hover:bg-[#252525]'}`}>

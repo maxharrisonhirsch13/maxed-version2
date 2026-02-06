@@ -15,18 +15,50 @@ import { WorkoutDetailModal } from './components/WorkoutDetailModal';
 import { useAuth } from './context/AuthContext';
 import { useWorkoutHistory } from './hooks/useWorkoutHistory';
 
+// Compute scheduled workout from user's split and day of week
+function getScheduledWorkout(split: string | undefined) {
+  const dayIndex = new Date().getDay(); // 0=Sun ... 6=Sat
+  if (split === 'ppl') {
+    const cycle = ['Push', 'Pull', 'Legs'];
+    const name = dayIndex === 0 ? 'Rest' : cycle[(dayIndex - 1) % 3];
+    return { name, splitName: 'Push/Pull/Legs' };
+  }
+  if (split === 'arnold') {
+    const cycle = ['Chest & Back', 'Shoulders & Arms', 'Legs'];
+    const name = dayIndex === 0 ? 'Rest' : cycle[(dayIndex - 1) % 3];
+    return { name, splitName: "Arnold's Split" };
+  }
+  if (split === 'bro') {
+    const days = ['Rest', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Rest'];
+    return { name: days[dayIndex], splitName: 'Bro Split' };
+  }
+  if (split === 'upper-lower') {
+    return { name: dayIndex % 2 === 1 ? 'Upper Body' : 'Lower Body', splitName: 'Upper/Lower' };
+  }
+  if (split === 'full-body') {
+    return { name: dayIndex === 0 || dayIndex === 6 ? 'Rest' : 'Full Body', splitName: 'Full Body' };
+  }
+  return { name: 'Full Body', splitName: 'Training' };
+}
+
 export default function App() {
   const { session, profile, loading, refreshProfile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
-  const [activeMuscleGroup, setActiveMuscleGroup] = useState('Shoulders/Arms');
+  const [activeMuscleGroup, setActiveMuscleGroup] = useState('');
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [showWorkoutSwitch, setShowWorkoutSwitch] = useState(false);
   const [showCardioSetup, setShowCardioSetup] = useState(false);
   const [showSecondSession, setShowSecondSession] = useState(false);
   const [showReadinessModal, setShowReadinessModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
+
+  // Compute scheduled workout from user's split
+  const scheduledWorkout = getScheduledWorkout(profile?.split || undefined);
+  const currentMuscleGroup = activeMuscleGroup || scheduledWorkout.name;
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   // Loading state while auth initializes
   if (loading) {
@@ -56,7 +88,7 @@ export default function App() {
           <header className="px-4 pt-safe pt-8 pb-3">
             <div className="flex justify-between items-start mb-1">
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Tuesday, February 3</p>
+                <p className="text-xs text-gray-400 mb-0.5">{dateStr}</p>
                 <h1 className="text-xl font-bold">Hey, {profile?.name?.split(' ')[0] || 'there'}</h1>
               </div>
               <button className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors">
@@ -92,23 +124,29 @@ export default function App() {
             <div className="bg-[#1a1a1a] rounded-2xl p-4">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <span className="inline-block bg-[#00ff00] text-black text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">
-                    SCHEDULED
+                  <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 ${
+                    currentMuscleGroup === 'Rest' ? 'bg-gray-600 text-white' : 'bg-[#00ff00] text-black'
+                  }`}>
+                    {currentMuscleGroup === 'Rest' ? 'REST DAY' : 'SCHEDULED'}
                   </span>
-                  <h2 className="text-lg font-bold mb-0.5">Shoulders/Arms</h2>
-                  <p className="text-gray-400 text-sm">Arnold's Split</p>
+                  <h2 className="text-lg font-bold mb-0.5">{currentMuscleGroup}</h2>
+                  <p className="text-gray-400 text-sm">{scheduledWorkout.splitName}</p>
                 </div>
                 <div className="p-2 bg-[#252525] rounded-xl">
                   <Dumbbell className="w-5 h-5 text-[#00ff00]" />
                 </div>
               </div>
-              
-              <button className="w-full bg-white text-black font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
-                onClick={() => setShowWorkoutStart(true)}
-              >
-                <Play className="w-4 h-4 fill-current" />
-                Start Workout
-              </button>
+
+              {currentMuscleGroup !== 'Rest' ? (
+                <button className="w-full bg-white text-black font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
+                  onClick={() => setShowWorkoutStart(true)}
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  Start Workout
+                </button>
+              ) : (
+                <p className="text-gray-500 text-sm text-center py-2">Recovery day — use Switch to train anyway</p>
+              )}
             </div>
 
             {/* Quick Action Buttons */}
@@ -254,7 +292,7 @@ export default function App() {
       </nav>
 
       {/* Workout Start Page */}
-      {showWorkoutStart && <WorkoutStartPage onClose={() => setShowWorkoutStart(false)} muscleGroup={activeMuscleGroup} />}
+      {showWorkoutStart && <WorkoutStartPage onClose={() => setShowWorkoutStart(false)} muscleGroup={currentMuscleGroup} />}
 
       {/* Integrations Page */}
       {showIntegrations && <IntegrationsPage onBack={() => setShowIntegrations(false)} />}
@@ -265,16 +303,18 @@ export default function App() {
           onClose={() => setShowWorkoutSwitch(false)}
           onSelectWorkout={(type, details) => {
             setShowWorkoutSwitch(false);
-            // Map the selection to a muscle group key
             if (type === 'split' && details.name) {
               setActiveMuscleGroup(details.name);
             } else if (type === 'custom' && details.muscles) {
               setActiveMuscleGroup(details.muscles.join(' & '));
+            } else if (type === 'ai' && details.name) {
+              setActiveMuscleGroup(details.name);
             }
             setShowWorkoutStart(true);
           }}
           userSplit={profile?.split || ''}
           customSplit={profile?.customSplit || []}
+          scheduledWorkout={scheduledWorkout.name}
         />
       )}
 

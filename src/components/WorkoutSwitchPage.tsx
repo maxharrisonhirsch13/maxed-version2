@@ -6,9 +6,10 @@ interface WorkoutSwitchPageProps {
   onSelectWorkout: (type: string, details: any) => void;
   userSplit: string;
   customSplit?: { day: number; muscles: string[] }[];
+  scheduledWorkout?: string;
 }
 
-export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customSplit }: WorkoutSwitchPageProps) {
+export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customSplit, scheduledWorkout }: WorkoutSwitchPageProps) {
   const [selectedMode, setSelectedMode] = useState<'split' | 'custom' | 'ai' | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
@@ -29,10 +30,27 @@ export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customS
     else setSelectedMuscles([...selectedMuscles, muscle]);
   };
 
+  // Compute AI suggestion: pick a different day from the user's split
+  const getAiSuggestion = () => {
+    const days = getSplitDays();
+    const scheduled = scheduledWorkout || '';
+    // Find a day different from the scheduled one
+    const alternatives = days.filter(d => d !== scheduled && d !== 'Rest');
+    if (alternatives.length > 0) {
+      // Pick a somewhat random one based on day of week
+      const pick = alternatives[new Date().getDay() % alternatives.length];
+      return pick;
+    }
+    // Fallback
+    return days[0] || 'Full Body';
+  };
+
+  const aiSuggestion = getAiSuggestion();
+
   const handleContinue = () => {
     if (selectedMode === 'split' && selectedDay !== null) onSelectWorkout('split', { day: selectedDay, name: getSplitDays()[selectedDay] });
     else if (selectedMode === 'custom' && selectedMuscles.length > 0) onSelectWorkout('custom', { muscles: selectedMuscles });
-    else if (selectedMode === 'ai') onSelectWorkout('ai', {});
+    else if (selectedMode === 'ai') onSelectWorkout('ai', { name: aiSuggestion });
   };
 
   const splitDays = getSplitDays();
@@ -105,11 +123,11 @@ export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customS
                 <div className="w-12 h-12 bg-[#00ff00] rounded-xl flex items-center justify-center"><Sparkles className="w-6 h-6 text-black" /></div>
                 <h3 className="text-xl font-bold">AI Workout Suggestion</h3>
               </div>
-              <p className="text-gray-300 mb-4">Based on your recent training history, recovery metrics, and split schedule, I recommend focusing on <span className="text-[#00ff00] font-semibold">Pull Day (Back & Biceps)</span> today.</p>
+              <p className="text-gray-300 mb-4">Based on your training split and recovery, I recommend focusing on <span className="text-[#00ff00] font-semibold">{aiSuggestion}</span> today.</p>
               <div className="bg-black/30 rounded-xl p-4 space-y-2">
                 <div className="flex items-center justify-between text-sm"><span className="text-gray-400">Readiness Score</span><span className="text-[#00ff00] font-semibold">94/100</span></div>
-                <div className="flex items-center justify-between text-sm"><span className="text-gray-400">Last Pull Session</span><span className="text-white font-semibold">4 days ago</span></div>
-                <div className="flex items-center justify-between text-sm"><span className="text-gray-400">Optimal Volume</span><span className="text-white font-semibold">18-22 sets</span></div>
+                <div className="flex items-center justify-between text-sm"><span className="text-gray-400">Currently Scheduled</span><span className="text-white font-semibold">{scheduledWorkout || 'None'}</span></div>
+                <div className="flex items-center justify-between text-sm"><span className="text-gray-400">AI Suggestion</span><span className="text-[#00ff00] font-semibold">{aiSuggestion}</span></div>
               </div>
             </div>
           </div>

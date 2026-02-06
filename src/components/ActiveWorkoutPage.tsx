@@ -126,6 +126,10 @@ function getExercisesForWorkout(muscleGroup: string): Exercise[] {
     'abs': ['Core'],
     'push': ['Chest', 'Shoulders', 'Triceps'],
     'pull': ['Back', 'Biceps'],
+    'upper': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
+    'lower': ['Legs'],
+    'full': ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core'],
+    'forearms': ['Biceps'],
   };
 
   // Find all matching muscle groups from the workout name
@@ -162,6 +166,10 @@ function getRelatedExercises(muscleGroup: string): Exercise[] {
     'legs': ['Legs'], 'quads': ['Legs'], 'hamstrings': ['Legs'],
     'glutes': ['Legs'], 'calves': ['Legs'], 'core': ['Core'], 'abs': ['Core'],
     'push': ['Chest', 'Shoulders', 'Triceps'], 'pull': ['Back', 'Biceps'],
+    'upper': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
+    'lower': ['Legs'],
+    'full': ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core'],
+    'forearms': ['Biceps'],
   };
 
   for (const key of Object.keys(exerciseLibrary)) {
