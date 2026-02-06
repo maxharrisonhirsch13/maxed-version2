@@ -38,16 +38,22 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
   };
 
   const handleWhoopConnect = async () => {
-    if (!user) return;
+    if (!user) {
+      alert('Not logged in');
+      return;
+    }
     setWhoopConnecting(true);
     try {
       const res = await fetch(`/api/whoop-auth?userId=${user.id}`);
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
+        return; // navigating away, don't reset state
+      } else {
+        alert('WHOOP auth error: ' + (data.error || 'No URL returned'));
       }
     } catch (err) {
-      console.error('Failed to start WHOOP OAuth:', err);
+      alert('Failed to connect WHOOP: ' + (err instanceof Error ? err.message : 'Network error'));
     }
     setWhoopConnecting(false);
   };
