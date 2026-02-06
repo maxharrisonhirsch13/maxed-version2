@@ -300,7 +300,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     <div className="min-h-screen bg-black text-white px-5 py-8">
       <div className="max-w-md mx-auto">
         {/* Progress Indicator */}
-        <div className="flex gap-2 mb-12">
+        <div className="flex gap-2 mb-6">
           {Array.from({ length: totalSteps }).map((_, idx) => (
             <div
               key={idx}
@@ -310,6 +310,17 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             />
           ))}
         </div>
+
+        {/* Back Button */}
+        {step > 1 && (
+          <button
+            onClick={() => setStep(step - 1)}
+            className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors mb-6 -ml-1"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+        )}
 
         {/* Step Content */}
         <div className="mb-12">

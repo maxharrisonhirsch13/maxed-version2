@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
@@ -240,6 +240,16 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
     joined?: string;
   } | null>(null);
 
+  // Privacy settings
+  const [showPrivacySettings, setShowPrivacySettings] = useState(false);
+  const [privacySettings, setPrivacySettings] = useState({
+    shareLiveActivity: true,
+    sharePRs: true,
+    shareWorkoutHistory: true,
+    shareStreak: true,
+    profileVisibility: 'everyone' as 'everyone' | 'friends' | 'private',
+  });
+
   // Get user's first name and initials
   const firstName = userData?.name.split(' ')[0] || 'Max';
   const initials = userData?.name
@@ -318,9 +328,17 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             <h1 className="text-2xl font-bold mb-1">{userData?.name || 'Max Thompson'}</h1>
             <p className="text-sm text-gray-500">Member since Jan 2025</p>
           </div>
-          <button className="p-2 hover:bg-white/5 rounded-xl transition-colors">
-            <Edit className="w-5 h-5 text-gray-400" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowPrivacySettings(true)}
+              className="p-2 hover:bg-white/5 rounded-xl transition-colors"
+            >
+              <Shield className="w-5 h-5 text-gray-400" />
+            </button>
+            <button className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+              <Edit className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -737,6 +755,105 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             setViewAllFriends(false);
           }}
         />
+      )}
+
+      {/* Privacy Settings Modal */}
+      {showPrivacySettings && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-gradient-to-b from-[#0f0f0f] to-black rounded-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-900">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-[#00ff00]/10 rounded-xl">
+                  <Shield className="w-4 h-4 text-[#00ff00]" />
+                </div>
+                <h3 className="font-bold text-lg">Privacy & Sharing</h3>
+              </div>
+              <button
+                onClick={() => setShowPrivacySettings(false)}
+                className="p-2 hover:bg-white/5 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              {/* Sharing Toggles */}
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 tracking-wide mb-3">SHARING PREFERENCES</h4>
+                <div className="space-y-1">
+                  {[
+                    { key: 'shareLiveActivity' as const, label: 'Live Activity', desc: 'Show friends when you\'re working out' },
+                    { key: 'sharePRs' as const, label: 'Personal Records', desc: 'Share your PRs on your profile' },
+                    { key: 'shareWorkoutHistory' as const, label: 'Workout History', desc: 'Let friends see your past workouts' },
+                    { key: 'shareStreak' as const, label: 'Streak', desc: 'Display your workout streak' },
+                  ].map((item) => (
+                    <button
+                      key={item.key}
+                      onClick={() => setPrivacySettings({ ...privacySettings, [item.key]: !privacySettings[item.key] })}
+                      className="w-full flex items-center justify-between p-3.5 rounded-xl hover:bg-white/5 transition-colors"
+                    >
+                      <div className="text-left">
+                        <p className="text-sm font-medium">{item.label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                      </div>
+                      <div className={`w-11 h-6 rounded-full transition-colors relative ${
+                        privacySettings[item.key] ? 'bg-[#00ff00]' : 'bg-gray-700'
+                      }`}>
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          privacySettings[item.key] ? 'translate-x-[22px]' : 'translate-x-0.5'
+                        }`} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Profile Visibility */}
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 tracking-wide mb-3">PROFILE VISIBILITY</h4>
+                <div className="space-y-2">
+                  {[
+                    { value: 'everyone' as const, label: 'Everyone', desc: 'Anyone can see your profile' },
+                    { value: 'friends' as const, label: 'Friends Only', desc: 'Only friends can see your profile' },
+                    { value: 'private' as const, label: 'Private', desc: 'Nobody can see your profile' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setPrivacySettings({ ...privacySettings, profileVisibility: option.value })}
+                      className={`w-full p-3.5 rounded-xl border-2 transition-all text-left ${
+                        privacySettings.profileVisibility === option.value
+                          ? 'border-[#00ff00] bg-[#00ff00]/5'
+                          : 'border-gray-800 bg-[#0a0a0a] hover:border-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{option.label}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{option.desc}</p>
+                        </div>
+                        {privacySettings.profileVisibility === option.value && (
+                          <Check className="w-4 h-4 text-[#00ff00]" />
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="px-5 py-4 border-t border-gray-900">
+              <button
+                onClick={() => setShowPrivacySettings(false)}
+                className="w-full bg-[#00ff00] text-black font-bold py-3.5 rounded-2xl text-sm hover:bg-[#00dd00] transition-all active:scale-[0.97]"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
