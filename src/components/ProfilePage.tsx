@@ -1,8 +1,9 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
 import { useAuth } from '../context/AuthContext';
+import { useProfile } from '../hooks/useProfile';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -212,6 +213,7 @@ const workoutHistory: WorkoutLog[] = [
 
 export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps) {
   const { signOut } = useAuth();
+  const { updateProfile } = useProfile();
   const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 5)); // Feb 5, 2026
   const [selectedDay, setSelectedDay] = useState<WorkoutLog[] | null>(null);
   const [copiedReferral, setCopiedReferral] = useState(false);
@@ -238,6 +240,20 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
     profileVisibility: 'everyone' as 'everyone' | 'friends' | 'private',
   });
 
+  // Edit profile state
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editData, setEditData] = useState({
+    name: '',
+    heightFeet: 0,
+    heightInches: 0,
+    weight: 0,
+    experience: '' as string,
+    gym: '' as string,
+    split: '' as string,
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
   // Get user's first name and initials
   const firstName = userData?.name.split(' ')[0] || 'Max';
   const initials = userData?.name
@@ -253,6 +269,26 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
     navigator.clipboard.writeText('maxed.app/ref/MAX2026');
     setCopiedReferral(true);
     setTimeout(() => setCopiedReferral(false), 2000);
+  };
+
+  const handleSaveProfile = async () => {
+    setEditSaving(true);
+    setEditError('');
+    try {
+      await updateProfile({
+        name: editData.name,
+        height_feet: editData.heightFeet,
+        height_inches: editData.heightInches,
+        weight_lbs: editData.weight,
+        experience: editData.experience || null,
+        split: editData.split || null,
+      });
+      setShowEditProfile(false);
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to save');
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -323,7 +359,18 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             >
               <Shield className="w-5 h-5 text-gray-400" />
             </button>
-            <button className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+            <button onClick={() => {
+              setEditData({
+                name: userData?.name || '',
+                heightFeet: userData?.heightFeet || 5,
+                heightInches: userData?.heightInches || 10,
+                weight: userData?.weight || 175,
+                experience: userData?.experience || '',
+                gym: userData?.gym || '',
+                split: userData?.split || '',
+              });
+              setShowEditProfile(true);
+            }} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
               <Edit className="w-5 h-5 text-gray-400" />
             </button>
             <button
@@ -750,6 +797,146 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             setViewAllFriends(false);
           }}
         />
+      )}
+
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <div className="fixed inset-0 bg-black z-50 overflow-y-auto">
+          <div className="min-h-screen px-5 py-8 pb-24">
+            <div className="max-w-md mx-auto">
+              <div className="flex items-center justify-between mb-8">
+                <h1 className="text-2xl font-bold">Edit Profile</h1>
+                <button onClick={() => setShowEditProfile(false)} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Name */}
+                <div>
+                  <label className="text-sm font-medium text-gray-400 mb-2 block">Name</label>
+                  <input
+                    type="text"
+                    value={editData.name}
+                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00ff00] transition-colors"
+                  />
+                </div>
+
+                {/* Height */}
+                <div>
+                  <label className="text-sm font-medium text-gray-400 mb-2 block">Height</label>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        min="3"
+                        max="8"
+                        value={editData.heightFeet}
+                        onChange={(e) => setEditData({ ...editData, heightFeet: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-white text-center focus:outline-none focus:border-[#00ff00] transition-colors"
+                      />
+                      <p className="text-center text-xs text-gray-500 mt-1">feet</p>
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="11"
+                        value={editData.heightInches}
+                        onChange={(e) => setEditData({ ...editData, heightInches: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-white text-center focus:outline-none focus:border-[#00ff00] transition-colors"
+                      />
+                      <p className="text-center text-xs text-gray-500 mt-1">inches</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Weight */}
+                <div>
+                  <label className="text-sm font-medium text-gray-400 mb-2 block">Weight (lbs)</label>
+                  <input
+                    type="number"
+                    min="80"
+                    max="500"
+                    value={editData.weight}
+                    onChange={(e) => setEditData({ ...editData, weight: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00ff00] transition-colors"
+                  />
+                </div>
+
+                {/* Experience */}
+                <div>
+                  <label className="text-sm font-medium text-gray-400 mb-2 block">Experience</label>
+                  <div className="space-y-2">
+                    {['beginner', 'intermediate', 'advanced'].map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setEditData({ ...editData, experience: level })}
+                        className={`w-full p-3 rounded-xl border-2 transition-all text-left capitalize ${
+                          editData.experience === level
+                            ? 'border-[#00ff00] bg-[#00ff00]/10'
+                            : 'border-gray-800 bg-[#1a1a1a] hover:border-gray-700'
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Training Split */}
+                <div>
+                  <label className="text-sm font-medium text-gray-400 mb-2 block">Training Split</label>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'ppl', label: 'Push Pull Legs' },
+                      { value: 'arnold', label: 'Arnold Split' },
+                      { value: 'bro', label: 'Bro Split' },
+                      { value: 'upper-lower', label: 'Upper/Lower' },
+                      { value: 'full-body', label: 'Full Body' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setEditData({ ...editData, split: option.value })}
+                        className={`w-full p-3 rounded-xl border-2 transition-all text-left ${
+                          editData.split === option.value
+                            ? 'border-[#00ff00] bg-[#00ff00]/10'
+                            : 'border-gray-800 bg-[#1a1a1a] hover:border-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Error */}
+                {editError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                    <p className="text-red-400 text-xs">{editError}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Save Button */}
+              <button
+                onClick={handleSaveProfile}
+                disabled={editSaving || !editData.name.trim()}
+                className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-xl mt-8 hover:bg-[#00dd00] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {editSaving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Privacy Settings Modal */}

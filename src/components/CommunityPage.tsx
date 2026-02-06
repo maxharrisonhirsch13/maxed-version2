@@ -6,17 +6,19 @@ import { useAuth } from '../context/AuthContext';
 
 type Tab = 'trending' | 'friends' | 'classes' | 'nearby';
 
-const trendingData = {
-  topGym: { name: 'UM CCRB', subtitle: 'Most active gym in your area', change: '+34%', activeNow: 47 },
-  topLift: { name: 'Bench Press', subtitle: 'Most popular lift', change: '+22%', performedToday: 234 },
-  streakLeaderboard: [
-    { rank: 1, name: 'James Lee', gym: 'Gold\'s Gym', streak: 89, isYou: false },
-    { rank: 2, name: 'Mike Reynolds', gym: 'UM CCRB', streak: 47, isYou: false },
-    { rank: 3, name: 'Alex Park', gym: 'UM CCRB', streak: 41, isYou: false },
-    { rank: 4, name: 'Emily Wang', gym: 'Planet Fitness', streak: 38, isYou: true },
-    { rank: 5, name: 'Chris Johnson', gym: 'LA Fitness', streak: 32, isYou: false },
-  ]
-};
+function getTrendingData(userGym: string) {
+  return {
+    topGym: { name: userGym || 'Your Gym', subtitle: 'Most active gym in your area', change: '+34%', activeNow: 47 },
+    topLift: { name: 'Bench Press', subtitle: 'Most popular lift', change: '+22%', performedToday: 234 },
+    streakLeaderboard: [
+      { rank: 1, name: 'James Lee', gym: userGym || 'Local Gym', streak: 89, isYou: false },
+      { rank: 2, name: 'Mike Reynolds', gym: userGym || 'Local Gym', streak: 47, isYou: false },
+      { rank: 3, name: 'Alex Park', gym: userGym || 'Local Gym', streak: 41, isYou: false },
+      { rank: 4, name: 'You', gym: userGym || 'Local Gym', streak: 38, isYou: true },
+      { rank: 5, name: 'Chris Johnson', gym: userGym || 'Local Gym', streak: 32, isYou: false },
+    ]
+  };
+}
 
 const friendsData = [
   { id: 1, name: 'Sarah Johnson', avatar: 'SJ', gym: 'UM CCRB', status: 'Working out now', exercise: 'Deadlifts', streak: 23, activeNow: true },
@@ -25,12 +27,15 @@ const friendsData = [
   { id: 4, name: 'David Rodriguez', avatar: 'DR', gym: 'Planet Fitness', status: 'Rest day', exercise: null, streak: 8, activeNow: false },
 ];
 
-const classesData = [
-  { id: 1, name: 'HIIT Burn', instructor: 'Sarah M.', time: '6:00 AM', duration: 45, enrolled: 14, friendsCount: 2, spotsLeft: 6, difficulty: 'High', gym: 'UM CCRB' },
-  { id: 2, name: 'Power Lift', instructor: 'Mike R.', time: '7:30 AM', duration: 60, enrolled: 12, friendsCount: 1, spotsLeft: 3, difficulty: 'Medium', gym: 'UM CCRB' },
-  { id: 3, name: 'Spin Class', instructor: 'Jenny L.', time: '12:00 PM', duration: 45, enrolled: 23, friendsCount: 3, spotsLeft: 2, difficulty: 'Medium', gym: 'Gold\'s Gym' },
-  { id: 4, name: 'Yoga Flow', instructor: 'Amanda K.', time: '5:30 PM', duration: 60, enrolled: 18, friendsCount: 2, spotsLeft: 7, difficulty: 'Low', gym: 'UM CCRB' },
-];
+function getClassesData(userGym: string) {
+  const gym = userGym || 'Your Gym';
+  return [
+    { id: 1, name: 'HIIT Burn', instructor: 'Sarah M.', time: '6:00 AM', duration: 45, enrolled: 14, friendsCount: 2, spotsLeft: 6, difficulty: 'High', gym },
+    { id: 2, name: 'Power Lift', instructor: 'Mike R.', time: '7:30 AM', duration: 60, enrolled: 12, friendsCount: 1, spotsLeft: 3, difficulty: 'Medium', gym },
+    { id: 3, name: 'Spin Class', instructor: 'Jenny L.', time: '12:00 PM', duration: 45, enrolled: 23, friendsCount: 3, spotsLeft: 2, difficulty: 'Medium', gym },
+    { id: 4, name: 'Yoga Flow', instructor: 'Amanda K.', time: '5:30 PM', duration: 60, enrolled: 18, friendsCount: 2, spotsLeft: 7, difficulty: 'Low', gym },
+  ];
+}
 
 const defaultNearbyGyms = [
   { id: 1, name: 'UM CCRB', distance: '0.3 mi', activeNow: 47, friendsCount: 8, peakTime: '5-7 PM', avgWaitTime: '5 min', equipment: ['Squat Racks', 'Benches', 'Cardio'] },
@@ -44,6 +49,8 @@ export function CommunityPage() {
   const [selectedFriend, setSelectedFriend] = useState<typeof friendsData[0] | null>(null);
   const [viewAllFriends, setViewAllFriends] = useState(false);
   const { profile } = useAuth();
+  const trendingData = getTrendingData(profile?.gym || '');
+  const classesData = getClassesData(profile?.gym || '');
 
   const getRankColor = (rank: number) => {
     if (rank === 1) return 'bg-yellow-500';
