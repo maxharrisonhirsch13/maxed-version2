@@ -33,6 +33,7 @@ function getScheduledWorkout(split: string | undefined) {
     return { name: days[dayIndex], splitName: 'Bro Split' };
   }
   if (split === 'upper-lower') {
+    if (dayIndex === 0) return { name: 'Rest', splitName: 'Upper/Lower' };
     return { name: dayIndex % 2 === 1 ? 'Upper Body' : 'Lower Body', splitName: 'Upper/Lower' };
   }
   if (split === 'full-body') {
@@ -292,7 +293,7 @@ export default function App() {
       </nav>
 
       {/* Workout Start Page */}
-      {showWorkoutStart && <WorkoutStartPage onClose={() => setShowWorkoutStart(false)} muscleGroup={currentMuscleGroup} />}
+      {showWorkoutStart && <WorkoutStartPage onClose={() => { setShowWorkoutStart(false); setActiveMuscleGroup(''); }} muscleGroup={currentMuscleGroup} />}
 
       {/* Integrations Page */}
       {showIntegrations && <IntegrationsPage onBack={() => setShowIntegrations(false)} />}

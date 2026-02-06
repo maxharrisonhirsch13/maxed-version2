@@ -4,6 +4,7 @@ import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
+import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -32,189 +33,46 @@ interface WorkoutLog {
   }[];
 }
 
-// Mock workout data
-const workoutHistory: WorkoutLog[] = [
-  {
-    date: '2026-02-03',
-    startTime: '6:45 AM',
-    duration: 68,
-    workoutType: 'CHEST',
-    exercises: [
-      {
-        name: 'Bench Press',
-        sets: [
-          { weight: 185, reps: 8 },
-          { weight: 185, reps: 7 },
-          { weight: 185, reps: 6 },
-          { weight: 165, reps: 8 }
-        ]
-      },
-      {
-        name: 'Incline Dumbbell Press',
-        sets: [
-          { weight: 70, reps: 10 },
-          { weight: 70, reps: 9 },
-          { weight: 70, reps: 8 }
-        ]
-      },
-      {
-        name: 'Cable Flyes',
-        sets: [
-          { weight: 40, reps: 12 },
-          { weight: 40, reps: 12 },
-          { weight: 40, reps: 10 }
-        ]
-      }
-    ]
-  },
-  {
-    date: '2026-02-02',
-    startTime: '6:00 AM',
-    duration: 58,
-    workoutType: 'ARMS',
-    exercises: [
-      {
-        name: 'Barbell Curl',
-        sets: [
-          { weight: 75, reps: 10 },
-          { weight: 75, reps: 9 },
-          { weight: 75, reps: 8 }
-        ]
-      },
-      {
-        name: 'Tricep Dips',
-        sets: [
-          { weight: 0, reps: 12 },
-          { weight: 0, reps: 11 },
-          { weight: 0, reps: 10 }
-        ]
-      }
-    ]
-  },
-  {
-    date: '2026-02-02',
-    startTime: '5:00 PM',
-    duration: 30,
-    workoutType: 'CARDIO',
-    exercises: [
-      {
-        name: 'Treadmill Run',
-        sets: [
-          { weight: 0, reps: 30 }
-        ],
-        cardioData: {
-          duration: 30,
-          distance: 2.5,
-          speed: 5,
-          incline: 0,
-          calories: 150
-        }
-      }
-    ]
-  },
-  {
-    date: '2026-02-01',
-    startTime: '7:15 AM',
-    duration: 52,
-    workoutType: 'BACK',
-    exercises: [
-      {
-        name: 'Deadlift',
-        sets: [
-          { weight: 315, reps: 5 },
-          { weight: 315, reps: 5 },
-          { weight: 315, reps: 4 }
-        ]
-      },
-      {
-        name: 'Barbell Rows',
-        sets: [
-          { weight: 155, reps: 8 },
-          { weight: 155, reps: 8 },
-          { weight: 155, reps: 7 }
-        ]
-      }
-    ]
-  },
-  {
-    date: '2026-01-30',
-    startTime: '6:30 AM',
-    duration: 75,
-    workoutType: 'LEGS',
-    exercises: [
-      {
-        name: 'Squat',
-        sets: [
-          { weight: 225, reps: 8 },
-          { weight: 225, reps: 8 },
-          { weight: 225, reps: 7 },
-          { weight: 205, reps: 10 }
-        ]
-      },
-      {
-        name: 'Leg Press',
-        sets: [
-          { weight: 360, reps: 12 },
-          { weight: 360, reps: 11 },
-          { weight: 360, reps: 10 }
-        ]
-      }
-    ]
-  },
-  {
-    date: '2026-01-28',
-    startTime: '5:00 PM',
-    duration: 45,
-    workoutType: 'SHLDR',
-    exercises: [
-      {
-        name: 'Overhead Press',
-        sets: [
-          { weight: 115, reps: 8 },
-          { weight: 115, reps: 7 },
-          { weight: 115, reps: 6 }
-        ]
-      },
-      {
-        name: 'Lateral Raises',
-        sets: [
-          { weight: 25, reps: 12 },
-          { weight: 25, reps: 12 },
-          { weight: 25, reps: 10 }
-        ]
-      }
-    ]
-  },
-  {
-    date: '2026-01-26',
-    startTime: '8:00 AM',
-    duration: 58,
-    workoutType: 'BACK',
-    exercises: [
-      {
-        name: 'Pull-ups',
-        sets: [
-          { weight: 0, reps: 12 },
-          { weight: 0, reps: 10 },
-          { weight: 0, reps: 8 }
-        ]
-      },
-      {
-        name: 'Lat Pulldown',
-        sets: [
-          { weight: 140, reps: 10 },
-          { weight: 140, reps: 9 },
-          { weight: 140, reps: 8 }
-        ]
-      }
-    ]
-  }
-];
 
 export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps) {
   const { signOut } = useAuth();
   const { updateProfile } = useProfile();
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 5)); // Feb 5, 2026
+  const { workouts: rawWorkouts } = useWorkoutHistory();
+
+  // Convert real workout data to calendar-friendly format
+  const workoutHistory: WorkoutLog[] = rawWorkouts.map(w => ({
+    date: w.startedAt.split('T')[0],
+    startTime: new Date(w.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    duration: w.durationMinutes || 0,
+    workoutType: w.workoutType.toUpperCase(),
+    exercises: w.exercises.map(ex => ({
+      name: ex.exerciseName,
+      sets: ex.sets.map(s => ({ weight: s.weightLbs || 0, reps: s.reps || 0 })),
+    })),
+  }));
+
+  // Compute profile stats from real data
+  const totalWorkouts = rawWorkouts.length;
+  const totalHours = Math.round(rawWorkouts.reduce((acc, w) => acc + (w.durationMinutes || 0), 0) / 60);
+  const currentStreak = (() => {
+    if (rawWorkouts.length === 0) return 0;
+    const workoutDates = [...new Set(rawWorkouts.map(w => w.startedAt.split('T')[0]))].sort().reverse();
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(today);
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    if (!workoutDates.includes(fmt(checkDate))) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    while (workoutDates.includes(fmt(checkDate))) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    return streak;
+  })();
+
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<WorkoutLog[] | null>(null);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [viewAllFriends, setViewAllFriends] = useState(false);
@@ -255,10 +113,10 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const [editError, setEditError] = useState('');
 
   // Get user's first name and initials
-  const firstName = userData?.name.split(' ')[0] || 'Max';
+  const firstName = userData?.name?.split(' ')[0] || 'User';
   const initials = userData?.name
     ? userData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : 'M';
+    : 'U';
   
   // Format experience level for display
   const experienceLabel = userData?.experience 
@@ -281,6 +139,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
         height_inches: editData.heightInches,
         weight_lbs: editData.weight,
         experience: editData.experience || null,
+        gym: editData.gym || null,
         split: editData.split || null,
       });
       setShowEditProfile(false);
@@ -349,7 +208,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             {initials}
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold mb-1">{userData?.name || 'Max Thompson'}</h1>
+            <h1 className="text-2xl font-bold mb-1">{userData?.name || 'User'}</h1>
             <p className="text-sm text-gray-500">Member since {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'recently'}</p>
           </div>
           <div className="flex items-center gap-1">
@@ -385,15 +244,15 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-[#0a0a0a] rounded-2xl p-3 border border-gray-900 text-center">
-            <div className="text-xl font-bold text-[#00ff00]">127</div>
+            <div className="text-xl font-bold text-[#00ff00]">{totalWorkouts}</div>
             <div className="text-[10px] text-gray-500 mt-0.5">Workouts</div>
           </div>
           <div className="bg-[#0a0a0a] rounded-2xl p-3 border border-gray-900 text-center">
-            <div className="text-xl font-bold">86h</div>
+            <div className="text-xl font-bold">{totalHours}h</div>
             <div className="text-[10px] text-gray-500 mt-0.5">Total Time</div>
           </div>
           <div className="bg-[#0a0a0a] rounded-2xl p-3 border border-gray-900 text-center">
-            <div className="text-xl font-bold">42</div>
+            <div className="text-xl font-bold">{currentStreak}</div>
             <div className="text-[10px] text-gray-500 mt-0.5">Day Streak</div>
           </div>
         </div>
@@ -584,7 +443,8 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             {Array.from({ length: daysInMonth }).map((_, index) => {
               const day = index + 1;
               const workouts = hasWorkout(day);
-              const isToday = day === 5; // Current day is Feb 5
+              const now = new Date();
+              const isToday = day === now.getDate() && currentDate.getMonth() === now.getMonth() && currentDate.getFullYear() === now.getFullYear();
 
               return (
                 <button

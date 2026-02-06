@@ -1,5 +1,5 @@
 import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useGymSearch } from '../hooks/useGymSearch';
@@ -59,6 +59,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [gymSearchQuery, setGymSearchQuery] = useState('');
   const { results: gymResults, loading: gymSearchLoading } = useGymSearch(gymSearchQuery);
+  const savingRef = useRef(false);
 
   const totalSteps = 8;
 
@@ -81,12 +82,16 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   // Loading animation + save to Supabase
   useEffect(() => {
     if (isLoading) {
+      savingRef.current = false;
       const interval = setInterval(() => {
         setLoadingProgress(prev => {
           if (prev >= 100) {
             clearInterval(interval);
-            // Save profile to Supabase
-            saveProfile();
+            // Prevent double-save from interval race
+            if (!savingRef.current) {
+              savingRef.current = true;
+              saveProfile();
+            }
             return 100;
           }
           return prev + 2;
