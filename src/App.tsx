@@ -318,7 +318,11 @@ export default function App() {
       {showWorkoutStart && <WorkoutStartPage onClose={() => { setShowWorkoutStart(false); setActiveMuscleGroup(''); }} muscleGroup={currentMuscleGroup} />}
 
       {/* Integrations Page */}
-      {showIntegrations && <IntegrationsPage onBack={() => setShowIntegrations(false)} />}
+      {showIntegrations && (
+        <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
+          <IntegrationsPage onBack={() => setShowIntegrations(false)} />
+        </div>
+      )}
 
       {/* Workout Switch Page */}
       {showWorkoutSwitch && (
