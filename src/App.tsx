@@ -39,7 +39,7 @@ export default function App() {
   const [showSecondSession, setShowSecondSession] = useState(false);
   const [showReadinessModal, setShowReadinessModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [userData, setUserData] = useState<UserData>({
     name: 'Alex Martinez',
