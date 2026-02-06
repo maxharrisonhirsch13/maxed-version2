@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
@@ -493,7 +493,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 ].map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => setData({ ...data, experience: option.value as any })}
+                    onClick={() => setData({ ...data, experience: data.experience === option.value ? '' as any : option.value as any })}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                       data.experience === option.value
                         ? 'border-[#00ff00] bg-[#00ff00]/10'
@@ -520,8 +520,12 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               <div className="space-y-3 mb-4">
                 <button
                   onClick={() => {
-                    setData({ ...data, isHomeGym: true, gym: 'Home Gym', gymPlaceId: '', gymAddress: '', gymLat: null, gymLng: null });
-                    setGymSearchQuery('');
+                    if (data.isHomeGym) {
+                      setData({ ...data, isHomeGym: false, gym: '', gymPlaceId: '', gymAddress: '', gymLat: null, gymLng: null });
+                    } else {
+                      setData({ ...data, isHomeGym: true, gym: 'Home Gym', gymPlaceId: '', gymAddress: '', gymLat: null, gymLng: null });
+                      setGymSearchQuery('');
+                    }
                   }}
                   className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
                     data.isHomeGym
@@ -534,6 +538,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <div className="font-bold text-base">I work out at home</div>
                     <div className="text-xs text-gray-400">Bodyweight & home equipment</div>
                   </div>
+                  {data.isHomeGym && <Check className="w-5 h-5 text-[#00ff00]" />}
                 </button>
               </div>
 
@@ -679,7 +684,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 ].map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => setData({ ...data, goal: option.value })}
+                    onClick={() => setData({ ...data, goal: data.goal === option.value ? '' : option.value })}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                       data.goal === option.value
                         ? 'border-[#00ff00] bg-[#00ff00]/10'
@@ -716,7 +721,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 ].map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => setData({ ...data, split: option.value })}
+                    onClick={() => setData({ ...data, split: data.split === option.value ? '' : option.value })}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                       data.split === option.value
                         ? 'border-[#00ff00] bg-[#00ff00]/10'
@@ -743,49 +748,92 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               <h2 className="text-2xl font-bold mb-2">You're all set!</h2>
               <p className="text-gray-400 text-sm mb-8">Review your profile and let's get started</p>
 
-              <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-4 space-y-3">
-                <div>
-                  <p className="text-xs text-gray-500">Name</p>
-                  <p className="font-medium">{data.name}</p>
+              <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">Name</p>
+                    <p className="font-medium">{data.name}</p>
+                  </div>
+                  <button onClick={() => setStep(1)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Stats</p>
-                  <p className="font-medium">{data.heightFeet}'{data.heightInches}", {data.weight} lbs</p>
+                <div className="h-px bg-gray-800" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">Stats</p>
+                    <p className="font-medium">{data.heightFeet} ft {data.heightInches} in · {data.weight} lbs</p>
+                  </div>
+                  <button onClick={() => setStep(2)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Experience</p>
-                  <p className="font-medium capitalize">{data.experience}</p>
+                <div className="h-px bg-gray-800" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">Experience</p>
+                    <p className="font-medium capitalize">{data.experience}</p>
+                  </div>
+                  <button onClick={() => setStep(3)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Training Location</p>
-                  <p className="font-medium">{data.gym}</p>
+                <div className="h-px bg-gray-800" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">Training Location</p>
+                    <p className="font-medium">{data.gym}</p>
+                  </div>
+                  <button onClick={() => setStep(4)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                 </div>
                 {data.wearables.length > 0 && (
-                  <div>
-                    <p className="text-xs text-gray-500">Connected Wearables</p>
-                    <p className="font-medium">{data.wearables.length} device{data.wearables.length > 1 ? 's' : ''} connected</p>
-                  </div>
+                  <>
+                    <div className="h-px bg-gray-800" />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500">Connected Wearables</p>
+                        <p className="font-medium">{data.wearables.length} device{data.wearables.length > 1 ? 's' : ''} connected</p>
+                      </div>
+                      <button onClick={() => setStep(5)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </>
                 )}
-                <div>
-                  <p className="text-xs text-gray-500">Goal</p>
-                  <p className="font-medium">
-                    {data.goal === 'Ask AI' ? data.customGoal : 
-                     data.goal === 'lean' ? 'Get Lean' :
-                     data.goal === 'muscle' ? 'Build Muscle' :
-                     data.goal === 'strength' ? 'Gain Strength' :
-                     data.goal === 'fitness' ? 'General Fitness' :
-                     data.goal === 'athletic' ? 'Athletic Performance' : data.goal}
-                  </p>
+                <div className="h-px bg-gray-800" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">Goal</p>
+                    <p className="font-medium">
+                      {data.goal === 'Ask AI' ? data.customGoal :
+                       data.goal === 'lean' ? 'Get Lean' :
+                       data.goal === 'muscle' ? 'Build Muscle' :
+                       data.goal === 'strength' ? 'Gain Strength' :
+                       data.goal === 'fitness' ? 'General Fitness' :
+                       data.goal === 'athletic' ? 'Athletic Performance' : data.goal}
+                    </p>
+                  </div>
+                  <button onClick={() => setStep(6)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Training Split</p>
-                  <p className="font-medium">
-                    {data.split === 'ppl' ? 'Push Pull Legs' :
-                     data.split === 'arnold' ? 'Arnold Split' :
-                     data.split === 'bro' ? 'Bro Split' :
-                     data.split === 'upper-lower' ? 'Upper/Lower' :
-                     data.split === 'custom' ? 'Custom Split' : data.split}
-                  </p>
+                <div className="h-px bg-gray-800" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">Training Split</p>
+                    <p className="font-medium">
+                      {data.split === 'ppl' ? 'Push Pull Legs' :
+                       data.split === 'arnold' ? 'Arnold Split' :
+                       data.split === 'bro' ? 'Bro Split' :
+                       data.split === 'upper-lower' ? 'Upper/Lower' :
+                       data.split === 'custom' ? 'Custom Split' : data.split}
+                    </p>
+                  </div>
+                  <button onClick={() => setStep(7)} className="p-2 text-gray-500 hover:text-[#00ff00] transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </>
