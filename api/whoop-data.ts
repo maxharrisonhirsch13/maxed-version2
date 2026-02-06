@@ -59,10 +59,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
 
       if (!refreshRes.ok) {
-        console.error('WHOOP token refresh failed:', refreshRes.status)
-        // Token is invalid, clean up
-        await supabase.from('whoop_tokens').delete().eq('user_id', user.id)
-        return res.json({ connected: false, recovery: null, sleep: null, strain: null })
+        const refreshErr = await refreshRes.text().catch(() => '')
+        console.error('WHOOP token refresh failed:', refreshRes.status, refreshErr)
+        // Don't delete tokens — let user manually reconnect if needed
+        // Try using the existing access token anyway (it might still work for some endpoints)
       }
 
       const refreshData = await refreshRes.json()

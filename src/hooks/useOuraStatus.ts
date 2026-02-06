@@ -14,12 +14,16 @@ export function useOuraStatus() {
       return
     }
     setLoading(true)
-    const { data } = await supabase
-      .from('oura_tokens')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .single()
-    setConnected(!!data)
+    try {
+      const { data } = await supabase
+        .from('oura_tokens')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single()
+      setConnected(!!data)
+    } catch {
+      setConnected(false)
+    }
     setLoading(false)
   }, [user])
 
