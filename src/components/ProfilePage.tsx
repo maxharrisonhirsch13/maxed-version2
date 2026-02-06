@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon } from 'lucide-react';
 import { useState } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
@@ -7,6 +7,7 @@ import { useProfile } from '../hooks/useProfile';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import { useGarminStatus } from '../hooks/useGarminStatus';
+import { useOuraStatus } from '../hooks/useOuraStatus';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -42,6 +43,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const { workouts: rawWorkouts } = useWorkoutHistory();
   const { connected: whoopConnected } = useWhoopStatus();
   const { connected: garminConnected } = useGarminStatus();
+  const { connected: ouraConnected } = useOuraStatus();
 
   // Convert real workout data to calendar-friendly format
   const workoutHistory: WorkoutLog[] = rawWorkouts.map(w => ({
@@ -412,8 +414,13 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                   <Activity className="w-3 h-3 text-white" />
                 </div>
               )}
+              {ouraConnected && (
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-600 to-indigo-700 border-2 border-[#0a0a0a] flex items-center justify-center">
+                  <Moon className="w-3 h-3 text-white" />
+                </div>
+              )}
             </div>
-            <span className="text-[10px] text-gray-500">{3 + (whoopConnected ? 1 : 0) + (garminConnected ? 1 : 0)} connected</span>
+            <span className="text-[10px] text-gray-500">{3 + (whoopConnected ? 1 : 0) + (garminConnected ? 1 : 0) + (ouraConnected ? 1 : 0)} connected</span>
           </div>
         </button>
 
