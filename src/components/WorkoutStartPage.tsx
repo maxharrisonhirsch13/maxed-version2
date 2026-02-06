@@ -226,24 +226,63 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
+type WorkoutSelection = 'ai' | 'standard' | number; // number = celebrity workout id
+
 export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps) {
   const allCelebrityWorkouts = getCelebrityWorkouts(muscleGroup);
   const [displayedWorkouts, setDisplayedWorkouts] = useState<CelebrityWorkout[]>(allCelebrityWorkouts.slice(0, 3));
   const [activeWorkout, setActiveWorkout] = useState(false);
-  const [workoutConfig, setWorkoutConfig] = useState<{
-    fewerSets?: boolean;
-    quickVersion?: boolean;
-    customBuild?: boolean;
-  }>({});
+
+  // Selection state — pick ONE workout type
+  const [selected, setSelected] = useState<WorkoutSelection>('ai');
+  // Modifier toggles — combinable with any selection
+  const [fewerSets, setFewerSets] = useState(false);
+  const [quickVersion, setQuickVersion] = useState(false);
+  const [customBuild, setCustomBuild] = useState(false);
 
   const handleShuffle = () => {
     const shuffled = shuffleArray(allCelebrityWorkouts);
     setDisplayedWorkouts(shuffled.slice(0, 3));
   };
 
-  const startWorkout = (config: typeof workoutConfig = {}) => {
-    setWorkoutConfig(config);
-    setActiveWorkout(true);
+  const handleSelect = (sel: WorkoutSelection) => {
+    setSelected(sel === selected ? 'standard' : sel);
+    // If selecting a workout, turn off custom build
+    if (sel !== 'standard') setCustomBuild(false);
+  };
+
+  const toggleFewerSets = () => {
+    setFewerSets(!fewerSets);
+    if (!fewerSets) setQuickVersion(false); // mutually exclusive
+  };
+
+  const toggleQuickVersion = () => {
+    setQuickVersion(!quickVersion);
+    if (!quickVersion) setFewerSets(false); // mutually exclusive
+  };
+
+  const toggleCustomBuild = () => {
+    setCustomBuild(!customBuild);
+    if (!customBuild) {
+      setFewerSets(false);
+      setQuickVersion(false);
+    }
+  };
+
+  const startWorkout = () => setActiveWorkout(true);
+
+  // Build summary label for the Start button
+  const getStartLabel = () => {
+    const parts: string[] = [];
+    if (customBuild) return 'Start Custom Build';
+    if (typeof selected === 'number') {
+      const celeb = allCelebrityWorkouts.find(w => w.id === selected);
+      if (celeb) parts.push(celeb.name);
+    }
+    if (quickVersion) parts.push('Quick');
+    else if (fewerSets) parts.push('Fewer Sets');
+    if (parts.length > 0) return `Start: ${parts.join(' + ')}`;
+    return 'Start Workout';
   };
 
   if (activeWorkout) {
@@ -251,15 +290,15 @@ export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps
       <ActiveWorkoutPage
         onClose={onClose}
         muscleGroup={muscleGroup}
-        fewerSets={workoutConfig.fewerSets}
-        quickVersion={workoutConfig.quickVersion}
-        customBuild={workoutConfig.customBuild}
+        fewerSets={fewerSets}
+        quickVersion={quickVersion}
+        customBuild={customBuild}
       />
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50 overflow-y-auto pb-8">
+    <div className="fixed inset-0 bg-black z-50 overflow-y-auto pb-28">
       <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 px-4 py-4 flex items-center justify-between z-10">
         <h1 className="text-xl font-bold">{muscleGroup}</h1>
         <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-full transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
@@ -268,9 +307,16 @@ export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps
       <div className="px-4 py-4 space-y-4">
         {/* Workout Templates */}
         <div className="space-y-3">
-          <button onClick={() => startWorkout()} className="w-full rounded-2xl p-4 flex items-center gap-4 transition-all hover:scale-[1.02] bg-gradient-to-br from-green-900/40 to-emerald-900/40 border border-[#00ff00]/30">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[#00ff00]">
-              <Sparkles className="w-6 h-6 text-black" />
+          <button
+            onClick={() => handleSelect('ai')}
+            className={`w-full rounded-2xl p-4 flex items-center gap-4 transition-all ${
+              selected === 'ai'
+                ? 'bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-2 border-[#00ff00] ring-1 ring-[#00ff00]/30'
+                : 'bg-[#1a1a1a] hover:bg-[#252525] border-2 border-transparent'
+            }`}
+          >
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selected === 'ai' ? 'bg-[#00ff00]' : 'bg-[#252525]'}`}>
+              <Sparkles className={`w-6 h-6 ${selected === 'ai' ? 'text-black' : 'text-[#00ff00]'}`} />
             </div>
             <div className="flex-1 text-left">
               <div className="flex items-center gap-2 mb-1">
@@ -279,10 +325,17 @@ export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps
               </div>
               <p className="text-sm text-gray-400">Personalized to your history and goals</p>
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-400" />
+            {selected === 'ai' && <div className="w-6 h-6 bg-[#00ff00] rounded-full flex items-center justify-center"><span className="text-black text-xs font-bold">✓</span></div>}
           </button>
 
-          <button onClick={() => startWorkout()} className="w-full rounded-2xl p-4 flex items-center gap-4 transition-all hover:scale-[1.02] bg-[#1a1a1a] hover:bg-[#252525]">
+          <button
+            onClick={() => handleSelect('standard')}
+            className={`w-full rounded-2xl p-4 flex items-center gap-4 transition-all ${
+              selected === 'standard'
+                ? 'bg-[#1a1a1a] border-2 border-[#00ff00] ring-1 ring-[#00ff00]/30'
+                : 'bg-[#1a1a1a] hover:bg-[#252525] border-2 border-transparent'
+            }`}
+          >
             <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[#252525]">
               <Calendar className="w-6 h-6 text-white" />
             </div>
@@ -290,7 +343,7 @@ export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps
               <h3 className="font-bold">Standard {muscleGroup || 'Workout'}</h3>
               <p className="text-sm text-gray-400">6 exercises</p>
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-400" />
+            {selected === 'standard' && <div className="w-6 h-6 bg-[#00ff00] rounded-full flex items-center justify-center"><span className="text-black text-xs font-bold">✓</span></div>}
           </button>
         </div>
 
@@ -298,74 +351,104 @@ export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-gray-400">Celebrity Workouts</h2>
-            <button
-              onClick={handleShuffle}
-              className="flex items-center gap-1.5 text-[#00ff00] text-sm font-semibold hover:opacity-80 transition-opacity active:scale-95"
-            >
+            <button onClick={handleShuffle} className="flex items-center gap-1.5 text-[#00ff00] text-sm font-semibold hover:opacity-80 transition-opacity active:scale-95">
               <Shuffle className="w-4 h-4" /><span>Shuffle</span>
             </button>
           </div>
           <div className="space-y-2">
-            {displayedWorkouts.map((workout) => (
-              <button key={workout.id} onClick={() => startWorkout()} className="w-full bg-[#1a1a1a] rounded-xl p-4 flex items-center gap-4 hover:bg-[#252525] transition-all hover:scale-[1.01]">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center"><Trophy className="w-6 h-6 text-white" /></div>
-                <div className="flex-1 text-left">
-                  <h3 className="font-bold text-sm mb-1">{workout.name}</h3>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <span>{workout.celebrity}</span><span>•</span><span>{workout.exercises} exercises</span><span>•</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${workout.difficulty === 'Advanced' ? 'bg-red-500/20 text-red-400' : workout.difficulty === 'Intermediate' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>{workout.difficulty}</span>
+            {displayedWorkouts.map((workout) => {
+              const isSelected = selected === workout.id;
+              return (
+                <button
+                  key={workout.id}
+                  onClick={() => handleSelect(workout.id)}
+                  className={`w-full rounded-xl p-4 flex items-center gap-4 transition-all ${
+                    isSelected
+                      ? 'bg-[#1a1a1a] border-2 border-[#00ff00] ring-1 ring-[#00ff00]/30'
+                      : 'bg-[#1a1a1a] hover:bg-[#252525] border-2 border-transparent'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isSelected ? 'bg-gradient-to-br from-[#00ff00] to-[#00cc00]' : 'bg-gradient-to-br from-yellow-500 to-orange-500'}`}>
+                    <Trophy className={`w-6 h-6 ${isSelected ? 'text-black' : 'text-white'}`} />
                   </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              </button>
-            ))}
+                  <div className="flex-1 text-left">
+                    <h3 className="font-bold text-sm mb-1">{workout.name}</h3>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <span>{workout.celebrity}</span><span>•</span><span>{workout.exercises} exercises</span><span>•</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${workout.difficulty === 'Advanced' ? 'bg-red-500/20 text-red-400' : workout.difficulty === 'Intermediate' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>{workout.difficulty}</span>
+                    </div>
+                  </div>
+                  {isSelected && <div className="w-6 h-6 bg-[#00ff00] rounded-full flex items-center justify-center"><span className="text-black text-xs font-bold">✓</span></div>}
+                </button>
+              );
+            })}
           </div>
           <p className="text-xs text-gray-500 mt-2 ml-1">{allCelebrityWorkouts.length} celebrity workouts available</p>
         </div>
 
-        {/* Quick Options */}
+        {/* Modifiers */}
         <div>
-          <h2 className="text-sm font-bold text-gray-400 mb-3">Quick Options</h2>
+          <h2 className="text-sm font-bold text-gray-400 mb-3">Modifiers</h2>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => startWorkout({ fewerSets: true })}
-              className="bg-[#1a1a1a] rounded-xl p-4 flex flex-col items-start hover:bg-[#252525] transition-all hover:scale-[1.02]"
+              onClick={toggleFewerSets}
+              className={`rounded-xl p-4 flex flex-col items-start transition-all ${
+                fewerSets
+                  ? 'bg-[#00ff00]/10 border-2 border-[#00ff00] ring-1 ring-[#00ff00]/20'
+                  : 'bg-[#1a1a1a] hover:bg-[#252525] border-2 border-transparent'
+              }`}
             >
-              <Zap className="w-5 h-5 text-[#00ff00] mb-2" />
-              <h3 className="font-bold text-sm mb-0.5">Fewer Sets</h3>
+              <Zap className={`w-5 h-5 mb-2 ${fewerSets ? 'text-[#00ff00]' : 'text-gray-400'}`} />
+              <h3 className={`font-bold text-sm mb-0.5 ${fewerSets ? 'text-[#00ff00]' : ''}`}>Fewer Sets</h3>
               <p className="text-xs text-gray-400">3 sets each</p>
             </button>
 
             <button
-              onClick={() => startWorkout({ quickVersion: true })}
-              className="bg-[#1a1a1a] rounded-xl p-4 flex flex-col items-start hover:bg-[#252525] transition-all hover:scale-[1.02]"
+              onClick={toggleQuickVersion}
+              className={`rounded-xl p-4 flex flex-col items-start transition-all ${
+                quickVersion
+                  ? 'bg-[#00ff00]/10 border-2 border-[#00ff00] ring-1 ring-[#00ff00]/20'
+                  : 'bg-[#1a1a1a] hover:bg-[#252525] border-2 border-transparent'
+              }`}
             >
-              <Clock className="w-5 h-5 text-[#00ff00] mb-2" />
-              <h3 className="font-bold text-sm mb-0.5">Quick Version</h3>
+              <Clock className={`w-5 h-5 mb-2 ${quickVersion ? 'text-[#00ff00]' : 'text-gray-400'}`} />
+              <h3 className={`font-bold text-sm mb-0.5 ${quickVersion ? 'text-[#00ff00]' : ''}`}>Quick Version</h3>
               <p className="text-xs text-gray-400">4 exercises, 30 min</p>
             </button>
 
             <button
               onClick={onClose}
-              className="bg-[#1a1a1a] rounded-xl p-4 flex flex-col items-start hover:bg-[#252525] transition-all hover:scale-[1.02]"
+              className="bg-[#1a1a1a] rounded-xl p-4 flex flex-col items-start hover:bg-[#252525] transition-all border-2 border-transparent"
             >
-              <SkipForward className="w-5 h-5 text-[#00ff00] mb-2" />
+              <SkipForward className="w-5 h-5 text-gray-400 mb-2" />
               <h3 className="font-bold text-sm mb-0.5">Skip Today</h3>
               <p className="text-xs text-gray-400">Mark rest</p>
             </button>
 
             <button
-              onClick={() => startWorkout({ customBuild: true })}
-              className="bg-[#1a1a1a] rounded-xl p-4 flex flex-col items-start hover:bg-[#252525] transition-all hover:scale-[1.02]"
+              onClick={toggleCustomBuild}
+              className={`rounded-xl p-4 flex flex-col items-start transition-all ${
+                customBuild
+                  ? 'bg-[#00ff00]/10 border-2 border-[#00ff00] ring-1 ring-[#00ff00]/20'
+                  : 'bg-[#1a1a1a] hover:bg-[#252525] border-2 border-transparent'
+              }`}
             >
-              <Edit3 className="w-5 h-5 text-[#00ff00] mb-2" />
-              <h3 className="font-bold text-sm mb-0.5">Custom Build</h3>
+              <Edit3 className={`w-5 h-5 mb-2 ${customBuild ? 'text-[#00ff00]' : 'text-gray-400'}`} />
+              <h3 className={`font-bold text-sm mb-0.5 ${customBuild ? 'text-[#00ff00]' : ''}`}>Custom Build</h3>
               <p className="text-xs text-gray-400">Pick your exercises</p>
             </button>
           </div>
         </div>
+      </div>
 
-        <button className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98]" onClick={() => startWorkout()}>Start Workout</button>
+      {/* Fixed Start Button */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black to-transparent pt-8">
+        <button
+          className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98]"
+          onClick={startWorkout}
+        >
+          {getStartLabel()}
+        </button>
       </div>
     </div>
   );
