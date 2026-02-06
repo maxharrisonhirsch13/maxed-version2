@@ -420,7 +420,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                 </div>
               )}
             </div>
-            <span className="text-[10px] text-gray-500">{3 + (whoopConnected ? 1 : 0) + (garminConnected ? 1 : 0) + (ouraConnected ? 1 : 0)} connected</span>
+            <span className="text-[10px] text-gray-500">{3 + (whoopConnected ? 1 : 0) + (garminConnected ? 1 : 0) + (ouraConnected ? 1 : 0)} auto-synced</span>
           </div>
         </button>
 

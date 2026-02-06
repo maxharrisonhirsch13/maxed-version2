@@ -1,8 +1,9 @@
-import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil } from 'lucide-react';
+import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useGymSearch } from '../hooks/useGymSearch';
+import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import type { GymResult } from '../types';
 
 interface OnboardingData {
@@ -31,6 +32,8 @@ interface OnboardingPageProps {
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const { user } = useAuth();
   const { updateProfile } = useProfile();
+  const { connected: whoopConnected, loading: whoopStatusLoading, refetch: refetchWhoop } = useWhoopStatus();
+  const [whoopConnecting, setWhoopConnecting] = useState(false);
   const [step, setStep] = useState(1);
   const [saveError, setSaveError] = useState('');
   const [data, setData] = useState<OnboardingData>({
@@ -61,6 +64,30 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [gymSearchQuery, setGymSearchQuery] = useState('');
   const { results: gymResults, loading: gymSearchLoading } = useGymSearch(gymSearchQuery);
   const savingRef = useRef(false);
+
+  // Check WHOOP status on return from OAuth
+  useEffect(() => {
+    if (window.location.search.includes('whoop=connected')) {
+      refetchWhoop();
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  const handleWhoopConnect = async () => {
+    if (!user) return;
+    setWhoopConnecting(true);
+    try {
+      const res = await fetch(`/api/whoop-auth?userId=${user.id}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.error('WHOOP connect error:', err);
+    }
+    setWhoopConnecting(false);
+  };
 
   const totalSteps = 8;
 
@@ -674,7 +701,34 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               <p className="text-gray-400 text-sm mb-8">Sync your fitness data automatically (optional)</p>
 
               <div className="space-y-3 mb-4">
-                {wearableOptions.map((wearable) => (
+                {/* WHOOP — real OAuth connection */}
+                <button
+                  onClick={whoopConnected ? undefined : handleWhoopConnect}
+                  disabled={whoopConnecting}
+                  className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
+                    whoopConnected
+                      ? 'border-[#00ff00] bg-[#00ff00]/10'
+                      : 'border-gray-800 bg-[#0a0a0a] hover:border-gray-700'
+                  }`}
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl flex items-center justify-center text-white">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="font-bold text-base">WHOOP</div>
+                    <div className="text-xs text-gray-400">
+                      {whoopConnecting ? 'Connecting...' : whoopConnected ? 'AUTO — Syncing recovery, sleep & strain' : 'Tap to connect'}
+                    </div>
+                  </div>
+                  {whoopConnecting ? (
+                    <RefreshCw className="w-5 h-5 text-[#00ff00] animate-spin" />
+                  ) : whoopConnected ? (
+                    <span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">AUTO</span>
+                  ) : null}
+                </button>
+
+                {/* Other wearables — coming soon */}
+                {wearableOptions.filter(w => w.value !== 'whoop').map((wearable) => (
                   <button
                     key={wearable.value}
                     onClick={() => toggleWearable(wearable.value)}
@@ -689,6 +743,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     </div>
                     <div className="text-left flex-1">
                       <div className="font-bold text-base">{wearable.label}</div>
+                      <div className="text-xs text-gray-400">Coming soon</div>
                     </div>
                     {data.wearables.includes(wearable.value) && (
                       <Check className="w-5 h-5 text-[#00ff00]" />
@@ -698,10 +753,13 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               </div>
 
               <button
-                onClick={() => setStep(6)}
+                onClick={() => {
+                  if (editingFromReview) { setEditingFromReview(false); setStep(8); }
+                  else setStep(6);
+                }}
                 className="w-full text-sm text-gray-500 hover:text-white transition-colors"
               >
-                Skip for now
+                {editingFromReview ? 'Back to review' : 'Skip for now'}
               </button>
             </>
           )}
@@ -844,13 +902,15 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     Edit
                   </button>
                 </div>
-                {data.wearables.length > 0 && (
+                {(whoopConnected || data.wearables.length > 0) && (
                   <>
                     <div className="h-px bg-gray-800" />
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500">Connected Wearables</p>
-                        <p className="font-medium">{data.wearables.length} device{data.wearables.length > 1 ? 's' : ''} connected</p>
+                        <p className="text-xs text-gray-500">Wearables</p>
+                        <p className="font-medium">
+                          {whoopConnected ? 'WHOOP — AUTO' : `${data.wearables.length} device${data.wearables.length > 1 ? 's' : ''}`}
+                        </p>
                       </div>
                       <button onClick={() => { setEditingFromReview(true); setStep(5); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                         Edit

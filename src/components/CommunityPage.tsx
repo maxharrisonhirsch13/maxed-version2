@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { TrendingUp, Users, MapPin, Dumbbell, Clock, User, Flame, Trophy, Activity } from 'lucide-react';
+import { TrendingUp, Users, MapPin, Dumbbell, Clock, User, Flame, Trophy, Activity, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
 import { useAuth } from '../context/AuthContext';
 
 type Tab = 'trending' | 'friends' | 'classes' | 'nearby';
+
+type LeaderboardTab = 'streaks' | 'prs' | 'movement';
 
 function getTrendingData(userGym: string) {
   return {
@@ -16,7 +18,28 @@ function getTrendingData(userGym: string) {
       { rank: 3, name: 'Alex Park', gym: userGym || 'Local Gym', streak: 41, isYou: false },
       { rank: 4, name: 'You', gym: userGym || 'Local Gym', streak: 38, isYou: true },
       { rank: 5, name: 'Chris Johnson', gym: userGym || 'Local Gym', streak: 32, isYou: false },
-    ]
+    ],
+    prLeaderboard: [
+      { rank: 1, name: 'Mike Reynolds', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 315, isYou: false },
+      { rank: 2, name: 'James Lee', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 285, isYou: false },
+      { rank: 3, name: 'You', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 245, isYou: true },
+      { rank: 4, name: 'Alex Park', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 225, isYou: false },
+      { rank: 5, name: 'Chris Johnson', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 205, isYou: false },
+    ],
+    squatLeaderboard: [
+      { rank: 1, name: 'James Lee', gym: userGym || 'Local Gym', lift: 'Squat', weight: 405, isYou: false },
+      { rank: 2, name: 'You', gym: userGym || 'Local Gym', lift: 'Squat', weight: 365, isYou: true },
+      { rank: 3, name: 'Mike Reynolds', gym: userGym || 'Local Gym', lift: 'Squat', weight: 345, isYou: false },
+      { rank: 4, name: 'Chris Johnson', gym: userGym || 'Local Gym', lift: 'Squat', weight: 315, isYou: false },
+      { rank: 5, name: 'Alex Park', gym: userGym || 'Local Gym', lift: 'Squat', weight: 275, isYou: false },
+    ],
+    movementLeaderboard: [
+      { rank: 1, name: 'James Lee', gym: userGym || 'Local Gym', change: 0, prevRank: 1, isYou: false, reason: 'Consistent king — 89 day streak' },
+      { rank: 2, name: 'You', gym: userGym || 'Local Gym', change: 2, prevRank: 4, isYou: true, reason: 'New squat PR + 5 day streak' },
+      { rank: 3, name: 'Mike Reynolds', gym: userGym || 'Local Gym', change: -1, prevRank: 2, isYou: false, reason: 'Missed 2 days this week' },
+      { rank: 4, name: 'Alex Park', gym: userGym || 'Local Gym', change: -1, prevRank: 3, isYou: false, reason: 'Dropped volume this week' },
+      { rank: 5, name: 'Chris Johnson', gym: userGym || 'Local Gym', change: 0, prevRank: 5, isYou: false, reason: 'Steady — 32 day streak' },
+    ],
   };
 }
 
@@ -46,6 +69,8 @@ const defaultNearbyGyms = [
 
 export function CommunityPage() {
   const [activeTab, setActiveTab] = useState<Tab>('trending');
+  const [leaderboardTab, setLeaderboardTab] = useState<LeaderboardTab>('streaks');
+  const [prLift, setPrLift] = useState<'bench' | 'squat'>('bench');
   const [selectedFriend, setSelectedFriend] = useState<typeof friendsData[0] | null>(null);
   const [viewAllFriends, setViewAllFriends] = useState(false);
   const { profile } = useAuth();
@@ -119,19 +144,76 @@ export function CommunityPage() {
               </div>
             </div>
             <div className="bg-[#1a1a1a] rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-4"><Trophy className="w-4 h-4 text-yellow-500" /><h2 className="font-bold text-sm">Streak Leaderboard</h2></div>
-              <div className="space-y-2">
-                {trendingData.streakLeaderboard.map((person) => (
-                  <div key={person.rank} className={`rounded-xl p-3 flex items-center gap-3 ${person.isYou ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(person.rank)}`}>{person.rank}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2"><p className="font-semibold text-sm">{person.name}</p>{person.isYou && (<span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>)}</div>
-                      <p className="text-xs text-gray-400">{person.gym}</p>
-                    </div>
-                    <div className="text-right"><p className="text-lg font-bold text-orange-500">{person.streak}</p><p className="text-[10px] text-gray-400">days</p></div>
-                  </div>
+              <div className="flex items-center gap-2 mb-3"><Trophy className="w-4 h-4 text-yellow-500" /><h2 className="font-bold text-sm">Leaderboard</h2></div>
+              <div className="flex gap-1.5 mb-4">
+                {([['streaks', 'Streaks'], ['prs', 'PRs'], ['movement', 'Movement']] as [LeaderboardTab, string][]).map(([tab, label]) => (
+                  <button key={tab} onClick={() => setLeaderboardTab(tab)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${leaderboardTab === tab ? 'bg-[#00ff00] text-black' : 'bg-black/50 text-gray-400 hover:bg-black/70'}`}>
+                    {label}
+                  </button>
                 ))}
               </div>
+
+              {leaderboardTab === 'streaks' && (
+                <div className="space-y-2">
+                  {trendingData.streakLeaderboard.map((person) => (
+                    <div key={person.rank} className={`rounded-xl p-3 flex items-center gap-3 ${person.isYou ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(person.rank)}`}>{person.rank}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2"><p className="font-semibold text-sm">{person.name}</p>{person.isYou && (<span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>)}</div>
+                        <p className="text-xs text-gray-400">{person.gym}</p>
+                      </div>
+                      <div className="text-right"><p className="text-lg font-bold text-orange-500">{person.streak}</p><p className="text-[10px] text-gray-400">days</p></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {leaderboardTab === 'prs' && (
+                <>
+                  <div className="flex gap-2 mb-3">
+                    <button onClick={() => setPrLift('bench')} className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${prLift === 'bench' ? 'bg-white text-black' : 'bg-black/50 text-gray-400'}`}>Bench Press</button>
+                    <button onClick={() => setPrLift('squat')} className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${prLift === 'squat' ? 'bg-white text-black' : 'bg-black/50 text-gray-400'}`}>Squat</button>
+                  </div>
+                  <div className="space-y-2">
+                    {(prLift === 'bench' ? trendingData.prLeaderboard : trendingData.squatLeaderboard).map((person) => (
+                      <div key={person.rank} className={`rounded-xl p-3 flex items-center gap-3 ${person.isYou ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(person.rank)}`}>{person.rank}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2"><p className="font-semibold text-sm">{person.name}</p>{person.isYou && (<span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>)}</div>
+                          <p className="text-xs text-gray-400">{person.gym}</p>
+                        </div>
+                        <div className="text-right"><p className="text-lg font-bold text-blue-400">{person.weight}</p><p className="text-[10px] text-gray-400">lbs</p></div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {leaderboardTab === 'movement' && (
+                <div className="space-y-2">
+                  {trendingData.movementLeaderboard.map((person) => (
+                    <div key={person.rank} className={`rounded-xl p-3 flex items-center gap-3 ${person.isYou ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(person.rank)}`}>{person.rank}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-sm">{person.name}</p>
+                          {person.isYou && (<span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>)}
+                        </div>
+                        <p className="text-xs text-gray-500">{person.reason}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {person.change > 0 ? (
+                          <span className="flex items-center gap-0.5 text-[#00ff00] font-bold text-sm"><ArrowUp className="w-3.5 h-3.5" />{person.change}</span>
+                        ) : person.change < 0 ? (
+                          <span className="flex items-center gap-0.5 text-red-400 font-bold text-sm"><ArrowDown className="w-3.5 h-3.5" />{Math.abs(person.change)}</span>
+                        ) : (
+                          <span className="flex items-center gap-0.5 text-gray-500 font-bold text-sm"><Minus className="w-3.5 h-3.5" /></span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
