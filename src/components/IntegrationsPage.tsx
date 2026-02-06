@@ -1,5 +1,8 @@
-import { ArrowLeft, Check, Link2, Activity, Heart, Watch, Bike, Zap, Moon, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Check, Link2, Activity, Heart, Watch, Bike, Zap, Moon, TrendingUp, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useWhoopStatus } from '../hooks/useWhoopStatus';
+import { supabase } from '../lib/supabase';
 
 interface IntegrationsPageProps {
   onBack: () => void;
@@ -16,11 +19,15 @@ interface IntegrationApp {
 }
 
 export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
+  const { user } = useAuth();
+  const { connected: whoopConnected, loading: whoopLoading, refetch: refetchWhoop } = useWhoopStatus();
+  const [whoopConnecting, setWhoopConnecting] = useState(false);
+  const [whoopDisconnecting, setWhoopDisconnecting] = useState(false);
+
   const [apps, setApps] = useState<IntegrationApp[]>([
     { id: 'apple-health', name: 'Apple Health', description: 'Sync workouts, heart rate, and activity data', icon: <Heart className="w-6 h-6" />, color: 'from-red-500 to-pink-500', dataTypes: ['Heart Rate', 'Steps', 'Calories', 'Sleep', 'Workouts'], connected: true },
     { id: 'strava', name: 'Strava', description: 'Share your workouts with the Strava community', icon: <Bike className="w-6 h-6" />, color: 'from-orange-500 to-red-500', dataTypes: ['Running', 'Cycling', 'Activities'], connected: true },
     { id: 'fitbit', name: 'Fitbit', description: 'Import heart rate and activity tracking', icon: <Activity className="w-6 h-6" />, color: 'from-blue-400 to-cyan-400', dataTypes: ['Heart Rate', 'Steps', 'Sleep', 'Active Minutes'], connected: false },
-    { id: 'whoop', name: 'WHOOP', description: 'Track recovery and strain metrics', icon: <Zap className="w-6 h-6" />, color: 'from-gray-700 to-gray-900', dataTypes: ['Recovery', 'Strain', 'HRV', 'Sleep Performance'], connected: false },
     { id: 'garmin', name: 'Garmin Connect', description: 'Sync activities and training data', icon: <Watch className="w-6 h-6" />, color: 'from-blue-600 to-blue-800', dataTypes: ['Workouts', 'Heart Rate', 'VO2 Max', 'Training Load'], connected: false },
     { id: 'myfitnesspal', name: 'MyFitnessPal', description: 'Connect nutrition with your workouts', icon: <TrendingUp className="w-6 h-6" />, color: 'from-blue-500 to-indigo-600', dataTypes: ['Calories', 'Macros', 'Weight', 'Nutrition'], connected: true },
     { id: 'oura', name: 'Oura Ring', description: 'Track sleep quality and readiness', icon: <Moon className="w-6 h-6" />, color: 'from-purple-600 to-indigo-700', dataTypes: ['Sleep', 'Readiness', 'HRV', 'Body Temperature'], connected: false }
@@ -30,7 +37,53 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     setApps(apps.map(app => app.id === appId ? { ...app, connected: !app.connected } : app));
   };
 
-  const connectedCount = apps.filter(app => app.connected).length;
+  const handleWhoopConnect = async () => {
+    if (!user) return;
+    setWhoopConnecting(true);
+    try {
+      const res = await fetch(`/api/whoop-auth?userId=${user.id}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Failed to start WHOOP OAuth:', err);
+    }
+    setWhoopConnecting(false);
+  };
+
+  const handleWhoopDisconnect = async () => {
+    const { session } = (await supabase.auth.getSession()).data;
+    if (!session) return;
+    setWhoopDisconnecting(true);
+    try {
+      await fetch('/api/whoop-disconnect', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      await refetchWhoop();
+    } catch (err) {
+      console.error('Failed to disconnect WHOOP:', err);
+    }
+    setWhoopDisconnecting(false);
+  };
+
+  const connectedCount = apps.filter(app => app.connected).length + (whoopConnected ? 1 : 0);
+
+  // Build the WHOOP card separately
+  const whoopApp = {
+    id: 'whoop',
+    name: 'WHOOP',
+    description: 'Track recovery and strain metrics',
+    icon: <Zap className="w-6 h-6" />,
+    color: 'from-gray-700 to-gray-900',
+    dataTypes: ['Recovery', 'Strain', 'HRV', 'Sleep Performance'],
+    connected: whoopConnected,
+  };
+
+  // All apps for rendering: connected first, then available
+  const connectedApps = [...apps.filter(app => app.connected), ...(whoopConnected ? [whoopApp] : [])];
+  const availableApps = [...apps.filter(app => !app.connected), ...(!whoopConnected ? [whoopApp] : [])];
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
@@ -49,20 +102,34 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
           </div>
         </div>
 
-        {connectedCount > 0 && (
+        {connectedApps.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Connected ({connectedCount})</h2>
+            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Connected ({connectedApps.length})</h2>
             <div className="space-y-3">
-              {apps.filter(app => app.connected).map((app) => (<IntegrationCard key={app.id} app={app} onToggle={() => handleToggleConnection(app.id)} />))}
+              {connectedApps.map((app) => (
+                <IntegrationCard
+                  key={app.id}
+                  app={app}
+                  onToggle={app.id === 'whoop' ? handleWhoopDisconnect : () => handleToggleConnection(app.id)}
+                  isLoading={app.id === 'whoop' && (whoopDisconnecting || whoopLoading)}
+                />
+              ))}
             </div>
           </div>
         )}
 
-        {apps.filter(app => !app.connected).length > 0 && (
+        {availableApps.length > 0 && (
           <div>
             <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Available Integrations</h2>
             <div className="space-y-3">
-              {apps.filter(app => !app.connected).map((app) => (<IntegrationCard key={app.id} app={app} onToggle={() => handleToggleConnection(app.id)} />))}
+              {availableApps.map((app) => (
+                <IntegrationCard
+                  key={app.id}
+                  app={app}
+                  onToggle={app.id === 'whoop' ? handleWhoopConnect : () => handleToggleConnection(app.id)}
+                  isLoading={app.id === 'whoop' && (whoopConnecting || whoopLoading)}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -72,11 +139,20 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
 }
 
 interface IntegrationCardProps {
-  app: IntegrationApp;
+  app: {
+    id: string;
+    name: string;
+    description: string;
+    icon: React.ReactNode;
+    color: string;
+    dataTypes: string[];
+    connected: boolean;
+  };
   onToggle: () => void;
+  isLoading?: boolean;
 }
 
-function IntegrationCard({ app, onToggle }: IntegrationCardProps) {
+function IntegrationCard({ app, onToggle, isLoading }: IntegrationCardProps) {
   return (
     <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
       <div className="flex items-start gap-4">
@@ -92,7 +168,14 @@ function IntegrationCard({ app, onToggle }: IntegrationCardProps) {
               {app.dataTypes.map((type, idx) => (<span key={idx} className="text-[10px] bg-black/50 text-gray-400 px-2 py-1 rounded-lg">{type}</span>))}
             </div>
           )}
-          <button onClick={onToggle} className={`w-full font-medium py-2.5 rounded-xl text-xs transition-all ${app.connected ? 'bg-[#1a1a1a] hover:bg-[#252525] text-gray-300' : 'bg-[#00ff00] hover:bg-[#00dd00] text-black'}`}>
+          <button
+            onClick={onToggle}
+            disabled={isLoading}
+            className={`w-full font-medium py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-2 ${
+              app.connected ? 'bg-[#1a1a1a] hover:bg-[#252525] text-gray-300' : 'bg-[#00ff00] hover:bg-[#00dd00] text-black'
+            } ${isLoading ? 'opacity-50' : ''}`}
+          >
+            {isLoading && <Loader2 className="w-3 h-3 animate-spin" />}
             {app.connected ? 'Disconnect' : 'Connect'}
           </button>
         </div>

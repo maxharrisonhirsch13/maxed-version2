@@ -14,6 +14,7 @@ import { ReadinessModal } from './components/ReadinessModal';
 import { WorkoutDetailModal } from './components/WorkoutDetailModal';
 import { useAuth } from './context/AuthContext';
 import { useWorkoutHistory } from './hooks/useWorkoutHistory';
+import { useWhoopData } from './hooks/useWhoopData';
 
 // Compute scheduled workout from user's split and day of week
 function getScheduledWorkout(split: string | undefined) {
@@ -45,6 +46,19 @@ function getScheduledWorkout(split: string | undefined) {
 export default function App() {
   const { session, profile, loading, refreshProfile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
+  const { data: whoopData } = useWhoopData();
+
+  // Readiness score from WHOOP recovery data
+  const readinessScore = whoopData?.recovery?.score ?? null;
+  const readinessColor = readinessScore != null
+    ? readinessScore >= 67 ? '#00ff00' : readinessScore >= 34 ? '#facc15' : '#ef4444'
+    : '#6b7280';
+  const readinessLabel = readinessScore != null
+    ? readinessScore >= 67 ? 'Optimal' : readinessScore >= 34 ? 'Moderate' : 'Low'
+    : 'Connect wearable';
+  const readinessDetail = readinessScore != null
+    ? readinessScore >= 67 ? 'Peak performance expected' : readinessScore >= 34 ? 'Consider lighter intensity' : 'Active recovery recommended'
+    : 'Link WHOOP for insights';
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
   const [activeMuscleGroup, setActiveMuscleGroup] = useState('');
@@ -107,17 +121,17 @@ export default function App() {
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="text-gray-400 text-xs">Today's Readiness</p>
-                <span className="text-[#00ff00] text-[10px] font-semibold">Learn More →</span>
+                <span className="text-[10px] font-semibold" style={{ color: readinessColor }}>Learn More →</span>
               </div>
               <div className="flex items-baseline gap-1.5 mb-1">
-                <span className="text-4xl font-bold">94</span>
-                <span className="text-lg text-gray-500">/ 100</span>
+                <span className="text-4xl font-bold">{readinessScore ?? '—'}</span>
+                {readinessScore != null && <span className="text-lg text-gray-500">/ 100</span>}
               </div>
-              <p className="text-[#00ff00] font-semibold text-sm mb-0.5">Optimal</p>
-              <p className="text-gray-400 text-xs mb-3">Peak performance expected</p>
+              <p className="font-semibold text-sm mb-0.5" style={{ color: readinessColor }}>{readinessLabel}</p>
+              <p className="text-gray-400 text-xs mb-3">{readinessDetail}</p>
               {/* Progress bar */}
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800">
-                <div className="h-full bg-[#00ff00]" style={{ width: '94%' }}></div>
+                <div className="h-full" style={{ width: `${readinessScore ?? 0}%`, backgroundColor: readinessColor }}></div>
               </div>
             </button>
 

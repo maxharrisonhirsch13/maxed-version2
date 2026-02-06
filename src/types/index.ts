@@ -67,6 +67,32 @@ export interface PersonalRecord {
   achievedAt: string
 }
 
+export interface WhoopData {
+  recovery: {
+    score: number
+    restingHeartRate: number
+    hrv: number
+    spo2: number | null
+    skinTemp: number | null
+  } | null
+  sleep: {
+    qualityDuration: number
+    totalInBedDuration: number
+    remSleepDuration: number
+    deepSleepDuration: number
+    lightSleepDuration: number
+    awakeDuration: number
+    sleepScore: number | null
+  } | null
+  strain: {
+    score: number
+    averageHeartRate: number
+    maxHeartRate: number
+    kilojoules: number
+  } | null
+  connected: boolean
+}
+
 export interface PrivacySettings {
   shareLiveActivity: boolean
   sharePrs: boolean
