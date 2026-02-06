@@ -13,6 +13,10 @@ export function useProfile() {
     experience?: string | null
     gym?: string | null
     is_home_gym?: boolean
+    gym_place_id?: string | null
+    gym_address?: string | null
+    gym_lat?: number | null
+    gym_lng?: number | null
     wearables?: string[]
     goal?: string | null
     custom_goal?: string | null

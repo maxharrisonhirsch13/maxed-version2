@@ -1,7 +1,9 @@
-import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap } from 'lucide-react';
+import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
+import { useGymSearch } from '../hooks/useGymSearch';
+import type { GymResult } from '../types';
 
 interface OnboardingData {
   name: string;
@@ -11,6 +13,10 @@ interface OnboardingData {
   experience: 'beginner' | 'intermediate' | 'advanced' | '';
   gym: string;
   isHomeGym: boolean;
+  gymPlaceId: string;
+  gymAddress: string;
+  gymLat: number | null;
+  gymLng: number | null;
   wearables: string[];
   goal: string;
   customGoal: string;
@@ -35,6 +41,10 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     experience: '',
     gym: '',
     isHomeGym: false,
+    gymPlaceId: '',
+    gymAddress: '',
+    gymLat: null,
+    gymLng: null,
     wearables: [],
     goal: '',
     customGoal: '',
@@ -47,6 +57,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [splitDays, setSplitDays] = useState(6);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [gymSearchQuery, setGymSearchQuery] = useState('');
+  const { results: gymResults, loading: gymSearchLoading } = useGymSearch(gymSearchQuery);
 
   const totalSteps = 8;
 
@@ -94,6 +106,10 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
         experience: data.experience || null,
         gym: data.gym || null,
         is_home_gym: data.isHomeGym,
+        gym_place_id: data.gymPlaceId || null,
+        gym_address: data.gymAddress || null,
+        gym_lat: data.gymLat,
+        gym_lng: data.gymLng,
         wearables: data.wearables,
         goal: data.goal === 'Ask AI' ? data.customGoal : data.goal,
         custom_goal: data.goal === 'Ask AI' ? data.customGoal : null,
@@ -114,7 +130,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
       case 1: return data.name.trim().length > 0;
       case 2: return data.heightFeet > 0 && data.weight > 0;
       case 3: return data.experience !== '';
-      case 4: return data.isHomeGym || data.gym.length > 0;
+      case 4: return data.isHomeGym || !!data.gymPlaceId;
       case 5: return true; // Wearables are optional
       case 6: return data.goal !== '';
       case 7: return data.split !== '';
@@ -494,11 +510,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 <MapPin className="w-6 h-6 text-black" />
               </div>
               <h2 className="text-2xl font-bold mb-2">Where do you train?</h2>
-              <p className="text-gray-400 text-sm mb-8">Find gyms near you or train at home</p>
+              <p className="text-gray-400 text-sm mb-8">Search for your gym or train at home</p>
 
               <div className="space-y-3 mb-4">
                 <button
-                  onClick={() => setData({ ...data, isHomeGym: true, gym: 'Home Gym' })}
+                  onClick={() => {
+                    setData({ ...data, isHomeGym: true, gym: 'Home Gym', gymPlaceId: '', gymAddress: '', gymLat: null, gymLng: null });
+                    setGymSearchQuery('');
+                  }}
                   className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
                     data.isHomeGym
                       ? 'border-[#00ff00] bg-[#00ff00]/10'
@@ -525,23 +544,65 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                     <input
                       type="text"
-                      value={data.isHomeGym ? '' : data.gym}
-                      onChange={(e) => setData({ ...data, gym: e.target.value, isHomeGym: false })}
-                      placeholder="Enter area code or gym name"
+                      value={gymSearchQuery}
+                      onChange={(e) => {
+                        setGymSearchQuery(e.target.value);
+                        if (data.gymPlaceId) {
+                          setData({ ...data, gym: '', gymPlaceId: '', gymAddress: '', gymLat: null, gymLng: null });
+                        }
+                      }}
+                      placeholder="Search by gym name or zip code"
                       className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl pl-12 pr-4 py-4 text-white placeholder-gray-600 text-base focus:outline-none focus:border-[#00ff00] transition-colors"
                     />
                   </div>
 
-                  {data.gym && !data.isHomeGym && (
+                  {/* Selected gym confirmation */}
+                  {data.gymPlaceId && (
+                    <div className="mt-4 bg-[#00ff00]/10 border border-[#00ff00]/30 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Check className="w-4 h-4 text-[#00ff00]" />
+                        <p className="font-bold text-sm">{data.gym}</p>
+                      </div>
+                      <p className="text-xs text-gray-400 ml-6">{data.gymAddress}</p>
+                    </div>
+                  )}
+
+                  {/* Search results */}
+                  {!data.gymPlaceId && gymSearchQuery.length >= 2 && (
                     <div className="mt-4 space-y-2">
-                      {['Gold\'s Gym - Downtown', 'LA Fitness - Main St', 'Planet Fitness - Oak Ave'].map((gym, idx) => (
+                      {gymSearchLoading && (
+                        <div className="flex items-center justify-center py-6">
+                          <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+                          <span className="text-sm text-gray-400 ml-2">Searching gyms...</span>
+                        </div>
+                      )}
+
+                      {!gymSearchLoading && gymResults.length === 0 && (
+                        <div className="text-center py-6">
+                          <p className="text-gray-500 text-sm">No gyms found</p>
+                          <p className="text-gray-600 text-xs mt-1">Try a different name or zip code</p>
+                        </div>
+                      )}
+
+                      {!gymSearchLoading && gymResults.map((gym) => (
                         <button
-                          key={idx}
-                          onClick={() => setData({ ...data, gym, isHomeGym: false })}
+                          key={gym.placeId}
+                          onClick={() => {
+                            setData({
+                              ...data,
+                              gym: gym.name,
+                              isHomeGym: false,
+                              gymPlaceId: gym.placeId,
+                              gymAddress: gym.address,
+                              gymLat: gym.lat,
+                              gymLng: gym.lng,
+                            });
+                            setGymSearchQuery(gym.name);
+                          }}
                           className="w-full p-3 bg-[#0a0a0a] border border-gray-800 rounded-xl text-left hover:border-gray-700 transition-colors"
                         >
-                          <div className="font-medium text-sm">{gym}</div>
-                          <div className="text-xs text-gray-500">2.3 mi away</div>
+                          <div className="font-medium text-sm">{gym.name}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">{gym.address}</div>
                         </button>
                       ))}
                     </div>

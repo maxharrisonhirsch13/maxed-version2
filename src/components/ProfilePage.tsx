@@ -371,7 +371,8 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
               <MapPin className="w-4 h-4 text-gray-500" />
               <div>
                 <p className="text-xs text-gray-500">Training Location</p>
-                <p className="text-sm font-medium">{userData?.gym || 'Gold\'s Gym - Downtown'}</p>
+                <p className="text-sm font-medium">{userData?.gym || 'Not set'}</p>
+                {userData?.gymAddress && <p className="text-xs text-gray-500">{userData.gymAddress}</p>}
               </div>
             </div>
             <div className="flex items-center gap-3">

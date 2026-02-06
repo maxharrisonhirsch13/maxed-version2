@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { TrendingUp, Users, MapPin, Dumbbell, Clock, User, Flame, Trophy, Activity } from 'lucide-react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
+import { useAuth } from '../context/AuthContext';
 
 type Tab = 'trending' | 'friends' | 'classes' | 'nearby';
 
@@ -31,7 +32,7 @@ const classesData = [
   { id: 4, name: 'Yoga Flow', instructor: 'Amanda K.', time: '5:30 PM', duration: 60, enrolled: 18, friendsCount: 2, spotsLeft: 7, difficulty: 'Low', gym: 'UM CCRB' },
 ];
 
-const nearbyGyms = [
+const defaultNearbyGyms = [
   { id: 1, name: 'UM CCRB', distance: '0.3 mi', activeNow: 47, friendsCount: 8, peakTime: '5-7 PM', avgWaitTime: '5 min', equipment: ['Squat Racks', 'Benches', 'Cardio'] },
   { id: 2, name: 'Gold\'s Gym', distance: '1.2 mi', activeNow: 32, friendsCount: 3, peakTime: '6-8 AM', avgWaitTime: '10 min', equipment: ['Full Free Weights', 'Pool', 'Sauna'] },
   { id: 3, name: 'Planet Fitness', distance: '2.1 mi', activeNow: 58, friendsCount: 2, peakTime: '4-6 PM', avgWaitTime: '3 min', equipment: ['Machines', 'Cardio', 'Free Weights'] },
@@ -42,6 +43,7 @@ export function CommunityPage() {
   const [activeTab, setActiveTab] = useState<Tab>('trending');
   const [selectedFriend, setSelectedFriend] = useState<typeof friendsData[0] | null>(null);
   const [viewAllFriends, setViewAllFriends] = useState(false);
+  const { profile } = useAuth();
 
   const getRankColor = (rank: number) => {
     if (rank === 1) return 'bg-yellow-500';
@@ -188,9 +190,38 @@ export function CommunityPage() {
 
         {activeTab === 'nearby' && (
           <>
-            <div className="mb-3"><h3 className="text-sm font-bold text-gray-400">Gyms near you</h3></div>
+            {profile?.gym && !profile?.isHomeGym && (
+              <div className="mb-4">
+                <h3 className="text-sm font-bold text-gray-400 mb-3">Your Gym</h3>
+                <div className="bg-[#1a1a1a] rounded-xl p-4 border border-[#00ff00]/20">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-base mb-1">{profile.gym}</h3>
+                      {profile.gymAddress && (
+                        <div className="flex items-center gap-1 text-xs text-gray-400 mb-2">
+                          <MapPin className="w-3 h-3" />
+                          <span>{profile.gymAddress}</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00ff00] text-black">YOUR GYM</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-black/50 rounded-lg p-2">
+                      <div className="flex items-center gap-2 mb-1"><Activity className="w-3 h-3 text-[#00ff00]" /><span className="text-xs text-gray-400">Lifting Now</span></div>
+                      <p className="text-lg font-bold text-[#00ff00]">--</p>
+                    </div>
+                    <div className="bg-black/50 rounded-lg p-2">
+                      <div className="flex items-center gap-2 mb-1"><Users className="w-3 h-3 text-blue-400" /><span className="text-xs text-gray-400">Friends</span></div>
+                      <p className="text-lg font-bold text-blue-400">--</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="mb-3"><h3 className="text-sm font-bold text-gray-400">Other gyms nearby</h3></div>
             <div className="space-y-3">
-              {nearbyGyms.map((gym) => (
+              {defaultNearbyGyms.map((gym) => (
                 <div key={gym.id} className="bg-[#1a1a1a] rounded-xl p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1"><h3 className="font-bold text-base mb-1">{gym.name}</h3><div className="flex items-center gap-1 text-xs text-gray-400 mb-2"><MapPin className="w-3 h-3" /><span>{gym.distance} away</span></div></div>

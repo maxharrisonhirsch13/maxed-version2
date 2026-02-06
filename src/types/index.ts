@@ -1,3 +1,11 @@
+export interface GymResult {
+  placeId: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+}
+
 export interface UserProfile {
   id: string
   name: string
@@ -8,6 +16,10 @@ export interface UserProfile {
   experience: 'beginner' | 'intermediate' | 'advanced' | null
   gym: string | null
   isHomeGym: boolean
+  gymPlaceId: string | null
+  gymAddress: string | null
+  gymLat: number | null
+  gymLng: number | null
   wearables: string[]
   goal: string | null
   customGoal: string | null
