@@ -110,9 +110,13 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
     experience: '' as string,
     gym: '' as string,
     split: '' as string,
+    customSplit: [] as { day: number; muscles: string[] }[],
   });
+  const [editCustomDays, setEditCustomDays] = useState(3);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
+
+  const editMuscleGroups = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Core', 'Cardio'];
 
   // Get user's first name and initials
   const firstName = userData?.name?.split(' ')[0] || 'User';
@@ -143,6 +147,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
         experience: editData.experience || null,
         gym: editData.gym || null,
         split: editData.split || null,
+        custom_split: editData.split === 'custom' ? editData.customSplit : null,
       });
       setShowEditProfile(false);
     } catch (err: any) {
@@ -221,6 +226,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
               <Shield className="w-5 h-5 text-gray-400" />
             </button>
             <button onClick={() => {
+              const cs = userData?.customSplit || [];
               setEditData({
                 name: userData?.name || '',
                 heightFeet: userData?.heightFeet || 5,
@@ -229,7 +235,9 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                 experience: userData?.experience || '',
                 gym: userData?.gym || '',
                 split: userData?.split || '',
+                customSplit: cs.length > 0 ? cs : Array.from({ length: 3 }, (_, i) => ({ day: i + 1, muscles: [] })),
               });
+              setEditCustomDays(cs.length > 0 ? cs.length : 3);
               setShowEditProfile(true);
             }} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
               <Edit className="w-5 h-5 text-gray-400" />
@@ -762,10 +770,20 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                       { value: 'bro', label: 'Bro Split' },
                       { value: 'upper-lower', label: 'Upper/Lower' },
                       { value: 'full-body', label: 'Full Body' },
+                      { value: 'custom', label: 'Custom Split' },
                     ].map((option) => (
                       <button
                         key={option.value}
-                        onClick={() => setEditData({ ...editData, split: option.value })}
+                        onClick={() => {
+                          setEditData({ ...editData, split: option.value });
+                          if (option.value === 'custom' && editData.customSplit.length === 0) {
+                            setEditData(prev => ({
+                              ...prev,
+                              split: 'custom',
+                              customSplit: Array.from({ length: editCustomDays }, (_, i) => ({ day: i + 1, muscles: [] })),
+                            }));
+                          }
+                        }}
                         className={`w-full p-3 rounded-xl border-2 transition-all text-left ${
                           editData.split === option.value
                             ? 'border-[#00ff00] bg-[#00ff00]/10'
@@ -776,6 +794,72 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                       </button>
                     ))}
                   </div>
+
+                  {/* Custom Split Editor */}
+                  {editData.split === 'custom' && (
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-medium text-gray-400">Days per week:</label>
+                        <select
+                          value={editCustomDays}
+                          onChange={(e) => {
+                            const days = parseInt(e.target.value);
+                            setEditCustomDays(days);
+                            setEditData(prev => ({
+                              ...prev,
+                              customSplit: Array.from({ length: days }, (_, i) => ({
+                                day: i + 1,
+                                muscles: prev.customSplit[i]?.muscles || [],
+                              })),
+                            }));
+                          }}
+                          className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#00ff00]"
+                        >
+                          {[3, 4, 5, 6, 7].map(num => (
+                            <option key={num} value={num}>{num}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {Array.from({ length: editCustomDays }, (_, idx) => {
+                        const dayData = editData.customSplit[idx] || { day: idx + 1, muscles: [] };
+                        return (
+                          <div key={idx} className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-3">
+                            <h4 className="font-bold text-xs mb-2">Day {idx + 1}</h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {editMuscleGroups.map(muscle => {
+                                const isSelected = dayData.muscles.includes(muscle);
+                                return (
+                                  <button
+                                    key={muscle}
+                                    type="button"
+                                    onClick={() => {
+                                      setEditData(prev => {
+                                        const newSplit = [...prev.customSplit];
+                                        if (!newSplit[idx]) newSplit[idx] = { day: idx + 1, muscles: [] };
+                                        if (isSelected) {
+                                          newSplit[idx] = { ...newSplit[idx], muscles: newSplit[idx].muscles.filter(m => m !== muscle) };
+                                        } else {
+                                          newSplit[idx] = { ...newSplit[idx], muscles: [...newSplit[idx].muscles, muscle] };
+                                        }
+                                        return { ...prev, customSplit: newSplit };
+                                      });
+                                    }}
+                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+                                      isSelected
+                                        ? 'bg-[#00ff00] text-black'
+                                        : 'bg-black/50 text-gray-400 hover:bg-black/70'
+                                    }`}
+                                  >
+                                    {muscle}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Error */}

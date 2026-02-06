@@ -17,7 +17,7 @@ import { useWorkoutHistory } from './hooks/useWorkoutHistory';
 import { useWhoopData } from './hooks/useWhoopData';
 
 // Compute scheduled workout from user's split and day of week
-function getScheduledWorkout(split: string | undefined) {
+function getScheduledWorkout(split: string | undefined, customSplit?: { day: number; muscles: string[] }[]) {
   const dayIndex = new Date().getDay(); // 0=Sun ... 6=Sat
   if (split === 'ppl') {
     const cycle = ['Push', 'Pull', 'Legs'];
@@ -39,6 +39,14 @@ function getScheduledWorkout(split: string | undefined) {
   }
   if (split === 'full-body') {
     return { name: dayIndex === 0 || dayIndex === 6 ? 'Rest' : 'Full Body', splitName: 'Full Body' };
+  }
+  if (split === 'custom' && customSplit && customSplit.length > 0) {
+    if (dayIndex === 0) return { name: 'Rest', splitName: 'Custom Split' };
+    // Cycle through custom days (Mon=1 maps to day 0, etc.)
+    const customDayIndex = (dayIndex - 1) % customSplit.length;
+    const todayMuscles = customSplit[customDayIndex]?.muscles;
+    const name = todayMuscles && todayMuscles.length > 0 ? todayMuscles.join(' & ') : 'Rest';
+    return { name, splitName: 'Custom Split' };
   }
   return { name: 'Full Body', splitName: 'Training' };
 }
@@ -70,7 +78,7 @@ export default function App() {
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
 
   // Compute scheduled workout from user's split
-  const scheduledWorkout = getScheduledWorkout(profile?.split || undefined);
+  const scheduledWorkout = getScheduledWorkout(profile?.split || undefined, profile?.customSplit);
   const currentMuscleGroup = activeMuscleGroup || scheduledWorkout.name;
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });

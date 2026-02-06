@@ -152,7 +152,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     { value: 'garmin', label: 'Garmin', icon: <Watch className="w-5 h-5" />, color: 'from-blue-500 to-indigo-600' },
   ];
 
-  const muscleGroups = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio'];
+  const muscleGroups = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Core', 'Cardio'];
 
   const toggleWearable = (value: string) => {
     if (data.wearables.includes(value)) {
