@@ -1,10 +1,10 @@
-import { ChevronRight, User, Phone, Ruler, Weight, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap } from 'lucide-react';
+import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useProfile } from '../hooks/useProfile';
 
 interface OnboardingData {
   name: string;
-  phoneNumber: string;
-  verificationCode: string;
   heightFeet: number;
   heightInches: number;
   weight: number;
@@ -19,15 +19,16 @@ interface OnboardingData {
 }
 
 interface OnboardingPageProps {
-  onComplete: (data: OnboardingData) => void;
+  onComplete: () => void;
 }
 
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
+  const { user } = useAuth();
+  const { updateProfile } = useProfile();
   const [step, setStep] = useState(1);
+  const [saveError, setSaveError] = useState('');
   const [data, setData] = useState<OnboardingData>({
     name: '',
-    phoneNumber: '',
-    verificationCode: '',
     heightFeet: 5,
     heightInches: 10,
     weight: 175,
@@ -47,23 +48,14 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
-  const totalSteps = 10;
-
-  const formatPhoneNumber = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    const limited = cleaned.slice(0, 10);
-    
-    if (limited.length <= 3) return limited;
-    if (limited.length <= 6) return `(${limited.slice(0, 3)}) ${limited.slice(3)}`;
-    return `(${limited.slice(0, 3)}) ${limited.slice(3, 6)}-${limited.slice(6)}`;
-  };
+  const totalSteps = 8;
 
   const handleNext = () => {
-    if (step === 8 && data.goal === 'Ask AI') {
+    if (step === 6 && data.goal === 'Ask AI') {
       setShowAIGoalInput(true);
       return;
     }
-    if (step === 9 && data.split === 'custom') {
+    if (step === 7 && data.split === 'custom') {
       setShowCustomSplit(true);
       return;
     }
@@ -74,16 +66,15 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     }
   };
 
-  // Loading animation
+  // Loading animation + save to Supabase
   useEffect(() => {
     if (isLoading) {
       const interval = setInterval(() => {
         setLoadingProgress(prev => {
           if (prev >= 100) {
             clearInterval(interval);
-            setTimeout(() => {
-              onComplete(data);
-            }, 500);
+            // Save profile to Supabase
+            saveProfile();
             return 100;
           }
           return prev + 2;
@@ -91,20 +82,43 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
       }, 50);
       return () => clearInterval(interval);
     }
-  }, [isLoading, data, onComplete]);
+  }, [isLoading]);
+
+  async function saveProfile() {
+    try {
+      await updateProfile({
+        name: data.name,
+        height_feet: data.heightFeet,
+        height_inches: data.heightInches,
+        weight_lbs: data.weight,
+        experience: data.experience || null,
+        gym: data.gym || null,
+        is_home_gym: data.isHomeGym,
+        wearables: data.wearables,
+        goal: data.goal === 'Ask AI' ? data.customGoal : data.goal,
+        custom_goal: data.goal === 'Ask AI' ? data.customGoal : null,
+        split: data.split || null,
+        custom_split: data.customSplit.length > 0 ? data.customSplit : null,
+        onboarding_completed: true,
+      });
+      setTimeout(() => onComplete(), 500);
+    } catch (err: any) {
+      setSaveError(err.message || 'Failed to save profile');
+      setIsLoading(false);
+      setLoadingProgress(0);
+    }
+  }
 
   const isStepValid = () => {
     switch (step) {
       case 1: return data.name.trim().length > 0;
-      case 2: return data.phoneNumber.replace(/\D/g, '').length === 10;
-      case 3: return data.verificationCode.length === 6;
-      case 4: return data.heightFeet > 0 && data.weight > 0;
-      case 5: return data.experience !== '';
-      case 6: return data.isHomeGym || data.gym.length > 0;
-      case 7: return true; // Wearables are optional
-      case 8: return data.goal !== '';
-      case 9: return data.split !== '';
-      case 10: return true;
+      case 2: return data.heightFeet > 0 && data.weight > 0;
+      case 3: return data.experience !== '';
+      case 4: return data.isHomeGym || data.gym.length > 0;
+      case 5: return true; // Wearables are optional
+      case 6: return data.goal !== '';
+      case 7: return data.split !== '';
+      case 8: return true;
       default: return false;
     }
   };
@@ -154,6 +168,18 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             {loadingProgress >= 60 && loadingProgress < 90 && <p>Selecting optimal exercises...</p>}
             {loadingProgress >= 90 && <p>Finalizing your plan...</p>}
           </div>
+
+          {saveError && (
+            <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+              <p className="text-red-400 text-xs text-center">{saveError}</p>
+              <button
+                onClick={() => { setSaveError(''); setIsLoading(true); }}
+                className="w-full mt-2 text-sm text-[#00ff00] font-medium"
+              >
+                Try again
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -186,7 +212,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <button
             onClick={() => {
               setShowAIGoalInput(false);
-              setStep(9);
+              setStep(7);
             }}
             disabled={data.customGoal.trim().length < 10}
             className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2 mt-6"
@@ -283,7 +309,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <button
             onClick={() => {
               setShowCustomSplit(false);
-              setStep(10);
+              setStep(8);
             }}
             disabled={!data.customSplit.every(day => day.muscles.length > 0)}
             className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
@@ -343,50 +369,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 2: Phone */}
+          {/* Step 2: Height & Weight */}
           {step === 2 && (
-            <>
-              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
-                <Phone className="w-6 h-6 text-black" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Phone number</h2>
-              <p className="text-gray-400 text-sm mb-8">We'll send you a verification code</p>
-              <input
-                type="tel"
-                value={data.phoneNumber}
-                onChange={(e) => setData({ ...data, phoneNumber: formatPhoneNumber(e.target.value) })}
-                placeholder="(555) 123-4567"
-                className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl px-4 py-4 text-white placeholder-gray-600 text-base focus:outline-none focus:border-[#00ff00] transition-colors"
-                autoFocus
-              />
-            </>
-          )}
-
-          {/* Step 3: Verification Code */}
-          {step === 3 && (
-            <>
-              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
-                <Check className="w-6 h-6 text-black" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Enter verification code</h2>
-              <p className="text-gray-400 text-sm mb-8">We sent a code to {data.phoneNumber}</p>
-              <input
-                type="text"
-                value={data.verificationCode}
-                onChange={(e) => setData({ ...data, verificationCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                placeholder="000000"
-                className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl px-4 py-4 text-white placeholder-gray-600 text-base focus:outline-none focus:border-[#00ff00] transition-colors text-center tracking-widest text-2xl font-bold"
-                autoFocus
-                maxLength={6}
-              />
-              <button className="w-full mt-4 text-sm text-gray-500 hover:text-white transition-colors">
-                Resend code
-              </button>
-            </>
-          )}
-
-          {/* Step 4: Height & Weight */}
-          {step === 4 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Ruler className="w-6 h-6 text-black" />
@@ -471,8 +455,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 5: Experience */}
-          {step === 5 && (
+          {/* Step 3: Experience */}
+          {step === 3 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Dumbbell className="w-6 h-6 text-black" />
@@ -503,8 +487,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 6: Gym Location */}
-          {step === 6 && (
+          {/* Step 4: Gym Location */}
+          {step === 4 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <MapPin className="w-6 h-6 text-black" />
@@ -567,8 +551,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 7: Wearables */}
-          {step === 7 && (
+          {/* Step 5: Wearables */}
+          {step === 5 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Watch className="w-6 h-6 text-black" />
@@ -601,7 +585,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
               </div>
 
               <button
-                onClick={() => setStep(8)}
+                onClick={() => setStep(6)}
                 className="w-full text-sm text-gray-500 hover:text-white transition-colors"
               >
                 Skip for now
@@ -609,8 +593,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 8: Goals */}
-          {step === 8 && (
+          {/* Step 6: Goals */}
+          {step === 6 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Target className="w-6 h-6 text-black" />
@@ -647,8 +631,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 9: Split */}
-          {step === 9 && (
+          {/* Step 7: Split */}
+          {step === 7 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Calendar className="w-6 h-6 text-black" />
@@ -684,8 +668,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 10: Final Review */}
-          {step === 10 && (
+          {/* Step 8: Final Review */}
+          {step === 8 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-black" />
@@ -748,7 +732,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           disabled={!isStepValid()}
           className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
         >
-          {step === 10 ? 'Get Maxed' : 'Continue'}
+          {step === 8 ? 'Get Maxed' : 'Continue'}
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>

@@ -1,25 +1,12 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
+import { useAuth } from '../context/AuthContext';
+import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
-  userData?: {
-    name: string;
-    phoneNumber: string;
-    verificationCode: string;
-    heightFeet: number;
-    heightInches: number;
-    weight: number;
-    experience: 'beginner' | 'intermediate' | 'advanced' | '';
-    gym: string;
-    isHomeGym: boolean;
-    wearables: string[];
-    goal: string;
-    customGoal: string;
-    split: string;
-    customSplit: { day: number; muscles: string[] }[];
-  };
+  userData?: UserProfile | null;
   onIntegrationsClick?: () => void;
 }
 
@@ -224,6 +211,7 @@ const workoutHistory: WorkoutLog[] = [
 ];
 
 export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps) {
+  const { signOut } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 5)); // Feb 5, 2026
   const [selectedDay, setSelectedDay] = useState<WorkoutLog[] | null>(null);
   const [copiedReferral, setCopiedReferral] = useState(false);
@@ -326,7 +314,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold mb-1">{userData?.name || 'Max Thompson'}</h1>
-            <p className="text-sm text-gray-500">Member since Jan 2025</p>
+            <p className="text-sm text-gray-500">Member since {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'recently'}</p>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -337,6 +325,12 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             </button>
             <button className="p-2 hover:bg-white/5 rounded-xl transition-colors">
               <Edit className="w-5 h-5 text-gray-400" />
+            </button>
+            <button
+              onClick={signOut}
+              className="p-2 hover:bg-red-500/10 rounded-xl transition-colors"
+            >
+              <LogOut className="w-5 h-5 text-gray-400" />
             </button>
           </div>
         </div>
@@ -370,7 +364,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
               <Phone className="w-4 h-4 text-gray-500" />
               <div>
                 <p className="text-xs text-gray-500">Phone</p>
-                <p className="text-sm font-medium">{userData?.phoneNumber || '+1 (555) 123-4567'}</p>
+                <p className="text-sm font-medium">{userData?.phone || 'No phone set'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { PRExplanationModal } from './PRExplanationModal';
 import { SchedulePRModal } from './SchedulePRModal';
 import { PRPlanModal } from './PRPlanModal';
+import { usePersonalRecords } from '../hooks/usePersonalRecords';
 
 const muscleGroups = [
   { id: 'chest', name: 'Chest' },
@@ -74,6 +75,7 @@ const yearlyData = [
 ];
 
 export function ProgressPage() {
+  const { records } = usePersonalRecords();
   const [selectedMuscle, setSelectedMuscle] = useState<string>('chest');
   const [selectedExercise, setSelectedExercise] = useState<string>('Bench Press');
   const [timePeriod, setTimePeriod] = useState<'week' | 'month' | 'year'>('week');
@@ -82,7 +84,15 @@ export function ProgressPage() {
   const [showPRPlan, setShowPRPlan] = useState(false);
 
   const currentData = timePeriod === 'week' ? weeklyData : timePeriod === 'month' ? monthlyData : yearlyData;
-  const exercises = exercisesByMuscle[selectedMuscle] || [];
+
+  // Merge real PRs into the hardcoded exercise data
+  const exercises = (exercisesByMuscle[selectedMuscle] || []).map(ex => {
+    const realPR = records.find(r => r.exerciseName === ex.name && r.prType === 'weight');
+    if (realPR) {
+      return { ...ex, currentPR: String(realPR.value), unit: realPR.unit || ex.unit };
+    }
+    return ex;
+  });
   const currentExercise = exercises.find(e => e.name === selectedExercise) || exercises[0];
 
   return (

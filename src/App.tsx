@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus } from 'lucide-react';
+import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2 } from 'lucide-react';
 import { ProgressPage } from './components/ProgressPage';
 import { CommunityPage } from './components/CommunityPage';
 import { WorkoutStartPage } from './components/WorkoutStartPage';
@@ -12,25 +12,12 @@ import { CardioSetupPage } from './components/CardioSetupPage';
 import { SecondSessionPage } from './components/SecondSessionPage';
 import { ReadinessModal } from './components/ReadinessModal';
 import { WorkoutDetailModal } from './components/WorkoutDetailModal';
-
-interface UserData {
-  name: string;
-  phoneNumber: string;
-  verificationCode: string;
-  heightFeet: number;
-  heightInches: number;
-  weight: number;
-  experience: 'beginner' | 'intermediate' | 'advanced' | '';
-  gym: string;
-  isHomeGym: boolean;
-  wearables: string[];
-  goal: string;
-  customGoal: string;
-  split: string;
-  customSplit: { day: number; muscles: string[] }[];
-}
+import { useAuth } from './context/AuthContext';
+import { useWorkoutHistory } from './hooks/useWorkoutHistory';
 
 export default function App() {
+  const { session, profile, loading, refreshProfile } = useAuth();
+  const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
   const [showIntegrations, setShowIntegrations] = useState(false);
@@ -39,108 +26,24 @@ export default function App() {
   const [showSecondSession, setShowSecondSession] = useState(false);
   const [showReadinessModal, setShowReadinessModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const [userData, setUserData] = useState<UserData>({
-    name: 'Alex Martinez',
-    phoneNumber: '',
-    verificationCode: '',
-    heightFeet: 5,
-    heightInches: 10,
-    weight: 175,
-    experience: 'intermediate',
-    gym: 'UM CCRB',
-    isHomeGym: false,
-    wearables: [],
-    goal: 'muscle-gain',
-    customGoal: '',
-    split: 'arnold',
-    customSplit: []
-  });
 
-  const handleOnboardingComplete = (data: UserData) => {
-    setUserData(data);
-    setHasCompletedOnboarding(true);
-  };
-
-  // Workout data for completed workouts
-  const completedWorkouts = {
-    pushDay: {
-      date: 'Monday, February 2',
-      startTime: '9:30 AM',
-      duration: 75,
-      workoutType: 'Push Day',
-      exercises: [
-        {
-          name: 'Bench Press',
-          sets: [
-            { weight: 205, reps: 8 },
-            { weight: 215, reps: 6 },
-            { weight: 225, reps: 4 },
-            { weight: 215, reps: 6 }
-          ]
-        },
-        {
-          name: 'Incline Dumbbell Press',
-          sets: [
-            { weight: 70, reps: 10 },
-            { weight: 75, reps: 8 },
-            { weight: 75, reps: 8 }
-          ]
-        },
-        {
-          name: 'Cable Flyes',
-          sets: [
-            { weight: 40, reps: 12 },
-            { weight: 45, reps: 12 },
-            { weight: 50, reps: 10 }
-          ]
-        },
-        {
-          name: 'Overhead Press',
-          sets: [
-            { weight: 115, reps: 8 },
-            { weight: 125, reps: 6 },
-            { weight: 135, reps: 5 }
-          ]
-        },
-        {
-          name: 'Lateral Raises',
-          sets: [
-            { weight: 25, reps: 15 },
-            { weight: 30, reps: 12 },
-            { weight: 30, reps: 12 }
-          ]
-        }
-      ]
-    },
-    cardio: {
-      date: 'Sunday, February 1',
-      startTime: '7:00 AM',
-      duration: 45,
-      workoutType: 'Cardio Session',
-      exercises: [
-        {
-          name: 'Treadmill Run',
-          sets: [],
-          cardioData: {
-            duration: 45,
-            distance: 4.2,
-            speed: 5.6,
-            incline: 2,
-            calories: 385
-          }
-        }
-      ]
-    }
-  };
-
-  if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
+  // Loading state while auth initializes
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#00ff00] animate-spin" />
+      </div>
+    );
   }
 
-  if (!hasCompletedOnboarding) {
-    return <OnboardingPage onComplete={handleOnboardingComplete} />;
+  // Not logged in → show login screen
+  if (!session) {
+    return <LoginScreen />;
+  }
+
+  // Logged in but hasn't completed onboarding
+  if (!profile?.onboardingCompleted) {
+    return <OnboardingPage onComplete={async () => { await refreshProfile(); }} />;
   }
 
   return (
@@ -153,7 +56,7 @@ export default function App() {
             <div className="flex justify-between items-start mb-1">
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Tuesday, February 3</p>
-                <h1 className="text-xl font-bold">Hey, {userData.name.split(' ')[0]}</h1>
+                <h1 className="text-xl font-bold">Hey, {profile?.name?.split(' ')[0] || 'there'}</h1>
               </div>
               <button className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors">
                 <Settings className="w-5 h-5 text-gray-400" />
@@ -250,43 +153,49 @@ export default function App() {
             <div className="pt-2">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-base font-bold">This Week</h3>
-                <p className="text-gray-400 text-xs">2 / 6 days</p>
+                <p className="text-gray-400 text-xs">{recentWorkouts.length} workout{recentWorkouts.length !== 1 ? 's' : ''}</p>
               </div>
-              
-              {/* Week Progress Cards */}
-              <div className="space-y-2">
-                <button 
-                  onClick={() => setSelectedWorkout(completedWorkouts.pushDay)}
-                  className="w-full bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between hover:bg-[#252525] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#00ff00] rounded-lg flex items-center justify-center">
-                      <Dumbbell className="w-5 h-5 text-black" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-sm">Push Day</p>
-                      <p className="text-gray-400 text-xs">Completed • Monday</p>
-                    </div>
-                  </div>
-                  <span className="text-[#00ff00] text-xs font-semibold">✓</span>
-                </button>
-                
-                <button 
-                  onClick={() => setSelectedWorkout(completedWorkouts.cardio)}
-                  className="w-full bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between hover:bg-[#252525] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#00ff00] rounded-lg flex items-center justify-center">
-                      <Heart className="w-5 h-5 text-black" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-sm">Cardio</p>
-                      <p className="text-gray-400 text-xs">Completed • Sunday</p>
-                    </div>
-                  </div>
-                  <span className="text-[#00ff00] text-xs font-semibold">✓</span>
-                </button>
-              </div>
+
+              {recentWorkouts.length === 0 ? (
+                <div className="bg-[#1a1a1a] rounded-xl p-6 flex flex-col items-center justify-center">
+                  <Dumbbell className="w-8 h-8 text-gray-600 mb-2" />
+                  <p className="text-gray-500 text-sm">No workouts yet</p>
+                  <p className="text-gray-600 text-xs mt-1">Start your first workout above!</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recentWorkouts.slice(0, 5).map((workout) => (
+                    <button
+                      key={workout.id}
+                      onClick={() => setSelectedWorkout({
+                        date: new Date(workout.startedAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+                        startTime: new Date(workout.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+                        duration: workout.durationMinutes || 0,
+                        workoutType: workout.workoutType,
+                        exercises: workout.exercises.map(ex => ({
+                          name: ex.exerciseName,
+                          sets: ex.sets.map(s => ({ weight: s.weightLbs || 0, reps: s.reps || 0 })),
+                        })),
+                      })}
+                      className="w-full bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between hover:bg-[#252525] transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#00ff00] rounded-lg flex items-center justify-center">
+                          <Dumbbell className="w-5 h-5 text-black" />
+                        </div>
+                        <div className="text-left">
+                          <p className="font-semibold text-sm">{workout.workoutType}</p>
+                          <p className="text-gray-400 text-xs">
+                            {new Date(workout.startedAt).toLocaleDateString('en-US', { weekday: 'long' })}
+                            {workout.durationMinutes ? ` • ${workout.durationMinutes} min` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[#00ff00] text-xs font-semibold">&#10003;</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </main>
         </>
@@ -296,7 +205,7 @@ export default function App() {
 
       {currentPage === 'community' && <CommunityPage />}
 
-      {currentPage === 'profile' && <ProfilePage userData={userData} onIntegrationsClick={() => setShowIntegrations(true)} />}
+      {currentPage === 'profile' && <ProfilePage userData={profile} onIntegrationsClick={() => setShowIntegrations(true)} />}
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 px-4 py-3 safe-area-inset-bottom">
@@ -358,8 +267,8 @@ export default function App() {
             setShowWorkoutSwitch(false);
             setShowWorkoutStart(true);
           }}
-          userSplit={userData.split}
-          customSplit={userData.customSplit}
+          userSplit={profile?.split || ''}
+          customSplit={profile?.customSplit || []}
         />
       )}
 

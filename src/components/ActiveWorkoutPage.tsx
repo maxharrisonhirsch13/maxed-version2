@@ -1,9 +1,15 @@
-import { useState } from 'react';
-import { X, Settings, Sparkles, ChevronLeft, ChevronRight, Check, Eye, EyeOff, RefreshCw, Plus, List, Search, Dumbbell } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { X, Settings, Sparkles, ChevronLeft, ChevronRight, Check, Eye, EyeOff, RefreshCw, Plus, List, Search, Dumbbell, Loader2 } from 'lucide-react';
+import { useWorkouts } from '../hooks/useWorkouts';
 
 interface ActiveWorkoutPageProps {
   onClose: () => void;
   muscleGroup?: string;
+}
+
+interface LoggedSet {
+  weight: number;
+  reps: number;
 }
 
 interface Exercise {
@@ -67,6 +73,8 @@ const allExercises: Exercise[] = Object.values(exercisesByMuscleGroup).flat().fi
 );
 
 export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPageProps) {
+  const { saveWorkout, saving } = useWorkouts();
+  const startedAt = useRef(new Date().toISOString());
   const initialExercises = (muscleGroup && exercisesByMuscleGroup[muscleGroup]) || defaultExercises;
   const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -74,6 +82,11 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
   const [weight, setWeight] = useState(initialExercises[0].aiSuggestion.weight);
   const [reps, setReps] = useState(8);
   const [completedSets, setCompletedSets] = useState<number[]>([]);
+
+  // Track all logged set data per exercise: exerciseIndex -> setNumber -> {weight, reps}
+  const [loggedData, setLoggedData] = useState<Record<number, Record<number, LoggedSet>>>({});
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [workoutFinished, setWorkoutFinished] = useState(false);
 
   // Settings state
   const [showSettings, setShowSettings] = useState(false);
@@ -104,8 +117,20 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
     );
   };
 
+  const logSetData = (exerciseIdx: number, setNum: number, setData: LoggedSet) => {
+    setLoggedData(prev => ({
+      ...prev,
+      [exerciseIdx]: {
+        ...(prev[exerciseIdx] || {}),
+        [setNum]: setData,
+      },
+    }));
+  };
+
   const handleLogSet = () => {
+    logSetData(currentExerciseIndex, currentSet, { weight, reps });
     setCompletedSets([...completedSets, currentSet]);
+
     if (currentSet < currentExercise.sets) {
       setCurrentSet(currentSet + 1);
     } else if (currentExerciseIndex < exercises.length - 1) {
@@ -114,10 +139,18 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
       setCompletedSets([]);
       setWeight(exercises[currentExerciseIndex + 1].aiSuggestion.weight);
       setReps(8);
+    } else {
+      // Last set of last exercise — auto-finish
+      setWorkoutFinished(true);
     }
   };
 
   const handleLogAllSets = () => {
+    // Save all bulk set data
+    bulkSets.forEach((set, idx) => {
+      logSetData(currentExerciseIndex, idx + 1, { weight: set.weight, reps: set.reps });
+    });
+
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentExerciseIndex(currentExerciseIndex + 1);
       setCurrentSet(1);
@@ -125,6 +158,49 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
       setWeight(exercises[currentExerciseIndex + 1].aiSuggestion.weight);
       setReps(8);
       initBulkSets();
+    } else {
+      setWorkoutFinished(true);
+    }
+  };
+
+  const handleFinishWorkout = async () => {
+    const now = new Date();
+    const start = new Date(startedAt.current);
+    const durationMinutes = Math.round((now.getTime() - start.getTime()) / 60000);
+
+    const exercisesToSave = exercises
+      .map((ex, idx) => {
+        const setsForExercise = loggedData[idx];
+        if (!setsForExercise || Object.keys(setsForExercise).length === 0) return null;
+        return {
+          exerciseName: ex.name,
+          sortOrder: idx,
+          sets: Object.entries(setsForExercise).map(([setNum, setData]) => ({
+            setNumber: parseInt(setNum),
+            weightLbs: setData.weight,
+            reps: setData.reps,
+          })),
+        };
+      })
+      .filter(Boolean) as { exerciseName: string; sortOrder: number; sets: { setNumber: number; weightLbs: number; reps: number }[] }[];
+
+    if (exercisesToSave.length === 0) {
+      onClose();
+      return;
+    }
+
+    try {
+      await saveWorkout({
+        workoutType: muscleGroup || 'Workout',
+        startedAt: startedAt.current,
+        durationMinutes,
+        exercises: exercisesToSave,
+      });
+      onClose();
+    } catch (err) {
+      console.error('Failed to save workout:', err);
+      // Still close on error for now
+      onClose();
     }
   };
 
@@ -221,7 +297,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-b from-[#1a1a1a]/50 to-transparent backdrop-blur-sm relative">
           <button
-            onClick={onClose}
+            onClick={() => setShowEndConfirm(true)}
             className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors -ml-2 p-2 rounded-xl hover:bg-white/5"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -558,6 +634,65 @@ export function ActiveWorkoutPage({ onClose, muscleGroup }: ActiveWorkoutPagePro
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Workout Confirmation */}
+      {showEndConfirm && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[#1a1a1a] rounded-3xl p-6 text-center">
+            <h2 className="font-bold text-lg mb-2">End Workout?</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              {Object.keys(loggedData).length > 0
+                ? 'Your logged sets will be saved.'
+                : 'No sets logged yet. Nothing will be saved.'}
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={handleFinishWorkout}
+                disabled={saving}
+                className="w-full bg-[#00ff00] text-black font-bold py-3 rounded-2xl text-sm hover:bg-[#00dd00] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {saving ? 'Saving...' : 'Save & End'}
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full text-red-400 font-medium py-3 rounded-2xl text-sm hover:bg-red-500/10 transition-colors"
+              >
+                Discard & Exit
+              </button>
+              <button
+                onClick={() => setShowEndConfirm(false)}
+                className="w-full text-gray-400 font-medium py-3 rounded-2xl text-sm hover:bg-white/5 transition-colors"
+              >
+                Continue Workout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workout Finished */}
+      {workoutFinished && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[#1a1a1a] rounded-3xl p-6 text-center">
+            <div className="w-16 h-16 bg-[#00ff00] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-black" />
+            </div>
+            <h2 className="font-bold text-xl mb-2">Workout Complete!</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              {Object.keys(loggedData).length} exercise{Object.keys(loggedData).length !== 1 ? 's' : ''} logged
+            </p>
+            <button
+              onClick={handleFinishWorkout}
+              disabled={saving}
+              className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-sm hover:bg-[#00dd00] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {saving ? 'Saving...' : 'Save Workout'}
+            </button>
           </div>
         </div>
       )}
