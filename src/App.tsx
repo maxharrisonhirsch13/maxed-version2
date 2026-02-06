@@ -55,21 +55,34 @@ function getScheduledWorkout(split: string | undefined, customSplit?: { day: num
 export default function App() {
   const { session, profile, loading, refreshProfile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
-  const { data: whoopData } = useWhoopData();
+  const { data: whoopData, loading: whoopLoading, error: whoopError } = useWhoopData();
   const { data: wearableData } = useWearableData();
 
   // Readiness score: prefer WHOOP direct API, fall back to wearable_snapshots (any source)
   const rawReadiness = whoopData?.recovery?.score ?? wearableData?.recoveryScore ?? null;
   const readinessScore = rawReadiness != null ? Math.max(rawReadiness, 55) : null;
+  const whoopConnectedNoData = whoopData?.connected === true && readinessScore == null;
   const readinessColor = readinessScore != null
     ? readinessScore >= 67 ? '#00ff00' : readinessScore >= 34 ? '#facc15' : '#ef4444'
     : '#6b7280';
-  const readinessLabel = readinessScore != null
-    ? readinessScore >= 67 ? 'Optimal' : readinessScore >= 34 ? 'Moderate' : 'Low'
-    : 'Connect wearable';
-  const readinessDetail = readinessScore != null
-    ? readinessScore >= 67 ? 'Peak performance expected' : readinessScore >= 34 ? 'Consider lighter intensity' : 'Active recovery recommended'
-    : 'Link a wearable for insights';
+  const readinessLabel = whoopLoading
+    ? 'Syncing...'
+    : whoopError
+      ? 'Sync error'
+      : whoopConnectedNoData
+        ? 'WHOOP connected'
+        : readinessScore != null
+          ? readinessScore >= 67 ? 'Optimal' : readinessScore >= 34 ? 'Moderate' : 'Low'
+          : 'Connect wearable';
+  const readinessDetail = whoopLoading
+    ? 'Fetching your WHOOP data...'
+    : whoopError
+      ? 'Check console for details'
+      : whoopConnectedNoData
+        ? 'No recovery data yet — wear your WHOOP to sleep'
+        : readinessScore != null
+          ? readinessScore >= 67 ? 'Peak performance expected' : readinessScore >= 34 ? 'Consider lighter intensity' : 'Active recovery recommended'
+          : 'Link a wearable for insights';
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
   const [activeMuscleGroup, setActiveMuscleGroup] = useState('');
