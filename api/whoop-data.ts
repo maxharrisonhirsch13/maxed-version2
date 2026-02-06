@@ -47,6 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Refresh token if expired
     if (new Date(tokenRow.expires_at) <= new Date()) {
+      console.log('WHOOP token expired, refreshing...')
       const refreshRes = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -58,23 +59,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }),
       })
 
-      if (!refreshRes.ok) {
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json()
+        accessToken = refreshData.access_token
+        const expiresAt = new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
+
+        await supabase.from('whoop_tokens').update({
+          access_token: refreshData.access_token,
+          refresh_token: refreshData.refresh_token,
+          expires_at: expiresAt,
+          updated_at: new Date().toISOString(),
+        }).eq('user_id', user.id)
+        console.log('WHOOP token refreshed successfully')
+      } else {
         const refreshErr = await refreshRes.text().catch(() => '')
         console.error('WHOOP token refresh failed:', refreshRes.status, refreshErr)
-        // Don't delete tokens — let user manually reconnect if needed
-        // Try using the existing access token anyway (it might still work for some endpoints)
+        // Use existing token — it might still work
       }
-
-      const refreshData = await refreshRes.json()
-      accessToken = refreshData.access_token
-      const expiresAt = new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
-
-      await supabase.from('whoop_tokens').update({
-        access_token: refreshData.access_token,
-        refresh_token: refreshData.refresh_token,
-        expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
-      }).eq('user_id', user.id)
     }
 
     // Fetch WHOOP data in parallel
@@ -89,8 +90,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let sleep = null
     let strain = null
 
+    console.log('WHOOP API status — recovery:', recoveryRes.status, 'sleep:', sleepRes.status, 'cycle:', cycleRes.status)
+
     if (recoveryRes.ok) {
       const recoveryData = await recoveryRes.json()
+      console.log('WHOOP recovery records:', recoveryData.records?.length ?? 0)
       const r = recoveryData.records?.[0]?.score
       if (r) {
         recovery = {
@@ -101,6 +105,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           skinTemp: r.skin_temp_celsius != null ? Math.round(r.skin_temp_celsius * 10) / 10 : null,
         }
       }
+    }
+
+    if (!recoveryRes.ok) {
+      console.error('WHOOP recovery error:', await recoveryRes.text().catch(() => ''))
     }
 
     if (sleepRes.ok) {
@@ -158,7 +166,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     }
 
-    return res.json({ connected: true, recovery, sleep, strain })
+    return res.json({
+      connected: true,
+      recovery,
+      sleep,
+      strain,
+      _debug: {
+        tokenExpired: new Date(tokenRow.expires_at) <= new Date(),
+        apiStatus: { recovery: recoveryRes.status, sleep: sleepRes.status, cycle: cycleRes.status },
+      },
+    })
   } catch (err) {
     console.error('WHOOP data fetch error:', err)
     return res.status(500).json({ error: 'Internal error' })
