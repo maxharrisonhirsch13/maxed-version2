@@ -590,7 +590,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto scrollbar-hide">
+        <div className="flex-1 overflow-y-auto scrollbar-hide pb-4">
           {/* Empty state for custom build */}
           {exercises.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-5">
@@ -753,43 +753,100 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
             {/* Bulk Log Mode */}
             {logMode === 'bulk' && (
               <>
+                {/* AI Recommendation for bulk */}
+                <div className="bg-[#00ff00]/5 rounded-2xl p-3.5 border border-[#00ff00]/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        {workoutLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 text-[#00ff00] animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5 text-[#00ff00]" />
+                        )}
+                        <span className="text-[11px] text-[#00ff00] font-semibold tracking-wide">
+                          {workoutLoading ? 'AI ANALYZING...' : workoutSuggestions ? 'AI PERSONALIZED' : 'AI RECOMMENDS'}
+                        </span>
+                      </div>
+                      <p className="text-xl font-bold">
+                        {currentExercise.aiSuggestion.weight === 0 ? 'Bodyweight' : `${currentExercise.aiSuggestion.weight} lbs`} <span className="text-gray-600">&times;</span> {currentExercise.aiSuggestion.reps}
+                      </p>
+                      {aiNote && <p className="text-[10px] text-gray-500 mt-1">{aiNote}</p>}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const aiReps = parseInt(currentExercise.aiSuggestion.reps) || 10;
+                        const updated = bulkSets.map(() => ({ weight: currentExercise.aiSuggestion.weight, reps: aiReps }));
+                        setBulkSets(updated);
+                      }}
+                      className="px-3.5 py-2 bg-[#00ff00] text-black rounded-xl font-semibold text-xs hover:bg-[#00dd00] transition-all active:scale-95"
+                    >
+                      Apply All
+                    </button>
+                  </div>
+                </div>
+
                 <div className="bg-[#1a1a1a] rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <List className="w-4 h-4 text-[#00ff00]" />
-                    <span className="text-xs font-semibold text-[#00ff00]">BULK LOG MODE</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <List className="w-4 h-4 text-[#00ff00]" />
+                      <span className="text-xs font-semibold text-[#00ff00]">BULK LOG</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500">{bulkSets.length} sets</span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {/* Header row */}
-                    <div className="grid grid-cols-[40px_1fr_1fr] gap-2 text-[10px] text-gray-500 font-medium px-1">
-                      <span>SET</span>
-                      <span>{currentExercise?.aiSuggestion.weight === 0 ? 'ADDED WT' : 'WEIGHT (lbs)'}</span>
-                      <span>REPS</span>
+                    <div className="grid grid-cols-[32px_1fr_1fr] gap-3 text-[10px] text-gray-500 font-medium tracking-wider px-1">
+                      <span></span>
+                      <span className="text-center">{currentExercise?.aiSuggestion.weight === 0 ? 'ADDED WT' : 'WEIGHT (lbs)'}</span>
+                      <span className="text-center">REPS</span>
                     </div>
 
                     {bulkSets.map((set, idx) => (
-                      <div key={idx} className="grid grid-cols-[40px_1fr_1fr] gap-2 items-center">
-                        <span className="text-sm font-semibold text-gray-400 text-center">{idx + 1}</span>
-                        <input
-                          type="number"
-                          value={set.weight}
-                          onChange={(e) => {
-                            const updated = [...bulkSets];
-                            updated[idx] = { ...updated[idx], weight: parseInt(e.target.value) || 0 };
-                            setBulkSets(updated);
-                          }}
-                          className="bg-[#252525] rounded-xl px-3 py-2.5 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-[#00ff00] transition-all"
-                        />
-                        <input
-                          type="number"
-                          value={set.reps}
-                          onChange={(e) => {
-                            const updated = [...bulkSets];
-                            updated[idx] = { ...updated[idx], reps: parseInt(e.target.value) || 0 };
-                            setBulkSets(updated);
-                          }}
-                          className="bg-[#252525] rounded-xl px-3 py-2.5 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-[#00ff00] transition-all"
-                        />
+                      <div key={idx} className="grid grid-cols-[32px_1fr_1fr] gap-3 items-center">
+                        <div className="w-8 h-8 rounded-full bg-[#252525] flex items-center justify-center">
+                          <span className="text-xs font-bold text-gray-400">{idx + 1}</span>
+                        </div>
+                        <div className="flex items-center bg-[#252525] rounded-xl overflow-hidden">
+                          <button
+                            onClick={() => { const u = [...bulkSets]; u[idx] = { ...u[idx], weight: Math.max(0, u[idx].weight - 5) }; setBulkSets(u); }}
+                            className="px-2.5 py-2.5 text-gray-500 hover:text-white hover:bg-[#333] transition-colors"
+                          >
+                            <span className="text-sm font-bold">&minus;</span>
+                          </button>
+                          <input
+                            type="number"
+                            value={set.weight}
+                            onChange={(e) => { const u = [...bulkSets]; u[idx] = { ...u[idx], weight: parseInt(e.target.value) || 0 }; setBulkSets(u); }}
+                            className="flex-1 bg-transparent py-2.5 text-sm text-white text-center focus:outline-none min-w-0"
+                          />
+                          <button
+                            onClick={() => { const u = [...bulkSets]; u[idx] = { ...u[idx], weight: u[idx].weight + 5 }; setBulkSets(u); }}
+                            className="px-2.5 py-2.5 text-gray-500 hover:text-white hover:bg-[#333] transition-colors"
+                          >
+                            <span className="text-sm font-bold">+</span>
+                          </button>
+                        </div>
+                        <div className="flex items-center bg-[#252525] rounded-xl overflow-hidden">
+                          <button
+                            onClick={() => { const u = [...bulkSets]; u[idx] = { ...u[idx], reps: Math.max(1, u[idx].reps - 1) }; setBulkSets(u); }}
+                            className="px-2.5 py-2.5 text-gray-500 hover:text-white hover:bg-[#333] transition-colors"
+                          >
+                            <span className="text-sm font-bold">&minus;</span>
+                          </button>
+                          <input
+                            type="number"
+                            value={set.reps}
+                            onChange={(e) => { const u = [...bulkSets]; u[idx] = { ...u[idx], reps: parseInt(e.target.value) || 0 }; setBulkSets(u); }}
+                            className="flex-1 bg-transparent py-2.5 text-sm text-white text-center focus:outline-none min-w-0"
+                          />
+                          <button
+                            onClick={() => { const u = [...bulkSets]; u[idx] = { ...u[idx], reps: u[idx].reps + 1 }; setBulkSets(u); }}
+                            className="px-2.5 py-2.5 text-gray-500 hover:text-white hover:bg-[#333] transition-colors"
+                          >
+                            <span className="text-sm font-bold">+</span>
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

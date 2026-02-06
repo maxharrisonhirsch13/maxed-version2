@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { TrendingUp, Users, MapPin, Dumbbell, Clock, User, Flame, Trophy, Activity, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { TrendingUp, Users, MapPin, Dumbbell, Clock, User, Flame, Trophy, Activity, ArrowUp, ArrowDown, Minus, Star, Loader2 } from 'lucide-react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
 import { useAuth } from '../context/AuthContext';
+import { useNearbyGyms } from '../hooks/useNearbyGyms';
 
 type Tab = 'trending' | 'friends' | 'classes' | 'nearby';
 
@@ -60,12 +61,14 @@ function getClassesData(userGym: string) {
   ];
 }
 
-const defaultNearbyGyms = [
-  { id: 1, name: 'UM CCRB', distance: '0.3 mi', activeNow: 47, friendsCount: 8, peakTime: '5-7 PM', avgWaitTime: '5 min', equipment: ['Squat Racks', 'Benches', 'Cardio'] },
-  { id: 2, name: 'Gold\'s Gym', distance: '1.2 mi', activeNow: 32, friendsCount: 3, peakTime: '6-8 AM', avgWaitTime: '10 min', equipment: ['Full Free Weights', 'Pool', 'Sauna'] },
-  { id: 3, name: 'Planet Fitness', distance: '2.1 mi', activeNow: 58, friendsCount: 2, peakTime: '4-6 PM', avgWaitTime: '3 min', equipment: ['Machines', 'Cardio', 'Free Weights'] },
-  { id: 4, name: 'LA Fitness', distance: '3.5 mi', activeNow: 41, friendsCount: 5, peakTime: '5-7 PM', avgWaitTime: '8 min', equipment: ['Basketball Court', 'Pool', 'Full Gym'] },
-];
+function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): string {
+  const R = 3959;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return d < 0.1 ? '<0.1 mi' : `${d.toFixed(1)} mi`;
+}
 
 export function CommunityPage() {
   const [activeTab, setActiveTab] = useState<Tab>('trending');
@@ -74,6 +77,7 @@ export function CommunityPage() {
   const [selectedFriend, setSelectedFriend] = useState<typeof friendsData[0] | null>(null);
   const [viewAllFriends, setViewAllFriends] = useState(false);
   const { profile } = useAuth();
+  const { gyms: nearbyGyms, loading: nearbyLoading } = useNearbyGyms(profile?.gymLat ?? null, profile?.gymLng ?? null);
   const trendingData = getTrendingData(profile?.gym || '');
   const classesData = getClassesData(profile?.gym || '');
 
@@ -283,11 +287,11 @@ export function CommunityPage() {
               <div className="mb-4">
                 <h3 className="text-sm font-bold text-gray-400 mb-3">Your Gym</h3>
                 <div className="bg-[#1a1a1a] rounded-xl p-4 border border-[#00ff00]/20">
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <h3 className="font-bold text-base mb-1">{profile.gym}</h3>
                       {profile.gymAddress && (
-                        <div className="flex items-center gap-1 text-xs text-gray-400 mb-2">
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
                           <MapPin className="w-3 h-3" />
                           <span>{profile.gymAddress}</span>
                         </div>
@@ -295,40 +299,52 @@ export function CommunityPage() {
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00ff00] text-black">YOUR GYM</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-black/50 rounded-lg p-2">
-                      <div className="flex items-center gap-2 mb-1"><Activity className="w-3 h-3 text-[#00ff00]" /><span className="text-xs text-gray-400">Lifting Now</span></div>
-                      <p className="text-lg font-bold text-[#00ff00]">--</p>
-                    </div>
-                    <div className="bg-black/50 rounded-lg p-2">
-                      <div className="flex items-center gap-2 mb-1"><Users className="w-3 h-3 text-blue-400" /><span className="text-xs text-gray-400">Friends</span></div>
-                      <p className="text-lg font-bold text-blue-400">--</p>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
-            <div className="mb-3"><h3 className="text-sm font-bold text-gray-400">Other gyms nearby</h3></div>
-            <div className="space-y-3">
-              {defaultNearbyGyms.map((gym) => (
-                <div key={gym.id} className="bg-[#1a1a1a] rounded-xl p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1"><h3 className="font-bold text-base mb-1">{gym.name}</h3><div className="flex items-center gap-1 text-xs text-gray-400 mb-2"><MapPin className="w-3 h-3" /><span>{gym.distance} away</span></div></div>
+            <div className="mb-3"><h3 className="text-sm font-bold text-gray-400">Gyms nearby</h3></div>
+            {nearbyLoading && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+                <span className="text-sm text-gray-400 ml-2">Finding nearby gyms...</span>
+              </div>
+            )}
+            {!nearbyLoading && nearbyGyms.length === 0 && (
+              <div className="text-center py-8">
+                <MapPin className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">{profile?.gymLat ? 'No gyms found nearby' : 'Set your gym location to see nearby gyms'}</p>
+              </div>
+            )}
+            {!nearbyLoading && nearbyGyms.length > 0 && (
+              <div className="space-y-3">
+                {nearbyGyms.filter(g => g.placeId !== profile?.gymPlaceId).map((gym) => (
+                  <div key={gym.placeId} className="bg-[#1a1a1a] rounded-xl p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-base mb-1">{gym.name}</h3>
+                        <div className="flex items-center gap-1 text-xs text-gray-400 mb-1">
+                          <MapPin className="w-3 h-3" />
+                          <span>{profile?.gymLat && profile?.gymLng ? getDistanceMiles(profile.gymLat, profile.gymLng, gym.lat, gym.lng) + ' away' : gym.address}</span>
+                        </div>
+                        {gym.address && <p className="text-[11px] text-gray-500">{gym.address}</p>}
+                      </div>
+                      {gym.openNow !== null && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${gym.openNow ? 'bg-[#00ff00]/20 text-[#00ff00]' : 'bg-red-500/20 text-red-400'}`}>
+                          {gym.openNow ? 'Open' : 'Closed'}
+                        </span>
+                      )}
+                    </div>
+                    {gym.rating && (
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                        <span className="text-sm font-semibold">{gym.rating}</span>
+                        <span className="text-xs text-gray-500">({gym.userRatingsTotal} reviews)</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <div className="bg-black/50 rounded-lg p-2"><div className="flex items-center gap-2 mb-1"><Activity className="w-3 h-3 text-[#00ff00]" /><span className="text-xs text-gray-400">Lifting Now</span></div><p className="text-lg font-bold text-[#00ff00]">{gym.activeNow}</p></div>
-                    <div className="bg-black/50 rounded-lg p-2"><div className="flex items-center gap-2 mb-1"><Users className="w-3 h-3 text-blue-400" /><span className="text-xs text-gray-400">Friends</span></div><p className="text-lg font-bold text-blue-400">{gym.friendsCount}</p></div>
-                  </div>
-                  <div className="space-y-2 mb-3">
-                    <div className="flex items-center justify-between text-xs"><span className="text-gray-400">Peak time</span><span className="font-semibold">{gym.peakTime}</span></div>
-                    <div className="flex items-center justify-between text-xs"><span className="text-gray-400">Avg. wait time</span><span className="font-semibold">{gym.avgWaitTime}</span></div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {gym.equipment.map((item, idx) => (<span key={idx} className="px-2 py-1 bg-black/50 text-gray-400 rounded text-[10px]">{item}</span>))}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
