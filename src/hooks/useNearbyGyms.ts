@@ -18,7 +18,7 @@ export function useNearbyGyms(lat: number | null, lng: number | null) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!lat || !lng) {
+    if (!lat || !lng || !session?.access_token) {
       setGyms([])
       return
     }
@@ -26,12 +26,9 @@ export function useNearbyGyms(lat: number | null, lng: number | null) {
     let cancelled = false
     setLoading(true)
 
-    const headers: Record<string, string> = {}
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`
-    }
-
-    fetch(`/api/search-gyms?lat=${lat}&lng=${lng}&radius=8000`, { headers })
+    fetch(`/api/search-gyms?lat=${lat}&lng=${lng}&radius=8000`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
       .then(res => res.json())
       .then(data => {
         if (!cancelled) setGyms(data.results || [])

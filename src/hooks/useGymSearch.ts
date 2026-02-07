@@ -11,7 +11,7 @@ export function useGymSearch(query: string) {
   useEffect(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
 
-    if (!query || query.trim().length < 2) {
+    if (!query || query.trim().length < 2 || !session?.access_token) {
       setResults([])
       setLoading(false)
       return
@@ -21,11 +21,9 @@ export function useGymSearch(query: string) {
 
     timeoutRef.current = setTimeout(async () => {
       try {
-        const headers: Record<string, string> = {}
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`
-        }
-        const res = await fetch(`/api/search-gyms?query=${encodeURIComponent(query.trim())}`, { headers })
+        const res = await fetch(`/api/search-gyms?query=${encodeURIComponent(query.trim())}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
         const data = await res.json()
         setResults(data.results || [])
       } catch (err) {
