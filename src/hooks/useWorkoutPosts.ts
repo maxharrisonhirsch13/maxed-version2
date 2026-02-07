@@ -13,14 +13,10 @@ export function useWorkoutPosts() {
     setFeedLoading(true)
 
     try {
-      // Step 1: Fetch workout_posts with joined profile and workout data
+      // Step 1: Fetch workout_posts (raw columns only, no FK joins)
       const { data: posts, error: postsErr } = await supabase
         .from('workout_posts')
-        .select(`
-          id, user_id, workout_id, caption, created_at,
-          profiles!workout_posts_user_id_fkey ( id, name, username, avatar_url ),
-          workouts!workout_posts_workout_id_fkey ( id, workout_type, started_at, completed_at, duration_minutes )
-        `)
+        .select('id, user_id, workout_id, caption, created_at')
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -36,10 +32,43 @@ export function useWorkoutPosts() {
         return
       }
 
-      // Step 2: Collect unique workout IDs
+      // Step 2: Collect unique user_ids and workout_ids
+      const userIds = [...new Set(posts.map(p => p.user_id))]
       const workoutIds = [...new Set(posts.map(p => p.workout_id))]
 
-      // Step 3: Fetch workout_exercises with workout_sets for those workouts
+      // Step 3: Fetch profiles separately for those user_ids
+      const { data: profiles, error: profilesErr } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url')
+        .in('id', userIds)
+
+      if (profilesErr) {
+        console.error('Failed to fetch profiles for feed:', profilesErr)
+      }
+
+      // Build a map: user_id → profile
+      const profilesByUserId = new Map<string, { id: string; name: string; username: string | null; avatar_url: string | null }>()
+      for (const profile of profiles ?? []) {
+        profilesByUserId.set(profile.id, profile)
+      }
+
+      // Step 4: Fetch workouts separately for those workout_ids
+      const { data: workouts, error: workoutsErr } = await supabase
+        .from('workouts')
+        .select('id, workout_type, started_at, completed_at, duration_minutes')
+        .in('id', workoutIds)
+
+      if (workoutsErr) {
+        console.error('Failed to fetch workouts for feed:', workoutsErr)
+      }
+
+      // Build a map: workout_id → workout
+      const workoutsByWorkoutId = new Map<string, { id: string; workout_type: string; started_at: string; completed_at: string | null; duration_minutes: number | null }>()
+      for (const workout of workouts ?? []) {
+        workoutsByWorkoutId.set(workout.id, workout)
+      }
+
+      // Step 5: Fetch workout_exercises with workout_sets for those workout_ids
       const { data: exercises, error: exErr } = await supabase
         .from('workout_exercises')
         .select(`
@@ -76,10 +105,10 @@ export function useWorkoutPosts() {
         })
       }
 
-      // Step 4: Assemble FeedItem objects
+      // Step 6: Combine everything into FeedItem objects
       const feedItems: FeedItem[] = posts.map((p: any) => {
-        const profile = p.profiles
-        const workout = p.workouts
+        const profile = profilesByUserId.get(p.user_id)
+        const workout = workoutsByWorkoutId.get(p.workout_id)
 
         return {
           post: {

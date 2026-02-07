@@ -174,139 +174,149 @@ export function FriendProfileModal({ friendUserId, onClose }: FriendProfileModal
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4">
-      <div className="bg-[#0a0a0a] border border-gray-800 rounded-t-3xl md:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        {/* Header gradient + avatar */}
-        <div className="relative">
-          <div className="h-32 bg-gradient-to-br from-[#00ff00]/20 to-[#00cc00]/10" />
-          <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur-sm hover:bg-black/70 rounded-full transition-colors">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={onClose}>
+      <div className="bg-[#0a0a0a] border border-gray-800 rounded-t-3xl md:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        {/* Close button */}
+        <div className="sticky top-0 z-10 flex justify-end p-4">
+          <button onClick={onClose} className="p-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-full transition-colors">
             <X className="w-5 h-5" />
           </button>
-          <div className="absolute -bottom-12 left-6">
-            {profile?.avatarUrl ? (
-              <div className="w-24 h-24 rounded-full border-4 border-[#0a0a0a] overflow-hidden bg-gray-800">
-                <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className={`w-24 h-24 rounded-full border-4 border-[#0a0a0a] bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-2xl`}>
-                {getInitials(profile?.name ?? '?')}
-              </div>
-            )}
-          </div>
         </div>
 
-        <div className="pt-16 px-6 pb-6">
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+        {/* Centered avatar + name */}
+        <div className="flex flex-col items-center px-6 -mt-2">
+          {profile?.avatarUrl ? (
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-800 ring-2 ring-[#00ff00]/30">
+              <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-2xl ring-2 ring-[#00ff00]/30`}>
+              {getInitials(profile?.name ?? '?')}
             </div>
           )}
 
-          {!loading && profile && (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+            </div>
+          ) : profile && (
             <>
-              <div className="mb-4">
-                <h2 className="text-2xl font-bold mb-1">{profile.name}</h2>
-                {profile.username && <p className="text-gray-400">@{profile.username}</p>}
-              </div>
+              <h2 className="text-xl font-bold mt-3">{profile.name}</h2>
+              {profile.username && <p className="text-[#00ff00]/70 text-sm">@{profile.username}</p>}
 
-              {/* Stats grid */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <div className="bg-[#1a1a1a] rounded-xl p-4 text-center">
-                  <Flame className="w-5 h-5 text-orange-500 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{streak}</p>
-                  <p className="text-xs text-gray-400">Day Streak</p>
-                </div>
-                <div className="bg-[#1a1a1a] rounded-xl p-4 text-center">
-                  <Dumbbell className="w-5 h-5 text-[#00ff00] mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{workoutsThisWeek}</p>
-                  <p className="text-xs text-gray-400">This Week</p>
-                </div>
-                <div className="bg-[#1a1a1a] rounded-xl p-4 text-center">
-                  <Calendar className="w-5 h-5 text-blue-500 mx-auto mb-2" />
-                  <p className="text-lg font-bold">{formatJoinDate(profile.createdAt)}</p>
-                  <p className="text-xs text-gray-400">Joined</p>
-                </div>
-              </div>
-
-              {/* Training info */}
-              {(profile.experience || profile.split) && (
-                <div className="bg-[#1a1a1a] rounded-2xl p-5 mb-4">
-                  <h3 className="font-bold text-sm mb-3">Training Info</h3>
-                  <div className="space-y-2">
-                    {profile.experience && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Experience</span>
-                        <span className="font-semibold text-sm capitalize">{profile.experience}</span>
-                      </div>
-                    )}
-                    {profile.split && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Split</span>
-                        <span className="font-semibold text-sm">{profile.split}</span>
-                      </div>
-                    )}
+              {/* Stats row */}
+              <div className="flex items-center gap-6 mt-4 mb-5">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Flame className="w-4 h-4 text-orange-400" />
+                    <span className="text-lg font-bold">{streak}</span>
                   </div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Streak</p>
                 </div>
-              )}
-
-              {/* Personal Records */}
-              {prs.length > 0 && (
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Trophy className="w-5 h-5 text-yellow-500" />
-                    <h3 className="font-bold">Personal Records</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {prs.map((pr, idx) => (
-                      <div key={idx} className="bg-[#1a1a1a] rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-sm">{pr.exerciseName}</span>
-                          <span className="text-[#00ff00] font-bold">{pr.value} {pr.unit}</span>
-                        </div>
-                        <p className="text-xs text-gray-500">{timeAgo(pr.achievedAt)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recent Workouts */}
-              {recentWorkouts.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="font-bold mb-3 flex items-center gap-2">
+                <div className="w-px h-8 bg-gray-800" />
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1">
                     <Dumbbell className="w-4 h-4 text-[#00ff00]" />
-                    Recent Activity
-                  </h3>
-                  <div className="space-y-2">
-                    {recentWorkouts.map((workout) => (
-                      <div key={workout.id} className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-sm">{formatWorkoutType(workout.workoutType)}</p>
-                          <p className="text-xs text-gray-400">{timeAgo(workout.startedAt)} &middot; {workout.exerciseCount} exercises</p>
-                        </div>
-                        {workout.durationMinutes && (
-                          <span className="text-sm text-gray-400">{workout.durationMinutes} min</span>
-                        )}
-                      </div>
-                    ))}
+                    <span className="text-lg font-bold">{workoutsThisWeek}</span>
                   </div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">This Week</p>
                 </div>
-              )}
-
-              {/* Remove friend button */}
-              {friendship && (
-                <button
-                  onClick={handleRemoveFriend}
-                  disabled={removing}
-                  className="w-full bg-[#1a1a1a] text-gray-400 font-semibold py-3 rounded-xl hover:bg-[#252525] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {removing && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Remove Friend
-                </button>
-              )}
+                <div className="w-px h-8 bg-gray-800" />
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Calendar className="w-4 h-4 text-blue-400" />
+                    <span className="text-lg font-bold">{formatJoinDate(profile.createdAt)}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Joined</p>
+                </div>
+              </div>
             </>
           )}
         </div>
+
+        {!loading && profile && (
+          <div className="px-5 pb-6 space-y-4">
+            {/* Training info pills */}
+            {(profile.experience || profile.split) && (
+              <div className="flex flex-wrap gap-2">
+                {profile.experience && (
+                  <span className="px-3 py-1.5 bg-[#1a1a1a] border border-gray-800 rounded-full text-xs font-medium capitalize">
+                    {profile.experience}
+                  </span>
+                )}
+                {profile.split && (
+                  <span className="px-3 py-1.5 bg-[#1a1a1a] border border-gray-800 rounded-full text-xs font-medium">
+                    {profile.split}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Personal Records */}
+            {prs.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  <h3 className="font-semibold text-sm text-gray-300">Personal Records</h3>
+                </div>
+                <div className="bg-[#111] rounded-2xl border border-gray-800/50 divide-y divide-gray-800/50">
+                  {prs.map((pr, idx) => (
+                    <div key={idx} className="flex items-center justify-between px-4 py-3">
+                      <div>
+                        <span className="text-sm font-medium">{pr.exerciseName}</span>
+                        <p className="text-[11px] text-gray-600">{timeAgo(pr.achievedAt)}</p>
+                      </div>
+                      <span className="text-[#00ff00] font-bold text-sm">{pr.value} {pr.unit}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Workouts */}
+            {recentWorkouts.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Dumbbell className="w-4 h-4 text-[#00ff00]" />
+                  <h3 className="font-semibold text-sm text-gray-300">Recent Activity</h3>
+                </div>
+                <div className="bg-[#111] rounded-2xl border border-gray-800/50 divide-y divide-gray-800/50">
+                  {recentWorkouts.map((workout) => (
+                    <div key={workout.id} className="flex items-center justify-between px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium">{formatWorkoutType(workout.workoutType)}</p>
+                        <p className="text-[11px] text-gray-600">{timeAgo(workout.startedAt)}{workout.exerciseCount > 0 ? ` · ${workout.exerciseCount} exercises` : ''}</p>
+                      </div>
+                      {workout.durationMinutes && (
+                        <span className="text-xs text-gray-500 bg-[#1a1a1a] px-2 py-1 rounded-lg">{workout.durationMinutes}m</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state when no PRs or workouts */}
+            {prs.length === 0 && recentWorkouts.length === 0 && (
+              <div className="text-center py-6">
+                <Dumbbell className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No workout data yet</p>
+              </div>
+            )}
+
+            {/* Remove friend */}
+            {friendship && (
+              <button
+                onClick={handleRemoveFriend}
+                disabled={removing}
+                className="w-full text-red-500/60 text-xs font-medium py-3 hover:text-red-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {removing && <Loader2 className="w-3 h-3 animate-spin" />}
+                Remove Friend
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
