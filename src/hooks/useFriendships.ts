@@ -133,13 +133,47 @@ export function useFriendships() {
   async function sendRequest(userId: string) {
     if (!user) throw new Error('Not authenticated')
 
-    const { error } = await supabase.from('friendships').insert({
-      requester_id: user.id,
-      addressee_id: userId,
-      status: 'pending',
-    })
+    // Check if a friendship row already exists in either direction
+    const { data: existing } = await supabase
+      .from('friendships')
+      .select('id, status, requester_id, addressee_id')
+      .or(`and(requester_id.eq.${user.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${user.id})`)
+      .maybeSingle()
 
-    if (error) throw error
+    if (existing) {
+      // If there's already an accepted friendship, nothing to do
+      if (existing.status === 'accepted') {
+        await fetchFriendships()
+        return
+      }
+      // If there's a pending/declined row, accept it — need to update as the addressee
+      // If current user is the addressee, update directly
+      if (existing.addressee_id === user.id) {
+        const { error } = await supabase
+          .from('friendships')
+          .update({ status: 'accepted' })
+          .eq('id', existing.id)
+        if (error) throw error
+      } else {
+        // Current user is requester — delete the old row and re-insert as accepted
+        await supabase.from('friendships').delete().eq('id', existing.id)
+        const { error } = await supabase.from('friendships').insert({
+          requester_id: user.id,
+          addressee_id: userId,
+          status: 'accepted',
+        })
+        if (error) throw error
+      }
+    } else {
+      // No existing row — insert as accepted (instant friend)
+      const { error } = await supabase.from('friendships').insert({
+        requester_id: user.id,
+        addressee_id: userId,
+        status: 'accepted',
+      })
+      if (error) throw error
+    }
+
     await fetchFriendships()
   }
 
