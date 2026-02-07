@@ -5,6 +5,7 @@ import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import { useGarminStatus } from '../hooks/useGarminStatus';
 import { useOuraStatus } from '../hooks/useOuraStatus';
 import { supabase } from '../lib/supabase';
+import { DataConsentModal, WHOOP_DATA_POINTS, OURA_DATA_POINTS, GARMIN_DATA_POINTS } from './DataConsentModal';
 
 interface IntegrationsPageProps {
   onBack: () => void;
@@ -31,6 +32,7 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
   const [garminDisconnecting, setGarminDisconnecting] = useState(false);
   const [ouraConnecting, setOuraConnecting] = useState(false);
   const [ouraDisconnecting, setOuraDisconnecting] = useState(false);
+  const [consentFor, setConsentFor] = useState<'whoop' | 'oura' | 'garmin' | null>(null);
 
   const [apps, setApps] = useState<IntegrationApp[]>([
     { id: 'apple-health', name: 'Apple Health', description: 'Sync workouts, heart rate, and activity data', icon: <Heart className="w-6 h-6" />, color: 'from-red-500 to-pink-500', dataTypes: ['Heart Rate', 'Steps', 'Calories', 'Sleep', 'Workouts'], connected: true },
@@ -43,13 +45,14 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     setApps(apps.map(app => app.id === appId ? { ...app, connected: !app.connected } : app));
   };
 
-  const handleWhoopConnect = async () => {
+  const initiateWhoopConnect = async () => {
     if (!user) {
       alert('Not logged in');
       return;
     }
     const { session: sess } = (await supabase.auth.getSession()).data;
     if (!sess) return;
+    setConsentFor(null);
     setWhoopConnecting(true);
     try {
       const res = await fetch(`/api/whoop-auth?userId=${user.id}`, {
@@ -58,7 +61,7 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
-        return; // navigating away, don't reset state
+        return;
       } else {
         alert('WHOOP auth error: ' + (data.error || 'No URL returned'));
       }
@@ -67,6 +70,8 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     }
     setWhoopConnecting(false);
   };
+
+  const handleWhoopConnect = () => setConsentFor('whoop');
 
   const handleWhoopDisconnect = async () => {
     const { session } = (await supabase.auth.getSession()).data;
@@ -84,11 +89,12 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     setWhoopDisconnecting(false);
   };
 
-  const handleGarminConnect = async () => {
+  const initiateGarminConnect = async () => {
     if (!user) {
       alert('Not logged in');
       return;
     }
+    setConsentFor(null);
     setGarminConnecting(true);
     try {
       const res = await fetch(`/api/garmin-auth?userId=${user.id}`);
@@ -104,6 +110,8 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     }
     setGarminConnecting(false);
   };
+
+  const handleGarminConnect = () => setConsentFor('garmin');
 
   const handleGarminDisconnect = async () => {
     const { session } = (await supabase.auth.getSession()).data;
@@ -121,13 +129,14 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     setGarminDisconnecting(false);
   };
 
-  const handleOuraConnect = async () => {
+  const initiateOuraConnect = async () => {
     if (!user) {
       alert('Not logged in');
       return;
     }
     const { session: sess } = (await supabase.auth.getSession()).data;
     if (!sess) return;
+    setConsentFor(null);
     setOuraConnecting(true);
     try {
       const res = await fetch(`/api/oura-auth?userId=${user.id}`, {
@@ -145,6 +154,8 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
     }
     setOuraConnecting(false);
   };
+
+  const handleOuraConnect = () => setConsentFor('oura');
 
   const handleOuraDisconnect = async () => {
     const { session } = (await supabase.auth.getSession()).data;
@@ -266,6 +277,35 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
           </div>
         )}
       </div>
+
+      {/* Data Consent Modal */}
+      {consentFor === 'whoop' && (
+        <DataConsentModal
+          deviceName="WHOOP"
+          deviceIcon={<Zap className="w-5 h-5 text-red-400" />}
+          dataPoints={WHOOP_DATA_POINTS}
+          onApprove={initiateWhoopConnect}
+          onDecline={() => setConsentFor(null)}
+        />
+      )}
+      {consentFor === 'oura' && (
+        <DataConsentModal
+          deviceName="Oura Ring"
+          deviceIcon={<Moon className="w-5 h-5 text-purple-400" />}
+          dataPoints={OURA_DATA_POINTS}
+          onApprove={initiateOuraConnect}
+          onDecline={() => setConsentFor(null)}
+        />
+      )}
+      {consentFor === 'garmin' && (
+        <DataConsentModal
+          deviceName="Garmin Connect"
+          deviceIcon={<Watch className="w-5 h-5 text-blue-400" />}
+          dataPoints={GARMIN_DATA_POINTS}
+          onApprove={initiateGarminConnect}
+          onDecline={() => setConsentFor(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,10 +1,11 @@
-import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil, RefreshCw } from 'lucide-react';
+import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil, RefreshCw, Moon } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useGymSearch } from '../hooks/useGymSearch';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import { useOuraStatus } from '../hooks/useOuraStatus';
+import { DataConsentModal, WHOOP_DATA_POINTS, OURA_DATA_POINTS } from './DataConsentModal';
 import type { GymResult } from '../types';
 
 interface HomeEquipment {
@@ -46,6 +47,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const { connected: ouraConnected, loading: ouraStatusLoading, refetch: refetchOura } = useOuraStatus();
   const [whoopConnecting, setWhoopConnecting] = useState(false);
   const [ouraConnecting, setOuraConnecting] = useState(false);
+  const [consentFor, setConsentFor] = useState<'whoop' | 'oura' | null>(null);
   const [step, setStep] = useState(1);
   const [saveError, setSaveError] = useState('');
   const [data, setData] = useState<OnboardingData>({
@@ -117,8 +119,9 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     sessionStorage.setItem('maxed_onboarding_data', JSON.stringify(data));
   };
 
-  const handleWhoopConnect = async () => {
+  const initiateWhoopConnect = async () => {
     if (!user || !session) return;
+    setConsentFor(null);
     setWhoopConnecting(true);
     saveOnboardingData();
     try {
@@ -136,8 +139,9 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     setWhoopConnecting(false);
   };
 
-  const handleOuraConnect = async () => {
+  const initiateOuraConnect = async () => {
     if (!user || !session) return;
+    setConsentFor(null);
     setOuraConnecting(true);
     saveOnboardingData();
     try {
@@ -154,6 +158,9 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     }
     setOuraConnecting(false);
   };
+
+  const handleWhoopConnect = () => setConsentFor('whoop');
+  const handleOuraConnect = () => setConsentFor('oura');
 
   const totalSteps = 8;
 
@@ -1180,6 +1187,25 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
+      {/* Data Consent Modal */}
+      {consentFor === 'whoop' && (
+        <DataConsentModal
+          deviceName="WHOOP"
+          deviceIcon={<Activity className="w-5 h-5 text-red-400" />}
+          dataPoints={WHOOP_DATA_POINTS}
+          onApprove={initiateWhoopConnect}
+          onDecline={() => setConsentFor(null)}
+        />
+      )}
+      {consentFor === 'oura' && (
+        <DataConsentModal
+          deviceName="Oura Ring"
+          deviceIcon={<Moon className="w-5 h-5 text-purple-400" />}
+          dataPoints={OURA_DATA_POINTS}
+          onApprove={initiateOuraConnect}
+          onDecline={() => setConsentFor(null)}
+        />
+      )}
     </div>
   );
 }
