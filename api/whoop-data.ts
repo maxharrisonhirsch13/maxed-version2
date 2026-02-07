@@ -40,8 +40,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single()
 
     if (dbError || !tokenRow) {
+      console.log('[WHOOP] No tokens found for user:', user.id, 'dbError:', dbError?.message)
       return res.json({ connected: false, recovery: null, sleep: null, strain: null })
     }
+    console.log('[WHOOP] Token found, expires:', tokenRow.expires_at, 'now:', new Date().toISOString())
 
     let accessToken = tokenRow.access_token
 
@@ -108,7 +110,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!recoveryRes.ok) {
-      console.error('WHOOP recovery error:', await recoveryRes.text().catch(() => ''))
+      const errBody = await recoveryRes.text().catch(() => '')
+      console.error('[WHOOP] Recovery API error:', recoveryRes.status, errBody)
+    }
+    if (!sleepRes.ok) {
+      console.error('[WHOOP] Sleep API error:', sleepRes.status, await sleepRes.text().catch(() => ''))
+    }
+    if (!cycleRes.ok) {
+      console.error('[WHOOP] Cycle API error:', cycleRes.status, await cycleRes.text().catch(() => ''))
     }
 
     if (sleepRes.ok) {

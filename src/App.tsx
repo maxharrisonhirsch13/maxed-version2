@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2, Activity } from 'lucide-react';
 import { ProgressPage } from './components/ProgressPage';
 import { CommunityPage } from './components/CommunityPage';
@@ -17,6 +17,7 @@ import { useAuth } from './context/AuthContext';
 import { useWorkoutHistory } from './hooks/useWorkoutHistory';
 import { useWhoopData } from './hooks/useWhoopData';
 import { useWearableData } from './hooks/useWearableData';
+import { useAICoach } from './hooks/useAICoach';
 
 // Compute scheduled workout from user's split and day of week
 function getScheduledWorkout(split: string | undefined, customSplit?: { day: number; muscles: string[] }[]) {
@@ -58,32 +59,71 @@ export default function App() {
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
   const { data: whoopData, loading: whoopLoading, error: whoopError } = useWhoopData();
   const { data: wearableData } = useWearableData();
+  const { readiness, readinessLoading, fetchReadiness } = useAICoach();
+  const aiReadinessFetched = useRef(false);
 
-  // Readiness score: prefer WHOOP direct API, fall back to wearable_snapshots (any source)
-  const rawReadiness = whoopData?.recovery?.score ?? wearableData?.recoveryScore ?? null;
+  // Fetch AI readiness on mount (uses WHOOP + workout history, works without WHOOP too)
+  useEffect(() => {
+    if (aiReadinessFetched.current || whoopLoading) return;
+    // Wait for WHOOP to finish loading, then fire AI readiness
+    aiReadinessFetched.current = true;
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentWorkoutPayload = recentWorkouts
+      .filter(w => new Date(w.startedAt) >= sevenDaysAgo)
+      .map(w => ({
+        date: w.startedAt.split('T')[0],
+        type: w.workoutType,
+        durationMinutes: w.durationMinutes || 0,
+      }));
+
+    const wearablePayload = whoopData?.connected ? {
+      recovery: whoopData.recovery,
+      sleep: whoopData.sleep ? {
+        qualityDuration: whoopData.sleep.qualityDuration,
+        deepSleepDuration: whoopData.sleep.deepSleepDuration,
+        sleepScore: whoopData.sleep.sleepScore,
+      } : null,
+      strain: whoopData.strain ? { score: whoopData.strain.score, kilojoules: whoopData.strain.kilojoules } : null,
+    } : wearableData ? {
+      recovery: wearableData.recoveryScore != null ? { score: wearableData.recoveryScore, restingHeartRate: wearableData.restingHeartRate, hrv: wearableData.hrv } : null,
+      sleep: wearableData.sleepScore != null ? { sleepScore: wearableData.sleepScore, qualityDuration: wearableData.sleepDurationMs, deepSleepDuration: wearableData.deepSleepMs } : null,
+      strain: wearableData.strainScore != null ? { score: wearableData.strainScore, kilojoules: null } : null,
+    } : { recovery: null, sleep: null, strain: null };
+
+    fetchReadiness({
+      whoopData: wearablePayload,
+      recentWorkouts: recentWorkoutPayload,
+      userProfile: {
+        experience: profile?.experience || null,
+        goal: profile?.goal || null,
+      },
+    });
+  }, [whoopLoading, whoopData, wearableData, recentWorkouts.length]);
+
+  // Readiness: prefer AI score → raw WHOOP score → wearable score → null
+  const rawReadiness = readiness?.readinessScore ?? whoopData?.recovery?.score ?? wearableData?.recoveryScore ?? null;
   const readinessScore = rawReadiness != null ? Math.max(rawReadiness, 55) : null;
-  const whoopConnectedNoData = whoopData?.connected === true && readinessScore == null;
+  const isAIPowered = readiness?.readinessScore != null;
   const readinessColor = readinessScore != null
     ? readinessScore >= 67 ? '#00ff00' : readinessScore >= 34 ? '#facc15' : '#ef4444'
     : '#6b7280';
-  const readinessLabel = whoopLoading
-    ? 'Syncing...'
+  const readinessLabel = readinessLoading || whoopLoading
+    ? 'Analyzing...'
     : whoopError
       ? 'Sync error'
-      : whoopConnectedNoData
-        ? 'WHOOP connected'
-        : readinessScore != null
-          ? readinessScore >= 67 ? 'Optimal' : readinessScore >= 34 ? 'Moderate' : 'Low'
-          : 'Connect wearable';
-  const readinessDetail = whoopLoading
-    ? 'Fetching your WHOOP data...'
+      : readinessScore != null
+        ? readinessScore >= 67 ? 'Optimal' : readinessScore >= 34 ? 'Moderate' : 'Low'
+        : 'Calculating...';
+  const readinessDetail = readinessLoading || whoopLoading
+    ? 'Running AI analysis on your data...'
     : whoopError
       ? 'Check console for details'
-      : whoopConnectedNoData
-        ? 'No recovery data yet — wear your WHOOP to sleep'
+      : isAIPowered && readiness?.recommendation
+        ? readiness.recommendation
         : readinessScore != null
           ? readinessScore >= 67 ? 'Peak performance expected' : readinessScore >= 34 ? 'Consider lighter intensity' : 'Active recovery recommended'
-          : 'Link a wearable for insights';
+          : 'AI readiness coming soon';
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
   const [activeMuscleGroup, setActiveMuscleGroup] = useState('');
@@ -148,15 +188,27 @@ export default function App() {
               className="w-full bg-[#1a1a1a] rounded-2xl p-4 relative overflow-hidden hover:bg-[#1f1f1f] transition-colors text-left"
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-gray-400 text-xs">Today's Readiness</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-gray-400 text-xs">Today's Readiness</p>
+                  {isAIPowered && <span className="text-[9px] font-bold bg-[#00ff00]/15 text-[#00ff00] px-1.5 py-0.5 rounded">AI</span>}
+                </div>
                 <span className="text-[10px] font-semibold" style={{ color: readinessColor }}>Learn More →</span>
               </div>
               <div className="flex items-baseline gap-1.5 mb-1">
-                <span className="text-4xl font-bold">{readinessScore ?? '—'}</span>
-                {readinessScore != null && <span className="text-lg text-gray-500">/ 100</span>}
+                {readinessLoading || whoopLoading ? (
+                  <Loader2 className="w-8 h-8 text-[#00ff00] animate-spin" />
+                ) : (
+                  <>
+                    <span className="text-4xl font-bold">{readinessScore ?? '—'}</span>
+                    {readinessScore != null && <span className="text-lg text-gray-500">/ 100</span>}
+                  </>
+                )}
               </div>
               <p className="font-semibold text-sm mb-0.5" style={{ color: readinessColor }}>{readinessLabel}</p>
               <p className="text-gray-400 text-xs mb-3">{readinessDetail}</p>
+              {isAIPowered && readiness?.intensityRecommendation && (
+                <p className="text-[10px] text-gray-500 mb-2">Recommended intensity: <span className="text-white font-semibold">{readiness.intensityRecommendation}</span></p>
+              )}
               {/* Progress bar */}
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800">
                 <div className="h-full" style={{ width: `${readinessScore ?? 0}%`, backgroundColor: readinessColor }}></div>
