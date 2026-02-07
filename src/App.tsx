@@ -9,6 +9,7 @@ import { OnboardingPage } from './components/OnboardingPageNew';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { WorkoutSwitchPage } from './components/WorkoutSwitchPage';
 import { CardioSetupPage } from './components/CardioSetupPage';
+import { CardioSessionPage } from './components/CardioSessionPage';
 import { SecondSessionPage } from './components/SecondSessionPage';
 import { ReadinessModal } from './components/ReadinessModal';
 import { WorkoutDetailModal } from './components/WorkoutDetailModal';
@@ -90,6 +91,9 @@ export default function App() {
   const [showWorkoutSwitch, setShowWorkoutSwitch] = useState(false);
   const [showCardioSetup, setShowCardioSetup] = useState(false);
   const [showSecondSession, setShowSecondSession] = useState(false);
+  const [showCardioSession, setShowCardioSession] = useState(false);
+  const [cardioGoal, setCardioGoal] = useState('');
+  const [cardioDetails, setCardioDetails] = useState<any>(null);
   const [showReadinessModal, setShowReadinessModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
 
@@ -366,10 +370,20 @@ export default function App() {
         <CardioSetupPage
           onClose={() => setShowCardioSetup(false)}
           onSelectCardio={(goal, details) => {
-            console.log('Selected cardio:', goal, details);
             setShowCardioSetup(false);
-            setShowWorkoutStart(true);
+            setCardioGoal(goal);
+            setCardioDetails(details);
+            setShowCardioSession(true);
           }}
+        />
+      )}
+
+      {/* Cardio Session Page */}
+      {showCardioSession && (
+        <CardioSessionPage
+          onClose={() => { setShowCardioSession(false); setCardioGoal(''); setCardioDetails(null); }}
+          goal={cardioGoal}
+          details={cardioDetails}
         />
       )}
 

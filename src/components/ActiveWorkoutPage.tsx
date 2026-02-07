@@ -543,54 +543,56 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
           </button>
         </div>
 
-        {/* Settings Dropdown */}
-        {showSettings && (
-          <div className="mx-5 mb-2 bg-[#1a1a1a] border border-gray-800 rounded-2xl overflow-hidden">
-            <button
-              onClick={() => { setShowVideo(!showVideo); setShowSettings(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
-            >
-              {showVideo ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-[#00ff00]" />}
-              <span className="text-sm font-medium flex-1 text-left">{showVideo ? 'Hide Video' : 'Show Video'}</span>
-            </button>
-            <div className="h-px bg-gray-800 mx-4" />
-            <button
-              onClick={() => { setShowSwapModal(true); setShowSettings(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4 text-gray-400" />
-              <span className="text-sm font-medium flex-1 text-left">Swap Exercise</span>
-            </button>
-            <div className="h-px bg-gray-800 mx-4" />
-            <button
-              onClick={() => { setShowAddModal(true); setShowSettings(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
-            >
-              <Plus className="w-4 h-4 text-gray-400" />
-              <span className="text-sm font-medium flex-1 text-left">Add Exercise</span>
-            </button>
-            <div className="h-px bg-gray-800 mx-4" />
-            <button
-              onClick={() => {
-                const newMode = logMode === 'set' ? 'bulk' : 'set';
-                setLogMode(newMode);
-                if (newMode === 'bulk') initBulkSets();
-                setShowSettings(false);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
-            >
-              <List className="w-4 h-4 text-gray-400" />
-              <span className="text-sm font-medium flex-1 text-left">
-                {logMode === 'set' ? 'Log All at Once' : 'Log Set by Set'}
-              </span>
-              <span className="text-[10px] text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-                {logMode === 'set' ? 'Set by Set' : 'Bulk'}
-              </span>
-            </button>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto scrollbar-hide pb-4">
+        <div className="flex-1 overflow-y-auto scrollbar-hide pb-4 relative">
+          {/* Settings Dropdown — overlay on top of content */}
+          {showSettings && (
+            <>
+              <div className="absolute inset-0 z-10" onClick={() => setShowSettings(false)} />
+              <div className="absolute top-0 right-3 left-3 z-20 bg-[#1a1a1a] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl shadow-black/80">
+                <button
+                  onClick={() => { setShowVideo(!showVideo); setShowSettings(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                >
+                  {showVideo ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-[#00ff00]" />}
+                  <span className="text-sm font-medium flex-1 text-left">{showVideo ? 'Hide Video' : 'Show Video'}</span>
+                </button>
+                <div className="h-px bg-gray-800 mx-4" />
+                <button
+                  onClick={() => { setShowSwapModal(true); setShowSettings(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium flex-1 text-left">Swap Exercise</span>
+                </button>
+                <div className="h-px bg-gray-800 mx-4" />
+                <button
+                  onClick={() => { setShowAddModal(true); setShowSettings(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                >
+                  <Plus className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium flex-1 text-left">Add Exercise</span>
+                </button>
+                <div className="h-px bg-gray-800 mx-4" />
+                <button
+                  onClick={() => {
+                    const newMode = logMode === 'set' ? 'bulk' : 'set';
+                    setLogMode(newMode);
+                    if (newMode === 'bulk') initBulkSets();
+                    setShowSettings(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                >
+                  <List className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium flex-1 text-left">
+                    {logMode === 'set' ? 'Log All at Once' : 'Log Set by Set'}
+                  </span>
+                  <span className="text-[10px] text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
+                    {logMode === 'set' ? 'Set by Set' : 'Bulk'}
+                  </span>
+                </button>
+              </div>
+            </>
+          )}
           {/* Empty state for custom build */}
           {exercises.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-5">
