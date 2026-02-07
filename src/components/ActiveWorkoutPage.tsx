@@ -444,21 +444,33 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
     }));
   };
 
+  const advanceToNextExercise = () => {
+    if (currentExerciseIndex < exercises.length - 1) {
+      const nextExercise = exercises[currentExerciseIndex + 1];
+      setCurrentExerciseIndex(currentExerciseIndex + 1);
+      setCurrentSet(1);
+      setCompletedSets([]);
+      setWeight(nextExercise.aiSuggestion.weight);
+      setReps(8);
+      return nextExercise;
+    }
+    // Last exercise done — custom build lets user add more, preset auto-finishes
+    if (customBuild) {
+      setShowAddModal(true);
+      return null;
+    }
+    setWorkoutFinished(true);
+    return null;
+  };
+
   const handleLogSet = () => {
     logSetData(currentExerciseIndex, currentSet, { weight, reps });
     setCompletedSets([...completedSets, currentSet]);
 
     if (currentSet < currentExercise.sets) {
       setCurrentSet(currentSet + 1);
-    } else if (currentExerciseIndex < exercises.length - 1) {
-      setCurrentExerciseIndex(currentExerciseIndex + 1);
-      setCurrentSet(1);
-      setCompletedSets([]);
-      setWeight(exercises[currentExerciseIndex + 1].aiSuggestion.weight);
-      setReps(8);
     } else {
-      // Last set of last exercise — auto-finish
-      setWorkoutFinished(true);
+      advanceToNextExercise();
     }
   };
 
@@ -468,17 +480,9 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
       logSetData(currentExerciseIndex, idx + 1, { weight: set.weight, reps: set.reps });
     });
 
-    if (currentExerciseIndex < exercises.length - 1) {
-      const nextExercise = exercises[currentExerciseIndex + 1];
-      setCurrentExerciseIndex(currentExerciseIndex + 1);
-      setCurrentSet(1);
-      setCompletedSets([]);
-      setWeight(nextExercise.aiSuggestion.weight);
-      setReps(8);
-      // Pass next exercise directly to avoid stale state
+    const nextExercise = advanceToNextExercise();
+    if (nextExercise) {
       initBulkSets(nextExercise);
-    } else {
-      setWorkoutFinished(true);
     }
   };
 
@@ -583,10 +587,15 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const handleAddExercise = (exercise: Exercise) => {
     const newList = [...exercises, exercise];
     setExercises(newList);
-    // If this is the first exercise (custom build), set weight/reps to its suggestion
-    if (exercises.length === 0) {
+    // If this is the first exercise or current exercise is done, advance to the new one
+    const currentDone = exercises.length === 0 || (loggedData[currentExerciseIndex] && Object.keys(loggedData[currentExerciseIndex]).length >= (exercises[currentExerciseIndex]?.sets ?? 0));
+    if (currentDone) {
+      setCurrentExerciseIndex(newList.length - 1);
+      setCurrentSet(1);
+      setCompletedSets([]);
       setWeight(exercise.aiSuggestion.weight);
       setReps(parseInt(exercise.aiSuggestion.reps.split('-')[0]) || 8);
+      if (logMode === 'bulk') initBulkSets(exercise);
     }
     setShowAddModal(false);
     setAddMode(null);
@@ -603,11 +612,17 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
       sets: customSets,
       aiSuggestion: { weight: customWeight, reps: customReps },
     };
-    setExercises([...exercises, newExercise]);
-    // Set weight/reps if this is the first exercise added
-    if (exercises.length === 0) {
+    const newList = [...exercises, newExercise];
+    setExercises(newList);
+    // If current exercise is done, advance to the new one
+    const currentDone = exercises.length === 0 || (loggedData[currentExerciseIndex] && Object.keys(loggedData[currentExerciseIndex]).length >= (exercises[currentExerciseIndex]?.sets ?? 0));
+    if (currentDone) {
+      setCurrentExerciseIndex(newList.length - 1);
+      setCurrentSet(1);
+      setCompletedSets([]);
       setWeight(newExercise.aiSuggestion.weight);
       setReps(parseInt(newExercise.aiSuggestion.reps.split('-')[0]) || 8);
+      if (logMode === 'bulk') initBulkSets(newExercise);
     }
     setShowAddModal(false);
     setAddMode(null);
