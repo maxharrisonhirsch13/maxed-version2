@@ -491,6 +491,10 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   };
 
   const handleFinishWorkout = async () => {
+    // Dismiss any overlaying dialogs immediately to prevent double-clicks
+    setShowEndConfirm(false);
+    setWorkoutFinished(false);
+
     const now = new Date();
     const start = new Date(startedAt.current);
     const durationMinutes = Math.round((now.getTime() - start.getTime()) / 60000);
@@ -525,7 +529,6 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
       });
       if (workoutId) {
         setSavedWorkoutId(workoutId);
-        setWorkoutFinished(false);
         setShowSharePrompt(true);
       } else {
         onClose();
@@ -1135,20 +1138,22 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
             <h2 className="font-bold text-lg mb-2">End Workout?</h2>
             <p className="text-sm text-gray-400 mb-6">
               {Object.keys(loggedData).length > 0
-                ? 'Your logged sets will be saved.'
+                ? `${Object.keys(loggedData).length} exercise${Object.keys(loggedData).length !== 1 ? 's' : ''} logged. Save and share to your feed?`
                 : 'No sets logged yet. Nothing will be saved.'}
             </p>
             <div className="space-y-2">
+              {Object.keys(loggedData).length > 0 && (
+                <button
+                  onClick={handleFinishWorkout}
+                  disabled={saving}
+                  className="w-full bg-[#00ff00] text-black font-bold py-3 rounded-2xl text-sm hover:bg-[#00dd00] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  {saving ? 'Saving...' : 'Save Workout'}
+                </button>
+              )}
               <button
-                onClick={handleFinishWorkout}
-                disabled={saving}
-                className="w-full bg-[#00ff00] text-black font-bold py-3 rounded-2xl text-sm hover:bg-[#00dd00] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                {saving ? 'Saving...' : 'Save & End'}
-              </button>
-              <button
-                onClick={onClose}
+                onClick={() => { setShowEndConfirm(false); onClose(); }}
                 className="w-full text-red-400 font-medium py-3 rounded-2xl text-sm hover:bg-red-500/10 transition-colors"
               >
                 Discard & Exit
