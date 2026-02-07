@@ -163,30 +163,77 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pb-24 md:bg-[#080808]">
-      <div className="md:max-w-2xl lg:max-w-3xl md:mx-auto md:bg-black md:min-h-screen md:border-x md:border-gray-900/50">
+    <div className="min-h-screen bg-black text-white">
+      {/* Desktop Sidebar — hidden on mobile */}
+      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:bg-[#0a0a0a] lg:border-r lg:border-gray-800/50 lg:z-40">
+        <div className="p-6 border-b border-gray-800/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#00ff00] rounded-xl flex items-center justify-center">
+              <Dumbbell className="w-5 h-5 text-black" />
+            </div>
+            <span className="text-xl font-bold tracking-tight">MAXED</span>
+          </div>
+        </div>
+        <nav className="flex-1 p-4 space-y-1">
+          {[
+            { key: 'today', icon: Home, label: 'Today' },
+            { key: 'progress', icon: BarChart3, label: 'Progress' },
+            { key: 'community', icon: Users, label: 'Community' },
+            { key: 'profile', icon: User, label: 'Profile' },
+          ].map(({ key, icon: Icon, label }) => (
+            <button
+              key={key}
+              onClick={() => setCurrentPage(key as 'today' | 'progress' | 'community' | 'profile')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                currentPage === key
+                  ? 'bg-[#00ff00]/10 text-[#00ff00]'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="font-medium text-sm">{label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="p-4 border-t border-gray-800/50">
+          <div className="flex items-center gap-3 px-4 py-2">
+            <div className="w-8 h-8 bg-[#1a1a1a] rounded-full flex items-center justify-center">
+              <User className="w-4 h-4 text-gray-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{profile?.name || 'User'}</p>
+              <p className="text-xs text-gray-500 capitalize">{profile?.experience || 'Athlete'}</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content — shifts right on desktop */}
+      <div className="pb-24 lg:pb-8 lg:pl-64">
       {/* Render current page */}
       {currentPage === 'today' && (
         <>
           {/* Header */}
-          <header className="px-4 md:px-8 pt-safe pt-8 md:pt-10 pb-3">
+          <header className="px-4 lg:px-10 pt-safe pt-8 lg:pt-10 pb-3 lg:pb-6">
             <div className="flex justify-between items-start mb-1">
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">{dateStr}</p>
-                <h1 className="text-xl md:text-2xl font-bold">Hey, {profile?.name?.split(' ')[0] || 'there'}</h1>
+                <p className="text-xs lg:text-sm text-gray-400 mb-0.5 lg:mb-1">{dateStr}</p>
+                <h1 className="text-xl lg:text-3xl font-bold">Hey, {profile?.name?.split(' ')[0] || 'there'}</h1>
               </div>
-              <button className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors">
+              <button className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors lg:hidden">
                 <Settings className="w-5 h-5 text-gray-400" />
               </button>
             </div>
           </header>
 
           {/* Main Content */}
-          <main className="px-4 md:px-8 space-y-3 md:space-y-4 pb-8">
+          <main className="px-4 lg:px-10 lg:max-w-6xl space-y-3 lg:space-y-6 pb-8">
+            {/* Dashboard Grid — side by side on desktop */}
+            <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
             {/* Today's Readiness Card */}
             <button
               onClick={() => setShowReadinessModal(true)}
-              className="w-full bg-[#1a1a1a] rounded-2xl p-4 relative overflow-hidden hover:bg-[#1f1f1f] transition-colors text-left"
+              className="w-full bg-[#1a1a1a] rounded-2xl p-4 lg:p-6 relative overflow-hidden hover:bg-[#1f1f1f] transition-colors text-left"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
@@ -200,7 +247,7 @@ export default function App() {
                   <Loader2 className="w-8 h-8 text-[#00ff00] animate-spin" />
                 ) : (
                   <>
-                    <span className="text-4xl md:text-5xl font-bold">{readinessScore ?? '—'}</span>
+                    <span className="text-4xl lg:text-5xl font-bold">{readinessScore ?? '—'}</span>
                     {readinessScore != null && <span className="text-lg text-gray-500">/ 100</span>}
                   </>
                 )}
@@ -217,7 +264,7 @@ export default function App() {
             </button>
 
             {/* Scheduled Workout Card */}
-            <div className="bg-[#1a1a1a] rounded-2xl p-4">
+            <div className="bg-[#1a1a1a] rounded-2xl p-4 lg:p-6">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 ${
@@ -244,9 +291,10 @@ export default function App() {
                 <p className="text-gray-500 text-sm text-center py-2">Recovery day — use Switch to train anyway</p>
               )}
             </div>
+            </div>
 
             {/* Quick Action Buttons */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 lg:gap-4">
               <button className="bg-[#1a1a1a] rounded-xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-[#252525] transition-colors min-h-[100px]"
                 onClick={() => setShowWorkoutSwitch(true)}
               >
@@ -285,9 +333,9 @@ export default function App() {
             </div>
 
             {/* This Week Section */}
-            <div className="pt-2">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-base font-bold">This Week</h3>
+            <div className="pt-2 lg:pt-4">
+              <div className="flex justify-between items-center mb-3 lg:mb-4">
+                <h3 className="text-base lg:text-lg font-bold">This Week</h3>
                 <p className="text-gray-400 text-xs">{recentWorkouts.length} workout{recentWorkouts.length !== 1 ? 's' : ''}</p>
               </div>
 
@@ -298,7 +346,7 @@ export default function App() {
                   <p className="text-gray-600 text-xs mt-1">Start your first workout above!</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
                   {recentWorkouts.slice(0, 5).map((workout) => {
                     const isCardio = workout.workoutType.toLowerCase().includes('cardio');
                     return (
@@ -364,8 +412,8 @@ export default function App() {
       </div>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 px-4 py-3 safe-area-inset-bottom">
-        <div className="flex justify-around items-center max-w-md mx-auto md:max-w-2xl lg:max-w-3xl">
+      <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 px-4 py-3 safe-area-inset-bottom lg:hidden">
+        <div className="flex justify-around items-center max-w-md mx-auto">
           <button 
             onClick={() => setCurrentPage('today')}
             className={`flex flex-col items-center gap-0.5 transition-colors ${
