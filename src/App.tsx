@@ -8,6 +8,7 @@ import { ProfilePage } from './components/ProfilePage';
 import { OnboardingPage } from './components/OnboardingPageNew';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { WorkoutSwitchPage } from './components/WorkoutSwitchPage';
+import { PreWorkoutModal } from './components/PreWorkoutModal';
 import { CardioSetupPage } from './components/CardioSetupPage';
 import { CardioSessionPage } from './components/CardioSessionPage';
 import { SecondSessionPage } from './components/SecondSessionPage';
@@ -125,8 +126,10 @@ export default function App() {
           ? readinessScore >= 67 ? 'Peak performance expected' : readinessScore >= 34 ? 'Consider lighter intensity' : 'Active recovery recommended'
           : 'AI readiness coming soon';
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
+  const [showPreWorkout, setShowPreWorkout] = useState(false);
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
   const [activeMuscleGroup, setActiveMuscleGroup] = useState('');
+  const [trainingLocation, setTrainingLocation] = useState('');
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [showWorkoutSwitch, setShowWorkoutSwitch] = useState(false);
   const [showCardioSetup, setShowCardioSetup] = useState(false);
@@ -282,7 +285,7 @@ export default function App() {
 
               {currentMuscleGroup !== 'Rest' ? (
                 <button className="w-full bg-white text-black font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
-                  onClick={() => setShowWorkoutStart(true)}
+                  onClick={() => setShowPreWorkout(true)}
                 >
                   <Play className="w-4 h-4 fill-current" />
                   Start Workout
@@ -456,8 +459,21 @@ export default function App() {
         </div>
       </nav>
 
+      {/* Pre-Workout Location Prompt */}
+      {showPreWorkout && (
+        <PreWorkoutModal
+          onClose={() => setShowPreWorkout(false)}
+          onStart={(location) => {
+            setTrainingLocation(location);
+            setShowPreWorkout(false);
+            setShowWorkoutStart(true);
+          }}
+          muscleGroup={currentMuscleGroup}
+        />
+      )}
+
       {/* Workout Start Page */}
-      {showWorkoutStart && <WorkoutStartPage onClose={() => { setShowWorkoutStart(false); setActiveMuscleGroup(''); }} muscleGroup={currentMuscleGroup} />}
+      {showWorkoutStart && <WorkoutStartPage onClose={() => { setShowWorkoutStart(false); setActiveMuscleGroup(''); setTrainingLocation(''); }} muscleGroup={currentMuscleGroup} />}
 
       {/* Integrations Page */}
       {showIntegrations && (

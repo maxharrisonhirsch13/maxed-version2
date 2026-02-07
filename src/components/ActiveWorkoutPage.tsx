@@ -5,6 +5,7 @@ import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useWhoopData } from '../hooks/useWhoopData';
 import { useAuth } from '../context/AuthContext';
 import { useAICoach } from '../hooks/useAICoach';
+import type { HomeEquipment } from '../types';
 
 interface ActiveWorkoutPageProps {
   onClose: () => void;
@@ -204,6 +205,23 @@ const allExercises: Exercise[] = Object.values(exerciseLibrary).flat().filter(
   (exercise, index, self) => self.findIndex(e => e.name === exercise.name) === index
 );
 
+// Filter exercises based on home gym equipment availability
+function filterForHomeGym(exercises: Exercise[], equipment: HomeEquipment): Exercise[] {
+  return exercises.filter(ex => {
+    const mg = ex.muscleGroups.toLowerCase();
+    // Always filter out machine exercises for home gym
+    if (mg.includes('machine')) return false;
+    // Check barbell / EZ bar
+    if ((mg.includes('barbell') || mg.includes('ez bar')) && !equipment.barbell.has) return false;
+    // Check dumbbells
+    if (mg.includes('dumbbell') && !equipment.dumbbells.has) return false;
+    // Check cable
+    if (mg.includes('cable') && !equipment.cables) return false;
+    // Bodyweight, custom, and equipment-less exercises always pass
+    return true;
+  });
+}
+
 export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild }: ActiveWorkoutPageProps) {
   const { saveWorkout, saving } = useWorkouts();
   const { profile } = useAuth();
@@ -219,6 +237,10 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const computeInitialExercises = (): Exercise[] => {
     if (customBuild) return [];
     let exs = muscleGroup ? getExercisesForWorkout(muscleGroup) : getExercisesForWorkout('Full Body');
+    // Filter for home gym equipment
+    if (profile?.isHomeGym && profile.homeEquipment) {
+      exs = filterForHomeGym(exs, profile.homeEquipment);
+    }
     if (quickVersion) {
       exs = exs.slice(0, 4).map(e => ({ ...e, sets: Math.min(e.sets, 3) }));
     } else if (fewerSets) {
@@ -526,14 +548,23 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   // Get swap alternatives: ONLY same muscle group exercises not currently in the workout
   const getSwapAlternatives = () => {
     const currentNames = exercises.map(e => e.name);
-    const related = getRelatedExercises(muscleGroup || 'Shoulders/Arms');
+    let related = getRelatedExercises(muscleGroup || 'Shoulders/Arms');
+    if (profile?.isHomeGym && profile.homeEquipment) {
+      related = filterForHomeGym(related, profile.homeEquipment);
+    }
     return related.filter(e => !currentNames.includes(e.name));
   };
 
-  const filteredLibraryExercises = allExercises.filter(e =>
-    !exercises.find(ex => ex.name === e.name) &&
-    e.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredLibraryExercises = (() => {
+    let pool = allExercises;
+    if (profile?.isHomeGym && profile.homeEquipment) {
+      pool = filterForHomeGym(pool, profile.homeEquipment);
+    }
+    return pool.filter(e =>
+      !exercises.find(ex => ex.name === e.name) &&
+      e.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  })();
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-3">

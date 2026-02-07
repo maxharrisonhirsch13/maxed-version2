@@ -6,6 +6,13 @@ export interface GymResult {
   lng: number
 }
 
+export interface HomeEquipment {
+  dumbbells: { has: boolean; maxWeight: number }
+  barbell: { has: boolean; maxWeight: number }
+  cables: boolean
+  pullUpBar: boolean
+}
+
 export interface UserProfile {
   id: string
   name: string
@@ -25,6 +32,7 @@ export interface UserProfile {
   customGoal: string | null
   split: string | null
   customSplit: { day: number; muscles: string[] }[]
+  homeEquipment: HomeEquipment | null
   onboardingCompleted: boolean
   avatarUrl: string | null
   createdAt: string

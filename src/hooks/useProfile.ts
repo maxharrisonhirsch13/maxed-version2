@@ -22,6 +22,7 @@ export function useProfile() {
     custom_goal?: string | null
     split?: string | null
     custom_split?: any
+    home_equipment?: any
     onboarding_completed?: boolean
   }) {
     if (!user) throw new Error('Not authenticated')

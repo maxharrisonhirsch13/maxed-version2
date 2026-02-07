@@ -6,6 +6,13 @@ import { useGymSearch } from '../hooks/useGymSearch';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import type { GymResult } from '../types';
 
+interface HomeEquipment {
+  dumbbells: { has: boolean; maxWeight: number };
+  barbell: { has: boolean; maxWeight: number };
+  cables: boolean;
+  pullUpBar: boolean;
+}
+
 interface OnboardingData {
   name: string;
   heightFeet: number;
@@ -18,6 +25,7 @@ interface OnboardingData {
   gymAddress: string;
   gymLat: number | null;
   gymLng: number | null;
+  homeEquipment: HomeEquipment;
   wearables: string[];
   goal: string;
   customGoal: string;
@@ -48,6 +56,12 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     gymAddress: '',
     gymLat: null,
     gymLng: null,
+    homeEquipment: {
+      dumbbells: { has: false, maxWeight: 50 },
+      barbell: { has: false, maxWeight: 135 },
+      cables: false,
+      pullUpBar: false,
+    },
     wearables: [],
     goal: '',
     customGoal: '',
@@ -70,12 +84,18 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     if (window.location.search.includes('whoop=connected')) {
       refetchWhoop();
       window.history.replaceState({}, '', window.location.pathname);
+      const savedStep = localStorage.getItem('maxed_onboarding_step');
+      if (savedStep) {
+        setStep(parseInt(savedStep) + 1);
+        localStorage.removeItem('maxed_onboarding_step');
+      }
     }
   }, []);
 
   const handleWhoopConnect = async () => {
     if (!user) return;
     setWhoopConnecting(true);
+    localStorage.setItem('maxed_onboarding_step', String(step));
     try {
       const res = await fetch(`/api/whoop-auth?userId=${user.id}`);
       const data = await res.json();
@@ -148,6 +168,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
         gym_address: data.gymAddress || null,
         gym_lat: data.gymLat,
         gym_lng: data.gymLng,
+        home_equipment: data.isHomeGym ? data.homeEquipment : null,
         wearables: data.wearables,
         goal: data.goal === 'Ask AI' ? data.customGoal : data.goal,
         custom_goal: data.goal === 'Ask AI' ? data.customGoal : null,
@@ -586,10 +607,6 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     } else {
                       setData({ ...data, isHomeGym: true, gym: 'Home Gym', gymPlaceId: '', gymAddress: '', gymLat: null, gymLng: null });
                       setGymSearchQuery('');
-                      if (editingFromReview) {
-                        setEditingFromReview(false);
-                        setTimeout(() => setStep(8), 150);
-                      }
                     }
                   }}
                   className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
@@ -605,6 +622,93 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   </div>
                   {data.isHomeGym && <Check className="w-5 h-5 text-[#00ff00]" />}
                 </button>
+
+                {/* Home Equipment Questions */}
+                {data.isHomeGym && (
+                  <div className="space-y-3 mt-2">
+                    <p className="text-xs text-gray-500 font-medium tracking-wide">WHAT EQUIPMENT DO YOU HAVE?</p>
+
+                    {/* Dumbbells */}
+                    <div className={`rounded-2xl border-2 transition-all overflow-hidden ${data.homeEquipment.dumbbells.has ? 'border-[#00ff00]/50 bg-[#00ff00]/5' : 'border-gray-800 bg-[#0a0a0a]'}`}>
+                      <button
+                        onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, dumbbells: { ...data.homeEquipment.dumbbells, has: !data.homeEquipment.dumbbells.has } } })}
+                        className="w-full p-4 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Dumbbell className="w-5 h-5 text-gray-400" />
+                          <span className="font-medium text-sm">Dumbbells</span>
+                        </div>
+                        <div className={`w-10 h-6 rounded-full transition-colors flex items-center ${data.homeEquipment.dumbbells.has ? 'bg-[#00ff00] justify-end' : 'bg-gray-700 justify-start'}`}>
+                          <div className="w-5 h-5 bg-white rounded-full mx-0.5 shadow" />
+                        </div>
+                      </button>
+                      {data.homeEquipment.dumbbells.has && (
+                        <div className="px-4 pb-4 flex items-center justify-between">
+                          <span className="text-xs text-gray-400">Max weight per dumbbell</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, dumbbells: { ...data.homeEquipment.dumbbells, maxWeight: Math.max(5, data.homeEquipment.dumbbells.maxWeight - 5) } } })} className="w-7 h-7 bg-gray-800 rounded-lg flex items-center justify-center text-gray-300 font-bold text-sm">&minus;</button>
+                            <span className="text-sm font-bold w-12 text-center">{data.homeEquipment.dumbbells.maxWeight} lb</span>
+                            <button onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, dumbbells: { ...data.homeEquipment.dumbbells, maxWeight: Math.min(150, data.homeEquipment.dumbbells.maxWeight + 5) } } })} className="w-7 h-7 bg-gray-800 rounded-lg flex items-center justify-center text-gray-300 font-bold text-sm">+</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Barbell */}
+                    <div className={`rounded-2xl border-2 transition-all overflow-hidden ${data.homeEquipment.barbell.has ? 'border-[#00ff00]/50 bg-[#00ff00]/5' : 'border-gray-800 bg-[#0a0a0a]'}`}>
+                      <button
+                        onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, barbell: { ...data.homeEquipment.barbell, has: !data.homeEquipment.barbell.has } } })}
+                        className="w-full p-4 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Dumbbell className="w-5 h-5 text-gray-400" />
+                          <span className="font-medium text-sm">Barbell + Plates</span>
+                        </div>
+                        <div className={`w-10 h-6 rounded-full transition-colors flex items-center ${data.homeEquipment.barbell.has ? 'bg-[#00ff00] justify-end' : 'bg-gray-700 justify-start'}`}>
+                          <div className="w-5 h-5 bg-white rounded-full mx-0.5 shadow" />
+                        </div>
+                      </button>
+                      {data.homeEquipment.barbell.has && (
+                        <div className="px-4 pb-4 flex items-center justify-between">
+                          <span className="text-xs text-gray-400">Max loadable weight</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, barbell: { ...data.homeEquipment.barbell, maxWeight: Math.max(45, data.homeEquipment.barbell.maxWeight - 10) } } })} className="w-7 h-7 bg-gray-800 rounded-lg flex items-center justify-center text-gray-300 font-bold text-sm">&minus;</button>
+                            <span className="text-sm font-bold w-12 text-center">{data.homeEquipment.barbell.maxWeight} lb</span>
+                            <button onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, barbell: { ...data.homeEquipment.barbell, maxWeight: Math.min(500, data.homeEquipment.barbell.maxWeight + 10) } } })} className="w-7 h-7 bg-gray-800 rounded-lg flex items-center justify-center text-gray-300 font-bold text-sm">+</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Cables / Bands */}
+                    <button
+                      onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, cables: !data.homeEquipment.cables } })}
+                      className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${data.homeEquipment.cables ? 'border-[#00ff00]/50 bg-[#00ff00]/5' : 'border-gray-800 bg-[#0a0a0a]'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Activity className="w-5 h-5 text-gray-400" />
+                        <span className="font-medium text-sm">Cables / Resistance Bands</span>
+                      </div>
+                      <div className={`w-10 h-6 rounded-full transition-colors flex items-center ${data.homeEquipment.cables ? 'bg-[#00ff00] justify-end' : 'bg-gray-700 justify-start'}`}>
+                        <div className="w-5 h-5 bg-white rounded-full mx-0.5 shadow" />
+                      </div>
+                    </button>
+
+                    {/* Pull-up Bar */}
+                    <button
+                      onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, pullUpBar: !data.homeEquipment.pullUpBar } })}
+                      className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${data.homeEquipment.pullUpBar ? 'border-[#00ff00]/50 bg-[#00ff00]/5' : 'border-gray-800 bg-[#0a0a0a]'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Dumbbell className="w-5 h-5 text-gray-400" />
+                        <span className="font-medium text-sm">Pull-up Bar</span>
+                      </div>
+                      <div className={`w-10 h-6 rounded-full transition-colors flex items-center ${data.homeEquipment.pullUpBar ? 'bg-[#00ff00] justify-end' : 'bg-gray-700 justify-start'}`}>
+                        <div className="w-5 h-5 bg-white rounded-full mx-0.5 shadow" />
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {!data.isHomeGym && (
@@ -897,6 +1001,16 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Training Location</p>
                     <p className="font-medium">{data.gym}</p>
+                    {data.isHomeGym && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {[
+                          data.homeEquipment.dumbbells.has && `Dumbbells (${data.homeEquipment.dumbbells.maxWeight}lb)`,
+                          data.homeEquipment.barbell.has && `Barbell (${data.homeEquipment.barbell.maxWeight}lb)`,
+                          data.homeEquipment.cables && 'Cables/Bands',
+                          data.homeEquipment.pullUpBar && 'Pull-up Bar',
+                        ].filter(Boolean).join(' · ') || 'Bodyweight only'}
+                      </p>
+                    )}
                   </div>
                   <button onClick={() => { setEditingFromReview(true); setStep(4); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit

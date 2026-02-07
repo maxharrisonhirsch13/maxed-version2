@@ -1,5 +1,6 @@
-import { X, Sparkles, Calendar, Trophy, Shuffle, Zap, Clock, SkipForward, Edit3, ChevronRight } from 'lucide-react';
+import { X, Sparkles, Calendar, Trophy, Shuffle, Zap, Clock, SkipForward, Edit3, ChevronRight, Home } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { ActiveWorkoutPage } from './ActiveWorkoutPage';
 
 interface WorkoutStartPageProps {
@@ -229,6 +230,8 @@ function shuffleArray<T>(arr: T[]): T[] {
 type WorkoutSelection = 'ai' | 'standard' | number; // number = celebrity workout id
 
 export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps) {
+  const { profile } = useAuth();
+  const isHomeGym = profile?.isHomeGym && profile.homeEquipment;
   const allCelebrityWorkouts = getCelebrityWorkouts(muscleGroup);
   const [displayedWorkouts, setDisplayedWorkouts] = useState<CelebrityWorkout[]>(allCelebrityWorkouts.slice(0, 3));
   const [activeWorkout, setActiveWorkout] = useState(false);
@@ -305,6 +308,16 @@ export function WorkoutStartPage({ onClose, muscleGroup }: WorkoutStartPageProps
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Home Gym Notice */}
+        {isHomeGym && (
+          <div className="flex items-center gap-2.5 bg-[#00ff00]/5 border border-[#00ff00]/20 rounded-xl px-4 py-3">
+            <Home className="w-4 h-4 text-[#00ff00] shrink-0" />
+            <p className="text-xs text-gray-300">
+              <span className="font-semibold text-[#00ff00]">Home Gym Mode</span> — Exercises will be filtered to match your available equipment.
+            </p>
+          </div>
+        )}
+
         {/* Workout Templates */}
         <div className="space-y-3">
           <button
