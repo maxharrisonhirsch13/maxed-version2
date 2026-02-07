@@ -24,68 +24,75 @@ export function useFriendships() {
     setLoading(true)
 
     try {
-      // Query 1: friendships where current user is the requester → join addressee profile
-      const { data: asRequester, error: err1 } = await supabase
+      // Step 1: Fetch all friendships involving this user (no joins)
+      const { data: rows, error } = await supabase
         .from('friendships')
-        .select(`
-          id, requester_id, addressee_id, status, created_at,
-          profiles!friendships_addressee_id_fkey ( id, name, username, avatar_url )
-        `)
-        .eq('requester_id', user.id)
+        .select('id, requester_id, addressee_id, status, created_at')
+        .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
         .in('status', ['pending', 'accepted'])
 
-      // Query 2: friendships where current user is the addressee → join requester profile
-      const { data: asAddressee, error: err2 } = await supabase
-        .from('friendships')
-        .select(`
-          id, requester_id, addressee_id, status, created_at,
-          profiles!friendships_requester_id_fkey ( id, name, username, avatar_url )
-        `)
-        .eq('addressee_id', user.id)
-        .in('status', ['pending', 'accepted'])
-
-      if (err1) console.error('Failed to fetch friendships (as requester):', err1)
-      if (err2) console.error('Failed to fetch friendships (as addressee):', err2)
-
-      const items: FriendshipItem[] = []
-
-      // Map requester rows — the "other" user is the addressee (joined profile)
-      for (const row of asRequester ?? []) {
-        const profile = row.profiles as any
-        if (!profile) continue
-        items.push({
-          friendshipId: row.id,
-          userId: profile.id,
-          name: profile.name,
-          username: profile.username ?? null,
-          avatarUrl: profile.avatar_url ?? null,
-          status: row.status,
-          createdAt: row.created_at,
-        })
+      if (error) {
+        console.error('Failed to fetch friendships:', error)
+        return
       }
 
-      // Map addressee rows — the "other" user is the requester (joined profile)
-      for (const row of asAddressee ?? []) {
-        const profile = row.profiles as any
-        if (!profile) continue
+      if (!rows || rows.length === 0) {
+        setFriends([])
+        setIncomingRequests([])
+        setOutgoingRequests([])
+        setLoading(false)
+        return
+      }
+
+      // Step 2: Collect all "other" user IDs
+      const otherIds = rows.map(r =>
+        r.requester_id === user.id ? r.addressee_id : r.requester_id
+      )
+      const uniqueIds = [...new Set(otherIds)]
+
+      // Step 3: Fetch profiles for those users
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url')
+        .in('id', uniqueIds)
+
+      if (profileError) {
+        console.error('Failed to fetch friend profiles:', profileError)
+      }
+
+      const profileMap = new Map(
+        (profiles ?? []).map(p => [p.id, p])
+      )
+
+      // Step 4: Combine friendships with profile data
+      const items: FriendshipItem[] = []
+      const incomingIds: Set<string> = new Set()
+      const outgoingIds: Set<string> = new Set()
+
+      for (const row of rows) {
+        const otherId = row.requester_id === user.id ? row.addressee_id : row.requester_id
+        const profile = profileMap.get(otherId)
+
+        if (row.requester_id === user.id) {
+          outgoingIds.add(row.id)
+        } else {
+          incomingIds.add(row.id)
+        }
+
         items.push({
           friendshipId: row.id,
-          userId: profile.id,
-          name: profile.name,
-          username: profile.username ?? null,
-          avatarUrl: profile.avatar_url ?? null,
+          userId: otherId,
+          name: profile?.name ?? 'Unknown',
+          username: profile?.username ?? null,
+          avatarUrl: profile?.avatar_url ?? null,
           status: row.status,
           createdAt: row.created_at,
         })
       }
 
       setFriends(items.filter(i => i.status === 'accepted'))
-      setIncomingRequests(
-        items.filter(i => i.status === 'pending' && (asAddressee ?? []).some(r => r.id === i.friendshipId))
-      )
-      setOutgoingRequests(
-        items.filter(i => i.status === 'pending' && (asRequester ?? []).some(r => r.id === i.friendshipId))
-      )
+      setIncomingRequests(items.filter(i => i.status === 'pending' && incomingIds.has(i.friendshipId)))
+      setOutgoingRequests(items.filter(i => i.status === 'pending' && outgoingIds.has(i.friendshipId)))
     } catch (err) {
       console.error('Failed to fetch friendships:', err)
     } finally {
@@ -141,13 +148,11 @@ export function useFriendships() {
       .maybeSingle()
 
     if (existing) {
-      // If there's already an accepted friendship, nothing to do
       if (existing.status === 'accepted') {
         await fetchFriendships()
         return
       }
-      // If there's a pending/declined row, accept it — need to update as the addressee
-      // If current user is the addressee, update directly
+      // Update existing row to accepted
       if (existing.addressee_id === user.id) {
         const { error } = await supabase
           .from('friendships')
@@ -155,7 +160,7 @@ export function useFriendships() {
           .eq('id', existing.id)
         if (error) throw error
       } else {
-        // Current user is requester — delete the old row and re-insert as accepted
+        // Delete and re-insert as accepted
         await supabase.from('friendships').delete().eq('id', existing.id)
         const { error } = await supabase.from('friendships').insert({
           requester_id: user.id,
@@ -165,7 +170,6 @@ export function useFriendships() {
         if (error) throw error
       }
     } else {
-      // No existing row — insert as accepted (instant friend)
       const { error } = await supabase.from('friendships').insert({
         requester_id: user.id,
         addressee_id: userId,
