@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon, Home as HomeIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon, Home as HomeIcon, Search } from 'lucide-react';
 import { useState } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
@@ -8,6 +8,7 @@ import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import { useGarminStatus } from '../hooks/useGarminStatus';
 import { useOuraStatus } from '../hooks/useOuraStatus';
+import { useGymSearch } from '../hooks/useGymSearch';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -133,6 +134,13 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   });
   const [trainingSaving, setTrainingSaving] = useState(false);
   const [trainingError, setTrainingError] = useState('');
+  const [gymSearchQuery, setGymSearchQuery] = useState('');
+  const [selectedGymPlaceId, setSelectedGymPlaceId] = useState<string | null>(null);
+  const [selectedGymAddress, setSelectedGymAddress] = useState<string | null>(null);
+  const [selectedGymLat, setSelectedGymLat] = useState<number | null>(null);
+  const [selectedGymLng, setSelectedGymLng] = useState<number | null>(null);
+
+  const { results: gymSearchResults, loading: gymSearchLoading } = useGymSearch(gymSearchQuery);
 
   const editMuscleGroups = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Core', 'Cardio'];
 
@@ -182,7 +190,10 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
       await updateProfile({
         is_home_gym: trainingIsHome,
         gym: trainingIsHome ? 'Home Gym' : (trainingGymName || null),
-        gym_address: trainingIsHome ? null : undefined,
+        gym_address: trainingIsHome ? null : (selectedGymAddress || null),
+        gym_place_id: trainingIsHome ? null : (selectedGymPlaceId || null),
+        gym_lat: trainingIsHome ? null : (selectedGymLat || null),
+        gym_lng: trainingIsHome ? null : (selectedGymLng || null),
         home_equipment: trainingIsHome ? trainingEquipment : null,
       });
       setShowEditTraining(false);
@@ -384,6 +395,11 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
               const eq = userData?.homeEquipment;
               setTrainingIsHome(userData?.isHomeGym || false);
               setTrainingGymName(userData?.gym || '');
+              setGymSearchQuery(userData?.gym || '');
+              setSelectedGymPlaceId(userData?.gymPlaceId || null);
+              setSelectedGymAddress(userData?.gymAddress || null);
+              setSelectedGymLat(userData?.gymLat || null);
+              setSelectedGymLng(userData?.gymLng || null);
               setTrainingEquipment({
                 dumbbells: eq?.dumbbells || { has: false, maxWeight: 50 },
                 barbell: eq?.barbell || { has: false, maxWeight: 225 },
@@ -1032,17 +1048,72 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                 </div>
               </div>
 
-              {/* Gym Name (only for non-home) */}
+              {/* Gym Search (only for non-home) */}
               {!trainingIsHome && (
                 <div>
                   <label className="text-xs font-semibold text-gray-500 tracking-wide mb-2 block">GYM NAME</label>
-                  <input
-                    type="text"
-                    value={trainingGymName}
-                    onChange={(e) => setTrainingGymName(e.target.value)}
-                    placeholder="e.g. Gold's Gym"
-                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#00ff00] transition-colors"
-                  />
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <input
+                      type="text"
+                      value={gymSearchQuery}
+                      onChange={(e) => {
+                        setGymSearchQuery(e.target.value);
+                        if (selectedGymPlaceId) {
+                          setTrainingGymName('');
+                          setSelectedGymPlaceId(null);
+                          setSelectedGymAddress(null);
+                          setSelectedGymLat(null);
+                          setSelectedGymLng(null);
+                        }
+                      }}
+                      placeholder="Search by gym name or zip code"
+                      className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#00ff00] transition-colors"
+                    />
+                  </div>
+
+                  {/* Selected gym confirmation */}
+                  {selectedGymPlaceId && (
+                    <div className="mt-3 bg-[#00ff00]/10 border border-[#00ff00]/30 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Check className="w-4 h-4 text-[#00ff00] shrink-0" />
+                        <p className="font-bold text-sm">{trainingGymName}</p>
+                      </div>
+                      <p className="text-xs text-gray-400 ml-6">{selectedGymAddress}</p>
+                    </div>
+                  )}
+
+                  {/* Search results */}
+                  {!selectedGymPlaceId && gymSearchQuery.trim().length >= 2 && (
+                    <div className="mt-2 space-y-1.5">
+                      {gymSearchLoading && (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                          <span className="text-xs text-gray-500 ml-2">Searching...</span>
+                        </div>
+                      )}
+                      {!gymSearchLoading && gymSearchResults.length === 0 && (
+                        <p className="text-xs text-gray-500 text-center py-3">No gyms found</p>
+                      )}
+                      {!gymSearchLoading && gymSearchResults.map((gym) => (
+                        <button
+                          key={gym.placeId}
+                          onClick={() => {
+                            setTrainingGymName(gym.name);
+                            setSelectedGymPlaceId(gym.placeId);
+                            setSelectedGymAddress(gym.address);
+                            setSelectedGymLat(gym.lat);
+                            setSelectedGymLng(gym.lng);
+                            setGymSearchQuery(gym.name);
+                          }}
+                          className="w-full p-3 bg-[#0a0a0a] border border-gray-800 rounded-xl text-left hover:border-gray-700 transition-colors"
+                        >
+                          <div className="font-medium text-sm">{gym.name}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">{gym.address}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
