@@ -183,10 +183,11 @@ function getExercisesForWorkout(muscleGroup: string): Exercise[] {
 
   if (matchedGroups.size > 0) {
     const exercises: Exercise[] = [];
+    // Give each muscle group a solid number of exercises
+    // 1 group → 6, 2 groups → 4 each, 3+ groups → 3 each
+    const take = matchedGroups.size === 1 ? 6 : matchedGroups.size === 2 ? 4 : 3;
     for (const group of matchedGroups) {
       const groupExercises = exerciseLibrary[group] || [];
-      // Take top exercises from each group proportionally
-      const take = Math.max(2, Math.ceil(6 / matchedGroups.size));
       exercises.push(...groupExercises.slice(0, take));
     }
     return exercises;

@@ -189,7 +189,7 @@ function getCelebrityWorkouts(muscleGroup?: string): CelebrityWorkout[] {
   if (!muscleGroup) return celebrityWorkoutsByGroup['Full Body'];
   const lower = muscleGroup.toLowerCase();
 
-  // Direct match first
+  // Direct match first (e.g. "Chest", "Push", "Shoulders & Arms")
   for (const key of Object.keys(celebrityWorkoutsByGroup)) {
     if (lower === key.toLowerCase()) return celebrityWorkoutsByGroup[key];
   }
@@ -210,12 +210,15 @@ function getCelebrityWorkouts(muscleGroup?: string): CelebrityWorkout[] {
     if (lower.includes(keyword)) matched.add(group);
   }
 
+  // For multi-muscle custom workouts (e.g. "Abs & Shoulders & Legs"),
+  // only show celebrity workouts if there's an exact group match.
+  // Don't show single-muscle celebrity workouts that only cover part of the combo.
+  if (matched.size > 1) return [];
+
+  // Single muscle group — show celebrity workouts for that group
   const results: CelebrityWorkout[] = [];
-  const seenIds = new Set<number>();
   for (const group of matched) {
-    for (const w of celebrityWorkoutsByGroup[group] || []) {
-      if (!seenIds.has(w.id)) { seenIds.add(w.id); results.push(w); }
-    }
+    results.push(...(celebrityWorkoutsByGroup[group] || []));
   }
 
   if (results.length > 0) return results;
@@ -386,7 +389,8 @@ export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: Wor
           </button>
         </div>
 
-        {/* Celebrity Workouts */}
+        {/* Celebrity Workouts — only show when available for this muscle group */}
+        {allCelebrityWorkouts.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-gray-400">Celebrity Workouts</h2>
@@ -429,6 +433,7 @@ export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: Wor
             )}
           </p>
         </div>
+        )}
 
         {/* Modifiers */}
         <div>
