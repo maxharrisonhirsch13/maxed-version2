@@ -338,6 +338,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const [showVideo, setShowVideo] = useState(true);
   const [logMode, setLogMode] = useState<'set' | 'bulk'>('set');
   const [showSwapModal, setShowSwapModal] = useState(false);
+  const [showExerciseDonePrompt, setShowExerciseDonePrompt] = useState(false);
   const [showAddModal, setShowAddModal] = useState(customBuild ? true : false);
   const [addMode, setAddMode] = useState<'library' | 'custom' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -454,9 +455,9 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
       setReps(8);
       return nextExercise;
     }
-    // Last exercise done — custom build lets user add more, preset auto-finishes
+    // Last exercise done — custom build prompts user, preset auto-finishes
     if (customBuild) {
-      setShowAddModal(true);
+      setShowExerciseDonePrompt(true);
       return null;
     }
     setWorkoutFinished(true);
@@ -1149,6 +1150,45 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                 className="w-full text-gray-400 font-medium py-3 rounded-2xl text-sm hover:bg-white/5 transition-colors"
               >
                 Continue Workout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Build — Exercise Done Prompt */}
+      {showExerciseDonePrompt && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-gradient-to-b from-[#1a1a1a] to-[#111] rounded-3xl overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 bg-[#00ff00]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-7 h-7 text-[#00ff00]" />
+              </div>
+              <h2 className="font-bold text-lg mb-1">Exercise Complete</h2>
+              <p className="text-sm text-gray-400">
+                {Object.keys(loggedData).length} exercise{Object.keys(loggedData).length !== 1 ? 's' : ''} logged so far
+              </p>
+            </div>
+            <div className="px-5 pb-5 space-y-2.5">
+              <button
+                onClick={() => {
+                  setShowExerciseDonePrompt(false);
+                  setShowAddModal(true);
+                }}
+                className="w-full bg-[#00ff00] text-black font-bold py-3.5 rounded-2xl text-sm hover:bg-[#00dd00] transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Another Exercise
+              </button>
+              <button
+                onClick={() => {
+                  setShowExerciseDonePrompt(false);
+                  setWorkoutFinished(true);
+                }}
+                className="w-full bg-white/5 text-white font-semibold py-3.5 rounded-2xl text-sm hover:bg-white/10 transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+              >
+                <Dumbbell className="w-4 h-4" />
+                Finish Workout
               </button>
             </div>
           </div>
