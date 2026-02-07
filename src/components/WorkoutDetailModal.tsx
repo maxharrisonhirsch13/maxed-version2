@@ -101,6 +101,19 @@ export function WorkoutDetailModal({ item, onClose }: WorkoutDetailModalProps) {
             </div>
           </div>
 
+          {/* Tagged users */}
+          {item.taggedUsers && item.taggedUsers.length > 0 && (
+            <p className="text-xs text-gray-500 mb-3">
+              <span className="text-gray-600">with </span>
+              {item.taggedUsers.map((t, i) => (
+                <span key={t.id}>
+                  <span className="text-[#00ff00]/70 font-medium">@{t.username || t.name.split(' ')[0].toLowerCase()}</span>
+                  {i < item.taggedUsers.length - 1 && <span className="text-gray-600">, </span>}
+                </span>
+              ))}
+            </p>
+          )}
+
           {/* Caption */}
           {post.caption && (
             <div className="bg-[#0a0a0a] border-l-2 border-[#00ff00]/40 rounded-r-xl px-4 py-3 mb-5">

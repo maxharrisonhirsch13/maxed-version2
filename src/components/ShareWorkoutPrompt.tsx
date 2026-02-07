@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Share, Loader2, Dumbbell, Clock, Trophy } from 'lucide-react';
+import { Share, Loader2, Dumbbell, Clock, Trophy, UserPlus, X } from 'lucide-react';
 import { useWorkoutPosts } from '../hooks/useWorkoutPosts';
+import { useFriendships } from '../hooks/useFriendships';
 
 interface ShareWorkoutPromptProps {
   workoutId: string;
@@ -14,7 +15,10 @@ interface ShareWorkoutPromptProps {
 
 export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareWorkoutPromptProps) {
   const { shareWorkout } = useWorkoutPosts();
+  const { friends } = useFriendships();
   const [caption, setCaption] = useState('');
+  const [taggedIds, setTaggedIds] = useState<string[]>([]);
+  const [showTagPicker, setShowTagPicker] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,13 +26,28 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
     setError(null);
     setSharing(true);
     try {
-      await shareWorkout(workoutId, caption.trim() || undefined);
+      await shareWorkout(workoutId, caption.trim() || undefined, taggedIds.length > 0 ? taggedIds : undefined);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to share workout');
       setSharing(false);
     }
   };
+
+  const toggleTag = (userId: string) => {
+    setTaggedIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const removeTag = (userId: string) => {
+    setTaggedIds(prev => prev.filter(id => id !== userId));
+  };
+
+  const taggedFriends = friends.filter(f => taggedIds.includes(f.userId));
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const gradients = ['from-purple-500 to-blue-500', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-yellow-500 to-red-500', 'from-indigo-500 to-purple-500'];
+  const getGradient = (name: string) => gradients[name.charCodeAt(0) % gradients.length];
 
   const formatVolume = (vol: number) => {
     if (vol >= 1000) {
@@ -83,6 +102,68 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
               </div>
             </div>
           </div>
+
+          {/* Tag Friends */}
+          {friends.length > 0 && (
+            <div className="mb-4">
+              {/* Tagged friends chips */}
+              {taggedFriends.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {taggedFriends.map(f => (
+                    <button
+                      key={f.userId}
+                      onClick={() => removeTag(f.userId)}
+                      className="flex items-center gap-1.5 px-2.5 py-1 bg-[#00ff00]/10 border border-[#00ff00]/20 rounded-full text-xs group"
+                    >
+                      <span className="text-[#00ff00] font-medium">@{f.username || f.name.split(' ')[0].toLowerCase()}</span>
+                      <X className="w-3 h-3 text-gray-500 group-hover:text-white" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowTagPicker(!showTagPicker)}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                {taggedIds.length > 0 ? 'Tag more friends' : 'Tag friends'}
+              </button>
+
+              {/* Friend picker dropdown */}
+              {showTagPicker && (
+                <div className="mt-2 bg-[#111] border border-gray-800 rounded-xl max-h-36 overflow-y-auto">
+                  {friends.map(friend => {
+                    const isTagged = taggedIds.includes(friend.userId);
+                    return (
+                      <button
+                        key={friend.userId}
+                        onClick={() => toggleTag(friend.userId)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isTagged ? 'bg-[#00ff00]/5' : 'hover:bg-[#1a1a1a]'}`}
+                      >
+                        {friend.avatarUrl ? (
+                          <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
+                            <img src={friend.avatarUrl} alt={friend.name} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getGradient(friend.name)} flex items-center justify-center font-bold text-[10px] flex-shrink-0`}>
+                            {getInitials(friend.name)}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{friend.name}</p>
+                          {friend.username && <p className="text-[10px] text-gray-500 truncate">@{friend.username}</p>}
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isTagged ? 'border-[#00ff00] bg-[#00ff00]' : 'border-gray-600'}`}>
+                          {isTagged && <span className="text-black text-[10px] font-bold">✓</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Caption Input */}
           <div className="mb-5">

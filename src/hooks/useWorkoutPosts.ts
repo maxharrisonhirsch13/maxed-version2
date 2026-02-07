@@ -16,7 +16,7 @@ export function useWorkoutPosts() {
       // Step 1: Fetch workout_posts (raw columns only, no FK joins)
       const { data: posts, error: postsErr } = await supabase
         .from('workout_posts')
-        .select('id, user_id, workout_id, caption, created_at')
+        .select('id, user_id, workout_id, caption, tagged_user_ids, created_at')
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -32,8 +32,14 @@ export function useWorkoutPosts() {
         return
       }
 
-      // Step 2: Collect unique user_ids and workout_ids
-      const userIds = [...new Set(posts.map(p => p.user_id))]
+      // Step 2: Collect unique user_ids (including tagged) and workout_ids
+      const allUserIds = new Set(posts.map(p => p.user_id))
+      for (const p of posts) {
+        for (const tid of (p.tagged_user_ids ?? [])) {
+          allUserIds.add(tid)
+        }
+      }
+      const userIds = [...allUserIds]
       const workoutIds = [...new Set(posts.map(p => p.workout_id))]
 
       // Step 3: Fetch profiles separately for those user_ids
@@ -110,12 +116,22 @@ export function useWorkoutPosts() {
         const profile = profilesByUserId.get(p.user_id)
         const workout = workoutsByWorkoutId.get(p.workout_id)
 
+        // Resolve tagged users
+        const taggedIds: string[] = p.tagged_user_ids ?? []
+        const taggedUsers = taggedIds
+          .map(id => {
+            const tp = profilesByUserId.get(id)
+            return tp ? { id: tp.id, name: tp.name, username: tp.username } : null
+          })
+          .filter(Boolean) as { id: string; name: string; username: string | null }[]
+
         return {
           post: {
             id: p.id,
             userId: p.user_id,
             workoutId: p.workout_id,
             caption: p.caption,
+            taggedUserIds: taggedIds,
             createdAt: p.created_at,
           },
           user: {
@@ -124,6 +140,7 @@ export function useWorkoutPosts() {
             username: profile?.username ?? null,
             avatarUrl: profile?.avatar_url ?? null,
           },
+          taggedUsers,
           workout: {
             id: workout?.id ?? p.workout_id,
             workoutType: workout?.workout_type ?? '',
@@ -143,13 +160,14 @@ export function useWorkoutPosts() {
     }
   }, [user])
 
-  async function shareWorkout(workoutId: string, caption?: string) {
+  async function shareWorkout(workoutId: string, caption?: string, taggedUserIds?: string[]) {
     if (!user) throw new Error('Not authenticated')
 
     const { error } = await supabase.from('workout_posts').insert({
       user_id: user.id,
       workout_id: workoutId,
       caption: caption?.slice(0, 500) ?? null,
+      tagged_user_ids: taggedUserIds && taggedUserIds.length > 0 ? taggedUserIds : null,
     })
 
     if (error) throw error

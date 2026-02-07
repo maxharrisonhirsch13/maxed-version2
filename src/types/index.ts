@@ -156,6 +156,7 @@ export interface WorkoutPost {
   userId: string
   workoutId: string
   caption: string | null
+  taggedUserIds: string[]
   createdAt: string
 }
 
@@ -167,6 +168,11 @@ export interface FeedItem {
     username: string | null
     avatarUrl: string | null
   }
+  taggedUsers: {
+    id: string
+    name: string
+    username: string | null
+  }[]
   workout: {
     id: string
     workoutType: string
