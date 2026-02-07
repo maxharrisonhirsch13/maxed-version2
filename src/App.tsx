@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2 } from 'lucide-react';
+import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2, Activity } from 'lucide-react';
 import { ProgressPage } from './components/ProgressPage';
 import { CommunityPage } from './components/CommunityPage';
 import { WorkoutStartPage } from './components/WorkoutStartPage';
@@ -246,36 +246,56 @@ export default function App() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {recentWorkouts.slice(0, 5).map((workout) => (
-                    <button
-                      key={workout.id}
-                      onClick={() => setSelectedWorkout({
-                        date: new Date(workout.startedAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
-                        startTime: new Date(workout.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-                        duration: workout.durationMinutes || 0,
-                        workoutType: workout.workoutType,
-                        exercises: workout.exercises.map(ex => ({
-                          name: ex.exerciseName,
-                          sets: ex.sets.map(s => ({ weight: s.weightLbs || 0, reps: s.reps || 0 })),
-                        })),
-                      })}
-                      className="w-full bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between hover:bg-[#252525] transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#00ff00] rounded-lg flex items-center justify-center">
-                          <Dumbbell className="w-5 h-5 text-black" />
+                  {recentWorkouts.slice(0, 5).map((workout) => {
+                    const isCardio = workout.workoutType.toLowerCase().includes('cardio');
+                    return (
+                      <button
+                        key={workout.id}
+                        onClick={() => setSelectedWorkout({
+                          date: new Date(workout.startedAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+                          startTime: new Date(workout.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+                          duration: workout.durationMinutes || 0,
+                          workoutType: workout.workoutType,
+                          exercises: workout.exercises.map(ex => {
+                            const hasCardioData = ex.sets.some(s => s.durationMinutes || s.distanceMiles || s.caloriesBurned);
+                            if (hasCardioData) {
+                              const s = ex.sets[0];
+                              return {
+                                name: ex.exerciseName,
+                                sets: [],
+                                cardioData: {
+                                  duration: s?.durationMinutes || workout.durationMinutes || 0,
+                                  distance: s?.distanceMiles || undefined,
+                                  speed: s?.speedMph || undefined,
+                                  incline: s?.inclinePercent || undefined,
+                                  calories: s?.caloriesBurned || undefined,
+                                },
+                              };
+                            }
+                            return {
+                              name: ex.exerciseName,
+                              sets: ex.sets.map(s => ({ weight: s.weightLbs || 0, reps: s.reps || 0 })),
+                            };
+                          }),
+                        })}
+                        className="w-full bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between hover:bg-[#252525] transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isCardio ? 'bg-red-500' : 'bg-[#00ff00]'}`}>
+                            {isCardio ? <Activity className="w-5 h-5 text-white" /> : <Dumbbell className="w-5 h-5 text-black" />}
+                          </div>
+                          <div className="text-left">
+                            <p className="font-semibold text-sm">{workout.workoutType}</p>
+                            <p className="text-gray-400 text-xs">
+                              {new Date(workout.startedAt).toLocaleDateString('en-US', { weekday: 'long' })}
+                              {workout.durationMinutes ? ` • ${workout.durationMinutes} min` : ''}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-left">
-                          <p className="font-semibold text-sm">{workout.workoutType}</p>
-                          <p className="text-gray-400 text-xs">
-                            {new Date(workout.startedAt).toLocaleDateString('en-US', { weekday: 'long' })}
-                            {workout.durationMinutes ? ` • ${workout.durationMinutes} min` : ''}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-[#00ff00] text-xs font-semibold">&#10003;</span>
-                    </button>
-                  ))}
+                        <span className="text-[#00ff00] text-xs font-semibold">&#10003;</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
