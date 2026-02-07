@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useGymSearch } from '../hooks/useGymSearch';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
+import { useOuraStatus } from '../hooks/useOuraStatus';
 import type { GymResult } from '../types';
 
 interface HomeEquipment {
@@ -42,7 +43,9 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const { user } = useAuth();
   const { updateProfile } = useProfile();
   const { connected: whoopConnected, loading: whoopStatusLoading, refetch: refetchWhoop } = useWhoopStatus();
+  const { connected: ouraConnected, loading: ouraStatusLoading, refetch: refetchOura } = useOuraStatus();
   const [whoopConnecting, setWhoopConnecting] = useState(false);
+  const [ouraConnecting, setOuraConnecting] = useState(false);
   const [step, setStep] = useState(1);
   const [saveError, setSaveError] = useState('');
   const [data, setData] = useState<OnboardingData>({
@@ -81,10 +84,20 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const { results: gymResults, loading: gymSearchLoading } = useGymSearch(gymSearchQuery);
   const savingRef = useRef(false);
 
-  // Check WHOOP status on return from OAuth
+  // Check WHOOP/Oura status on return from OAuth
   useEffect(() => {
-    if (window.location.search.includes('whoop=connected')) {
+    const search = window.location.search;
+    if (search.includes('whoop=connected')) {
       refetchWhoop();
+      window.history.replaceState({}, '', window.location.pathname);
+      const savedStep = localStorage.getItem('maxed_onboarding_step');
+      if (savedStep) {
+        setStep(parseInt(savedStep) + 1);
+        localStorage.removeItem('maxed_onboarding_step');
+      }
+    }
+    if (search.includes('oura=connected')) {
+      refetchOura();
       window.history.replaceState({}, '', window.location.pathname);
       const savedStep = localStorage.getItem('maxed_onboarding_step');
       if (savedStep) {
@@ -109,6 +122,23 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
       console.error('WHOOP connect error:', err);
     }
     setWhoopConnecting(false);
+  };
+
+  const handleOuraConnect = async () => {
+    if (!user) return;
+    setOuraConnecting(true);
+    localStorage.setItem('maxed_onboarding_step', String(step));
+    try {
+      const res = await fetch(`/api/oura-auth?userId=${user.id}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.error('Oura connect error:', err);
+    }
+    setOuraConnecting(false);
   };
 
   const totalSteps = 8;
@@ -859,8 +889,34 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   ) : null}
                 </button>
 
+                {/* Oura Ring — real OAuth connection */}
+                <button
+                  onClick={ouraConnected ? undefined : handleOuraConnect}
+                  disabled={ouraConnecting}
+                  className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${
+                    ouraConnected
+                      ? 'border-[#00ff00] bg-[#00ff00]/10'
+                      : 'border-gray-800 bg-[#0a0a0a] hover:border-gray-700'
+                  }`}
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center text-white">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="font-bold text-base">Oura Ring</div>
+                    <div className="text-xs text-gray-400">
+                      {ouraConnecting ? 'Connecting...' : ouraConnected ? 'AUTO — Syncing readiness, sleep & activity' : 'Tap to connect'}
+                    </div>
+                  </div>
+                  {ouraConnecting ? (
+                    <RefreshCw className="w-5 h-5 text-[#00ff00] animate-spin" />
+                  ) : ouraConnected ? (
+                    <span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">AUTO</span>
+                  ) : null}
+                </button>
+
                 {/* Other wearables — coming soon */}
-                {wearableOptions.filter(w => w.value !== 'whoop').map((wearable) => (
+                {wearableOptions.filter(w => w.value !== 'whoop' && w.value !== 'oura').map((wearable) => (
                   <button
                     key={wearable.value}
                     onClick={() => toggleWearable(wearable.value)}
@@ -1045,14 +1101,15 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     Edit
                   </button>
                 </div>
-                {(whoopConnected || data.wearables.length > 0) && (
+                {(whoopConnected || ouraConnected || data.wearables.length > 0) && (
                   <>
                     <div className="h-px bg-gray-800" />
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-gray-500">Wearables</p>
                         <p className="font-medium">
-                          {whoopConnected ? 'WHOOP — AUTO' : `${data.wearables.length} device${data.wearables.length > 1 ? 's' : ''}`}
+                          {[whoopConnected && 'WHOOP', ouraConnected && 'Oura'].filter(Boolean).join(' + ') || `${data.wearables.length} device${data.wearables.length > 1 ? 's' : ''}`}
+                          {(whoopConnected || ouraConnected) && ' — AUTO'}
                         </p>
                       </div>
                       <button onClick={() => { setEditingFromReview(true); setStep(5); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
