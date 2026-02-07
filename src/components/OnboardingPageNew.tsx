@@ -84,38 +84,48 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const { results: gymResults, loading: gymSearchLoading } = useGymSearch(gymSearchQuery);
   const savingRef = useRef(false);
 
-  // Check WHOOP/Oura status on return from OAuth
+  // Restore onboarding data and step on return from OAuth
   useEffect(() => {
     const search = window.location.search;
-    if (search.includes('whoop=connected')) {
-      refetchWhoop();
-      window.history.replaceState({}, '', window.location.pathname);
+    const isOAuthReturn = search.includes('whoop=connected') || search.includes('oura=connected');
+
+    if (isOAuthReturn) {
+      // Restore saved onboarding data
+      const savedData = localStorage.getItem('maxed_onboarding_data');
+      if (savedData) {
+        try {
+          setData(JSON.parse(savedData));
+        } catch {}
+        localStorage.removeItem('maxed_onboarding_data');
+      }
+
       const savedStep = localStorage.getItem('maxed_onboarding_step');
       if (savedStep) {
-        setStep(parseInt(savedStep) + 1);
+        setStep(parseInt(savedStep));
         localStorage.removeItem('maxed_onboarding_step');
       }
-    }
-    if (search.includes('oura=connected')) {
-      refetchOura();
+
+      if (search.includes('whoop=connected')) refetchWhoop();
+      if (search.includes('oura=connected')) refetchOura();
+
       window.history.replaceState({}, '', window.location.pathname);
-      const savedStep = localStorage.getItem('maxed_onboarding_step');
-      if (savedStep) {
-        setStep(parseInt(savedStep) + 1);
-        localStorage.removeItem('maxed_onboarding_step');
-      }
     }
   }, []);
+
+  const saveOnboardingData = () => {
+    localStorage.setItem('maxed_onboarding_step', String(step));
+    localStorage.setItem('maxed_onboarding_data', JSON.stringify(data));
+  };
 
   const handleWhoopConnect = async () => {
     if (!user) return;
     setWhoopConnecting(true);
-    localStorage.setItem('maxed_onboarding_step', String(step));
+    saveOnboardingData();
     try {
       const res = await fetch(`/api/whoop-auth?userId=${user.id}`);
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
+      const d = await res.json();
+      if (d.url) {
+        window.location.href = d.url;
         return;
       }
     } catch (err) {
@@ -127,12 +137,12 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const handleOuraConnect = async () => {
     if (!user) return;
     setOuraConnecting(true);
-    localStorage.setItem('maxed_onboarding_step', String(step));
+    saveOnboardingData();
     try {
       const res = await fetch(`/api/oura-auth?userId=${user.id}`);
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
+      const d = await res.json();
+      if (d.url) {
+        window.location.href = d.url;
         return;
       }
     } catch (err) {
