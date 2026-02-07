@@ -163,16 +163,17 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pb-24">
+    <div className="min-h-screen bg-black text-white pb-24 md:bg-[#080808]">
+      <div className="md:max-w-2xl lg:max-w-3xl md:mx-auto md:bg-black md:min-h-screen md:border-x md:border-gray-900/50">
       {/* Render current page */}
       {currentPage === 'today' && (
         <>
           {/* Header */}
-          <header className="px-4 pt-safe pt-8 pb-3">
+          <header className="px-4 md:px-8 pt-safe pt-8 md:pt-10 pb-3">
             <div className="flex justify-between items-start mb-1">
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">{dateStr}</p>
-                <h1 className="text-xl font-bold">Hey, {profile?.name?.split(' ')[0] || 'there'}</h1>
+                <h1 className="text-xl md:text-2xl font-bold">Hey, {profile?.name?.split(' ')[0] || 'there'}</h1>
               </div>
               <button className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors">
                 <Settings className="w-5 h-5 text-gray-400" />
@@ -181,7 +182,7 @@ export default function App() {
           </header>
 
           {/* Main Content */}
-          <main className="px-4 space-y-3 pb-8">
+          <main className="px-4 md:px-8 space-y-3 md:space-y-4 pb-8">
             {/* Today's Readiness Card */}
             <button
               onClick={() => setShowReadinessModal(true)}
@@ -199,7 +200,7 @@ export default function App() {
                   <Loader2 className="w-8 h-8 text-[#00ff00] animate-spin" />
                 ) : (
                   <>
-                    <span className="text-4xl font-bold">{readinessScore ?? '—'}</span>
+                    <span className="text-4xl md:text-5xl font-bold">{readinessScore ?? '—'}</span>
                     {readinessScore != null && <span className="text-lg text-gray-500">/ 100</span>}
                   </>
                 )}
@@ -360,10 +361,11 @@ export default function App() {
       {currentPage === 'community' && <CommunityPage />}
 
       {currentPage === 'profile' && <ProfilePage userData={profile} onIntegrationsClick={() => setShowIntegrations(true)} />}
+      </div>
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 px-4 py-3 safe-area-inset-bottom">
-        <div className="flex justify-around items-center max-w-md mx-auto">
+        <div className="flex justify-around items-center max-w-md mx-auto md:max-w-2xl lg:max-w-3xl">
           <button 
             onClick={() => setCurrentPage('today')}
             className={`flex flex-col items-center gap-0.5 transition-colors ${

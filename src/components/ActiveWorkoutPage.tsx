@@ -435,6 +435,24 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
     setReps(parseInt(repRange[0]));
   };
 
+  const handleReduceSets = () => {
+    if (!currentExercise || currentExercise.sets <= 1) return;
+    const newSets = currentExercise.sets - 1;
+    setExercises(prev => prev.map((ex, idx) => idx === currentExerciseIndex ? { ...ex, sets: newSets } : ex));
+    if (logMode === 'bulk') setBulkSets(prev => prev.slice(0, newSets));
+    if (currentSet > newSets) setCurrentSet(newSets);
+    setCompletedSets(prev => prev.filter(s => s <= newSets));
+  };
+
+  const handleAddSet = () => {
+    if (!currentExercise) return;
+    const newSets = currentExercise.sets + 1;
+    setExercises(prev => prev.map((ex, idx) => idx === currentExerciseIndex ? { ...ex, sets: newSets } : ex));
+    if (logMode === 'bulk') {
+      setBulkSets(prev => [...prev, { weight: currentExercise.aiSuggestion.weight, reps: parseInt(currentExercise.aiSuggestion.reps.split('-')[0]) || 8 }]);
+    }
+  };
+
   const handlePreviousExercise = () => {
     if (currentExerciseIndex > 0) {
       const newIdx = currentExerciseIndex - 1;
@@ -590,6 +608,27 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                     {logMode === 'set' ? 'Set by Set' : 'Bulk'}
                   </span>
                 </button>
+                <div className="h-px bg-gray-800 mx-4" />
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <Dumbbell className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium flex-1 text-left">Sets</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleReduceSets}
+                      disabled={!currentExercise || currentExercise.sets <= 1}
+                      className="w-7 h-7 bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 rounded-lg flex items-center justify-center transition-colors"
+                    >
+                      <span className="text-sm font-bold text-gray-300">&minus;</span>
+                    </button>
+                    <span className="text-sm font-bold text-white w-6 text-center">{currentExercise?.sets || 0}</span>
+                    <button
+                      onClick={handleAddSet}
+                      className="w-7 h-7 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center transition-colors"
+                    >
+                      <span className="text-sm font-bold text-gray-300">+</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -645,16 +684,23 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                     const setNumber = index + 1;
                     const isCompleted = completedSets.includes(setNumber);
                     const isCurrent = setNumber === currentSet;
+                    const nextSetNumber = completedSets.length + 1;
+                    const isLocked = !isCompleted && setNumber > nextSetNumber;
 
                     return (
                       <button
                         key={setNumber}
-                        onClick={() => !isCompleted && setCurrentSet(setNumber)}
+                        onClick={() => {
+                          if (!isCompleted && !isLocked) setCurrentSet(setNumber);
+                        }}
+                        disabled={isLocked}
                         className={`relative w-11 h-11 rounded-full font-semibold text-sm transition-all ${
                           isCompleted
                             ? 'bg-[#00ff00] text-black scale-105'
                             : isCurrent
                             ? 'bg-white text-black scale-110 ring-2 ring-white/20 ring-offset-2 ring-offset-black'
+                            : isLocked
+                            ? 'bg-[#1a1a1a] text-gray-700 opacity-40 cursor-not-allowed'
                             : 'bg-[#1a1a1a] text-gray-500 hover:bg-[#252525] hover:text-gray-300'
                         }`}
                       >
