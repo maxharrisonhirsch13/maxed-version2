@@ -42,6 +42,7 @@ export function useAICoach() {
       experience: string | null
       goal: string | null
       weightLbs: number | null
+      homeEquipment?: any
     }
     recovery: {
       score: number | null

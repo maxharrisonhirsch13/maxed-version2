@@ -15,6 +15,11 @@ Rules:
   - If recovery is below 50, reduce weight by ~5-10%. If above 80, allow more aggressive progression
 - For bodyweight exercises (defaultSuggestion weight = 0), suggest reps only and keep weight at 0
 - Consider user experience level: beginners progress faster, advanced lifters progress in smaller increments
+- If homeEquipment is provided, the user is training at home. CRITICAL: Never suggest weights exceeding their available equipment:
+  - Cap dumbbell exercise weights at homeEquipment.dumbbells.maxWeight (this is per dumbbell)
+  - Cap barbell exercise weights at homeEquipment.barbell.maxWeight
+  - Cap kettlebell exercise weights at homeEquipment.kettlebell.maxWeight
+  - If an exercise would normally use heavier weight, suggest higher reps at the capped weight instead
 - Keep notes under 15 words each, encouraging and motivating
 
 You must respond with valid JSON matching this schema:

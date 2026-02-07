@@ -241,21 +241,30 @@ const allExercises: Exercise[] = Object.values(exerciseLibrary).flat().filter(
 
 // Filter exercises based on home gym equipment availability
 function filterForHomeGym(exercises: Exercise[], equipment: HomeEquipment): Exercise[] {
-  return exercises.filter(ex => {
+  const filtered = exercises.filter(ex => {
     const mg = ex.muscleGroups.toLowerCase();
     // Always filter out machine exercises for home gym
     if (mg.includes('machine')) return false;
-    // Check barbell / EZ bar
-    if ((mg.includes('barbell') || mg.includes('ez bar')) && !equipment.barbell.has) return false;
+    // Check barbell / EZ bar (defensive — equipment fields may be missing)
+    if ((mg.includes('barbell') || mg.includes('ez bar')) && !equipment.barbell?.has) return false;
     // Check dumbbells
-    if (mg.includes('dumbbell') && !equipment.dumbbells.has) return false;
+    if (mg.includes('dumbbell') && !equipment.dumbbells?.has) return false;
     // Check cable
     if (mg.includes('cable') && !equipment.cables) return false;
     // Check kettlebell
-    if (mg.includes('kettlebell') && !equipment.kettlebell.has) return false;
+    if (mg.includes('kettlebell') && !equipment.kettlebell?.has) return false;
     // Bodyweight, custom, and equipment-less exercises always pass
     return true;
   });
+
+  // If filtering removed ALL exercises, fall back to bodyweight alternatives
+  if (filtered.length === 0) {
+    // Grab bodyweight exercises from Calisthenics library as fallback
+    const bodyweightFallback = (exerciseLibrary['Calisthenics'] || []).slice(0, 4);
+    if (bodyweightFallback.length > 0) return bodyweightFallback;
+  }
+
+  return filtered;
 }
 
 export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild, trainingAtHome }: ActiveWorkoutPageProps) {
@@ -269,6 +278,25 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const aiFetched = useRef(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
 
+  // Cap exercise weight suggestions to available equipment
+  const capWeightsForEquipment = (exs: Exercise[], equipment: HomeEquipment): Exercise[] => {
+    return exs.map(ex => {
+      const mg = ex.muscleGroups.toLowerCase();
+      let maxWeight = ex.aiSuggestion.weight;
+      if (mg.includes('dumbbell') && equipment.dumbbells?.has) {
+        maxWeight = Math.min(maxWeight, equipment.dumbbells.maxWeight);
+      } else if ((mg.includes('barbell') || mg.includes('ez bar')) && equipment.barbell?.has) {
+        maxWeight = Math.min(maxWeight, equipment.barbell.maxWeight);
+      } else if (mg.includes('kettlebell') && equipment.kettlebell?.has) {
+        maxWeight = Math.min(maxWeight, equipment.kettlebell.maxWeight);
+      }
+      if (maxWeight !== ex.aiSuggestion.weight) {
+        return { ...ex, aiSuggestion: { ...ex.aiSuggestion, weight: maxWeight } };
+      }
+      return ex;
+    });
+  };
+
   // Compute initial exercises with modifiers applied
   const computeInitialExercises = (): Exercise[] => {
     if (customBuild) return [];
@@ -276,6 +304,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
     // Filter for home gym equipment only when actually training at home
     if (trainingAtHome && profile?.homeEquipment) {
       exs = filterForHomeGym(exs, profile.homeEquipment);
+      exs = capWeightsForEquipment(exs, profile.homeEquipment);
     }
     if (quickVersion) {
       exs = exs.slice(0, 4).map(e => ({ ...e, sets: Math.min(e.sets, 3) }));
@@ -362,6 +391,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
         experience: profile?.experience || null,
         goal: profile?.goal || null,
         weightLbs: profile?.weight || null,
+        homeEquipment: trainingAtHome ? (profile?.homeEquipment || null) : null,
       },
       recovery: whoopData?.recovery ? {
         score: whoopData.recovery.score,

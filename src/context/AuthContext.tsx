@@ -87,7 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       customGoal: data.custom_goal,
       split: data.split,
       customSplit: (data.custom_split as UserProfile['customSplit']) ?? [],
-      homeEquipment: (data.home_equipment as UserProfile['homeEquipment']) ?? null,
+      homeEquipment: (data.home_equipment && typeof data.home_equipment === 'object' && 'dumbbells' in (data.home_equipment as Record<string, unknown>))
+        ? (data.home_equipment as UserProfile['homeEquipment'])
+        : null,
       onboardingCompleted: data.onboarding_completed,
       avatarUrl: data.avatar_url,
       createdAt: data.created_at,
