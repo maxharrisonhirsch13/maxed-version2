@@ -301,10 +301,15 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const computeInitialExercises = (): Exercise[] => {
     if (customBuild) return [];
     let exs = muscleGroup ? getExercisesForWorkout(muscleGroup) : getExercisesForWorkout('Full Body');
-    // Filter for home gym equipment only when actually training at home
-    if (trainingAtHome && profile?.homeEquipment) {
-      exs = filterForHomeGym(exs, profile.homeEquipment);
-      exs = capWeightsForEquipment(exs, profile.homeEquipment);
+    // Filter for home gym — always remove machines when at home, and filter by equipment if configured
+    if (trainingAtHome) {
+      if (profile?.homeEquipment) {
+        exs = filterForHomeGym(exs, profile.homeEquipment);
+        exs = capWeightsForEquipment(exs, profile.homeEquipment);
+      } else {
+        // No equipment configured — at minimum filter out machine exercises
+        exs = exs.filter(ex => !ex.muscleGroups.toLowerCase().includes('machine'));
+      }
     }
     if (quickVersion) {
       exs = exs.slice(0, 4).map(e => ({ ...e, sets: Math.min(e.sets, 3) }));
@@ -615,16 +620,24 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const getSwapAlternatives = () => {
     const currentNames = exercises.map(e => e.name);
     let related = getRelatedExercises(muscleGroup || 'Shoulders/Arms');
-    if (trainingAtHome && profile?.homeEquipment) {
-      related = filterForHomeGym(related, profile.homeEquipment);
+    if (trainingAtHome) {
+      if (profile?.homeEquipment) {
+        related = filterForHomeGym(related, profile.homeEquipment);
+      } else {
+        related = related.filter(e => !e.muscleGroups.toLowerCase().includes('machine'));
+      }
     }
     return related.filter(e => !currentNames.includes(e.name));
   };
 
   const filteredLibraryExercises = (() => {
     let pool = allExercises;
-    if (trainingAtHome && profile?.homeEquipment) {
-      pool = filterForHomeGym(pool, profile.homeEquipment);
+    if (trainingAtHome) {
+      if (profile?.homeEquipment) {
+        pool = filterForHomeGym(pool, profile.homeEquipment);
+      } else {
+        pool = pool.filter(e => !e.muscleGroups.toLowerCase().includes('machine'));
+      }
     }
     return pool.filter(e =>
       !exercises.find(ex => ex.name === e.name) &&

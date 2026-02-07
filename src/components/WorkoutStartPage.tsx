@@ -239,15 +239,17 @@ export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: Wor
   const { profile } = useAuth();
   // Only show home gym mode if actually training at home (not when at a different gym)
   const isTrainingAtHome = trainingLocation === 'Home Gym' || (trainingLocation === profile?.gym && profile?.isHomeGym);
-  const isHomeGym = isTrainingAtHome && profile?.homeEquipment;
+  const hasHomeEquipment = isTrainingAtHome && !!profile?.homeEquipment;
+  const isHomeGym = isTrainingAtHome; // always treat as home gym when location is home
 
   // Filter celebrity workouts based on available equipment
   const rawCelebrityWorkouts = getCelebrityWorkouts(muscleGroup);
   const allCelebrityWorkouts = isHomeGym
     ? rawCelebrityWorkouts.filter(w => {
-        const eq = profile!.homeEquipment!;
+        const eq = profile?.homeEquipment;
         return w.equipment.every(tag => {
           if (tag === 'machine') return false; // machines never available at home
+          if (!eq) return true; // no equipment configured — only filter machines
           if (tag === 'barbell') return eq.barbell.has;
           if (tag === 'dumbbells') return eq.dumbbells.has;
           if (tag === 'cable') return eq.cables;
