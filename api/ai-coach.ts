@@ -39,6 +39,23 @@ Rules:
 You must respond with valid JSON matching this schema:
 { "name": string, "description": string }`
 
+const SET_UPDATE_SYSTEM_PROMPT = `You are a real-time lifting coach giving guidance between sets. The user just finished a set and you must tell them exactly what to do next.
+
+Rules:
+- You are given: the exercise, all sets completed so far this session, how many sets remain, and the user's fitness goal.
+- Goal-based coaching:
+  - "gain strength" / "build muscle" / "hypertrophy": if they hit all target reps comfortably, increase weight 5-10 lbs next set. If they failed reps or form broke down, keep same weight or drop 5 lbs.
+  - "get lean" / "lose weight" / "tone": keep weight moderate, push for higher reps (12-15+). If they completed 15+ easily, bump weight slightly rather than going above 20 reps.
+  - "general health" / "maintain" / null: balanced approach, moderate progressive overload, sustainable effort.
+  - "athletic performance" / "sport": explosive intent, moderate reps (6-8), focus on quality.
+- If this is their LAST set, push them — motivating finish cue.
+- If reps dropped significantly from earlier sets, suggest reducing weight to maintain rep quality.
+- For bodyweight exercises (weight = 0), only suggest reps, keep weight at 0.
+- Note must be under 12 words, direct and motivating. Talk TO the lifter like a coach.
+- "reps" should be a specific target number as a string (e.g. "10"), not a range.
+
+Respond with valid JSON: { "weight": number, "reps": string, "note": string }`
+
 const READINESS_SYSTEM_PROMPT = `You are a concise, motivating fitness readiness coach AI. Analyze biometric data from any wearable platform (WHOOP, Garmin, Apple Health, Oura, etc.) and training history to produce a readiness assessment.
 
 Data normalization across platforms:
@@ -118,6 +135,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         scheduledWorkout: body.scheduledWorkout || null,
         userSplit: body.userSplit || null,
       })
+    } else if (body.type === 'set-update') {
+      systemPrompt = SET_UPDATE_SYSTEM_PROMPT
+      userPrompt = JSON.stringify({
+        exercise: body.exercise,
+        completedSets: body.completedSets,
+        setsRemaining: body.setsRemaining,
+        goal: body.goal,
+      })
     } else if (body.type === 'readiness') {
       systemPrompt = READINESS_SYSTEM_PROMPT
       userPrompt = JSON.stringify({
@@ -129,6 +154,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid request type' })
     }
 
+    const maxTokens = body.type === 'set-update' ? 150 : 800
+
     const openaiRes = await fetch(OPENAI_URL, {
       method: 'POST',
       headers: {
@@ -139,7 +166,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         model: 'gpt-4o-mini',
         response_format: { type: 'json_object' },
         temperature: 0.3,
-        max_tokens: 800,
+        max_tokens: maxTokens,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

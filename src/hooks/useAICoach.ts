@@ -9,6 +9,12 @@ export interface AIWorkoutSuggestion {
   note: string
 }
 
+export interface AISetUpdate {
+  weight: number
+  reps: string
+  note: string
+}
+
 export interface AIReadinessResult {
   readinessScore: number
   coachingText: string
@@ -22,6 +28,10 @@ export function useAICoach() {
   // Workout suggestions state
   const [workoutSuggestions, setWorkoutSuggestions] = useState<AIWorkoutSuggestion[] | null>(null)
   const [workoutLoading, setWorkoutLoading] = useState(false)
+
+  // Live set update state
+  const [setUpdateLoading, setSetUpdateLoading] = useState(false)
+  const setUpdateAbortRef = useRef<AbortController | null>(null)
 
   // Readiness state
   const [readiness, setReadiness] = useState<AIReadinessResult | null>(null)
@@ -109,8 +119,49 @@ export function useAICoach() {
     setReadinessLoading(false)
   }, [session?.access_token])
 
+  const fetchSetUpdate = useCallback(async (payload: {
+    exercise: string
+    completedSets: { weight: number; reps: number }[]
+    setsRemaining: number
+    goal: string | null
+  }): Promise<AISetUpdate | null> => {
+    if (!session?.access_token) return null
+
+    // Abort any in-flight set update request
+    if (setUpdateAbortRef.current) {
+      setUpdateAbortRef.current.abort()
+    }
+    const controller = new AbortController()
+    setUpdateAbortRef.current = controller
+
+    setSetUpdateLoading(true)
+    try {
+      const res = await fetch('/api/ai-coach', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ type: 'set-update', ...payload }),
+        signal: controller.signal,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.weight != null) {
+          setSetUpdateLoading(false)
+          return data as AISetUpdate
+        }
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return null
+    }
+    setSetUpdateLoading(false)
+    return null
+  }, [session?.access_token])
+
   return {
     workoutSuggestions, workoutLoading, fetchWorkoutSuggestions,
+    setUpdateLoading, fetchSetUpdate,
     readiness, readinessLoading, fetchReadiness,
   }
 }

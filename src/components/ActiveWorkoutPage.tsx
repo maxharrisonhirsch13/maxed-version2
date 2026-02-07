@@ -274,11 +274,12 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const { profile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 20 });
   const { data: whoopData } = useWhoopData();
-  const { workoutSuggestions, workoutLoading, fetchWorkoutSuggestions } = useAICoach();
+  const { workoutSuggestions, workoutLoading, fetchWorkoutSuggestions, setUpdateLoading, fetchSetUpdate } = useAICoach();
   const startedAt = useRef(new Date().toISOString());
   const userModifiedWeight = useRef(false);
   const aiFetched = useRef(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
+  const [liveAiUpdating, setLiveAiUpdating] = useState(false);
 
   // Cap exercise weight suggestions to available equipment
   const capWeightsForEquipment = (exs: Exercise[], equipment: HomeEquipment): Exercise[] => {
@@ -469,10 +470,43 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
 
   const handleLogSet = () => {
     logSetData(currentExerciseIndex, currentSet, { weight, reps });
-    setCompletedSets([...completedSets, currentSet]);
+    const newCompleted = [...completedSets, currentSet];
+    setCompletedSets(newCompleted);
 
     if (currentSet < currentExercise.sets) {
       setCurrentSet(currentSet + 1);
+
+      // Trigger live AI update for the next set
+      const setsRemaining = currentExercise.sets - newCompleted.length;
+      const allLoggedSets: { weight: number; reps: number }[] = [];
+      const existingData = loggedData[currentExerciseIndex] || {};
+      for (let s = 1; s <= currentSet; s++) {
+        if (existingData[s]) {
+          allLoggedSets.push({ weight: existingData[s].weight, reps: existingData[s].reps });
+        }
+      }
+      // Add the set we just logged
+      allLoggedSets.push({ weight, reps });
+
+      setLiveAiUpdating(true);
+      fetchSetUpdate({
+        exercise: currentExercise.name,
+        completedSets: allLoggedSets,
+        setsRemaining,
+        goal: profile?.goal || null,
+      }).then(update => {
+        if (update) {
+          // Update the AI suggestion for this exercise
+          setExercises(prev => prev.map((ex, idx) =>
+            idx === currentExerciseIndex
+              ? { ...ex, aiSuggestion: { weight: update.weight, reps: update.reps } }
+              : ex
+          ));
+          setAiNote(update.note);
+          userModifiedWeight.current = false;
+        }
+        setLiveAiUpdating(false);
+      });
     } else {
       advanceToNextExercise();
     }
@@ -849,17 +883,17 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
                 </div>
 
                 {/* AI Recommendation */}
-                <div className="bg-[#00ff00]/5 rounded-2xl p-3.5 border border-[#00ff00]/10">
+                <div className={`bg-[#00ff00]/5 rounded-2xl p-3.5 border transition-all ${liveAiUpdating ? 'border-[#00ff00]/30 animate-pulse' : 'border-[#00ff00]/10'}`}>
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        {workoutLoading ? (
+                        {(workoutLoading || liveAiUpdating) ? (
                           <Loader2 className="w-3.5 h-3.5 text-[#00ff00] animate-spin" />
                         ) : (
                           <Sparkles className="w-3.5 h-3.5 text-[#00ff00]" />
                         )}
                         <span className="text-[11px] text-[#00ff00] font-semibold tracking-wide">
-                          {workoutLoading ? 'AI ANALYZING...' : workoutSuggestions ? 'AI PERSONALIZED' : 'AI RECOMMENDS'}
+                          {workoutLoading ? 'AI ANALYZING...' : liveAiUpdating ? 'AI UPDATING...' : completedSets.length > 0 ? 'AI COACH' : workoutSuggestions ? 'AI PERSONALIZED' : 'AI RECOMMENDS'}
                         </span>
                       </div>
                       <p className="text-xl font-bold">
