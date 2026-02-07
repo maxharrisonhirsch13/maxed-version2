@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Users, MapPin, Dumbbell, Flame, Trophy, Star, Loader2, UserPlus, Clock, MessageSquare } from 'lucide-react';
+import { Users, MapPin, Dumbbell, Flame, Trophy, Star, Loader2, UserPlus, Clock, MessageSquare, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNearbyGyms } from '../hooks/useNearbyGyms';
 import { useFriendships } from '../hooks/useFriendships';
 import { useWorkoutPosts } from '../hooks/useWorkoutPosts';
 import { useFriendLeaderboard } from '../hooks/useFriendLeaderboard';
+import { useNotifications } from '../hooks/useNotifications';
 import { UserSearchModal } from './UserSearchModal';
 import { WorkoutDetailModal } from './WorkoutDetailModal';
 import { FriendProfileModal } from './FriendProfileModal';
+import { renderCaption } from '../utils/renderCaption';
 import type { FeedItem } from '../types';
 
 type Tab = 'feed' | 'friends' | 'leaderboard' | 'nearby';
@@ -45,6 +47,8 @@ export function CommunityPage() {
   const { friends, incomingRequests, loading: friendsLoading } = useFriendships();
   const { feed, feedLoading, fetchFeed } = useWorkoutPosts();
   const { leaderboard, loading: leaderboardLoading } = useFriendLeaderboard();
+  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Fetch feed on mount
   useEffect(() => {
@@ -76,9 +80,50 @@ export function CommunityPage() {
         />
       )}
 
-      <header className="px-4 pt-safe pt-8 pb-3">
+      <header className="px-4 pt-safe pt-8 pb-3 flex items-center justify-between">
         <h1 className="text-xl font-bold">Community</h1>
+        <button
+          onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markAllRead(); }}
+          className="relative p-2 hover:bg-white/5 rounded-xl transition-colors"
+        >
+          <Bell className="w-5 h-5 text-gray-400" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 w-4 h-4 bg-[#00ff00] text-black text-[9px] font-bold rounded-full flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
       </header>
+
+      {/* Notification dropdown */}
+      {showNotifications && (
+        <div className="mx-4 mb-3 bg-[#111] border border-gray-800 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Notifications</h3>
+            <button onClick={() => setShowNotifications(false)} className="text-xs text-gray-500">Close</button>
+          </div>
+          {notifications.length === 0 ? (
+            <div className="px-4 py-6 text-center">
+              <Bell className="w-6 h-6 text-gray-700 mx-auto mb-1" />
+              <p className="text-xs text-gray-500">No notifications yet</p>
+            </div>
+          ) : (
+            <div className="max-h-60 overflow-y-auto divide-y divide-gray-800/50">
+              {notifications.slice(0, 20).map(n => (
+                <div key={n.id} className={`px-4 py-3 ${!n.read ? 'bg-[#00ff00]/5' : ''}`}>
+                  <p className="text-xs">
+                    <span className="font-semibold">{n.actorName}</span>
+                    {n.type === 'tag' && <span className="text-gray-400"> tagged you in a workout</span>}
+                    {n.type === 'mention' && <span className="text-gray-400"> mentioned you in a post</span>}
+                    {n.type === 'friend_request' && <span className="text-gray-400"> sent you a friend request</span>}
+                  </p>
+                  <p className="text-[10px] text-gray-600 mt-0.5">{timeAgo(n.createdAt)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="px-4 mb-4">
         <div className="flex gap-2">
@@ -196,7 +241,7 @@ export function CommunityPage() {
                       {item.post.caption && (
                         <div className="flex items-start gap-2 mt-2">
                           <MessageSquare className="w-3.5 h-3.5 text-gray-600 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-gray-300 leading-relaxed line-clamp-2">{item.post.caption}</p>
+                          <p className="text-sm text-gray-300 leading-relaxed line-clamp-2">{renderCaption(item.post.caption)}</p>
                         </div>
                       )}
                     </button>

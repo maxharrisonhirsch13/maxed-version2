@@ -163,14 +163,55 @@ export function useWorkoutPosts() {
   async function shareWorkout(workoutId: string, caption?: string, taggedUserIds?: string[]) {
     if (!user) throw new Error('Not authenticated')
 
-    const { error } = await supabase.from('workout_posts').insert({
-      user_id: user.id,
-      workout_id: workoutId,
-      caption: caption?.slice(0, 500) ?? null,
-      tagged_user_ids: taggedUserIds && taggedUserIds.length > 0 ? taggedUserIds : null,
-    })
+    const trimmedCaption = caption?.slice(0, 500) ?? null
+
+    // Insert the post and get its ID back
+    const { data: postData, error } = await supabase
+      .from('workout_posts')
+      .insert({
+        user_id: user.id,
+        workout_id: workoutId,
+        caption: trimmedCaption,
+        tagged_user_ids: taggedUserIds && taggedUserIds.length > 0 ? taggedUserIds : null,
+      })
+      .select('id')
+      .single()
 
     if (error) throw error
+
+    const postId = postData?.id
+    if (!postId) return
+
+    // Resolve @mentions from caption to user IDs
+    const mentionedUsernames = trimmedCaption?.match(/@(\w+)/g)?.map(m => m.slice(1)) ?? []
+    let mentionedUserIds: string[] = []
+
+    if (mentionedUsernames.length > 0) {
+      const { data: mentionedProfiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .in('username', mentionedUsernames)
+
+      mentionedUserIds = (mentionedProfiles ?? []).map(p => p.id)
+    }
+
+    // Combine tagged + mentioned user IDs, exclude self
+    const allNotifyIds = new Set<string>([
+      ...(taggedUserIds ?? []),
+      ...mentionedUserIds,
+    ])
+    allNotifyIds.delete(user.id)
+
+    if (allNotifyIds.size > 0) {
+      const notifications = [...allNotifyIds].map(uid => ({
+        user_id: uid,
+        type: (taggedUserIds ?? []).includes(uid) ? 'tag' : 'mention',
+        actor_id: user.id,
+        post_id: postId,
+      }))
+
+      await supabase.from('notifications').insert(notifications)
+    }
   }
 
   async function deletePost(postId: string) {

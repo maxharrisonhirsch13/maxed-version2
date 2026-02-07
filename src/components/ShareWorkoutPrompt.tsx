@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Share, Loader2, Dumbbell, Clock, Trophy, UserPlus, X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Share, Loader2, Dumbbell, Clock, Trophy, Users, X } from 'lucide-react';
 import { useWorkoutPosts } from '../hooks/useWorkoutPosts';
 import { useFriendships } from '../hooks/useFriendships';
 
@@ -19,8 +19,10 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
   const [caption, setCaption] = useState('');
   const [taggedIds, setTaggedIds] = useState<string[]>([]);
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleShare = async () => {
     setError(null);
@@ -43,6 +45,50 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
   const removeTag = (userId: string) => {
     setTaggedIds(prev => prev.filter(id => id !== userId));
   };
+
+  // @mention autocomplete logic
+  const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value.slice(0, 500);
+    setCaption(value);
+
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/@(\w*)$/);
+    if (match) {
+      setMentionQuery(match[1].toLowerCase());
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const insertMention = (username: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = caption.slice(0, cursorPos);
+    const textAfterCursor = caption.slice(cursorPos);
+    const match = textBeforeCursor.match(/@(\w*)$/);
+    if (match) {
+      const newBefore = textBeforeCursor.slice(0, match.index) + `@${username} `;
+      const newCaption = (newBefore + textAfterCursor).slice(0, 500);
+      setCaption(newCaption);
+      setMentionQuery(null);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = newBefore.length;
+        textarea.focus();
+      }, 0);
+    }
+  };
+
+  const mentionSuggestions = mentionQuery !== null
+    ? friends.filter(f => {
+        const q = mentionQuery.toLowerCase();
+        if (!q) return true; // show all when just "@"
+        return (f.username && f.username.toLowerCase().startsWith(q)) ||
+               f.name.toLowerCase().startsWith(q);
+      }).slice(0, 5)
+    : [];
 
   const taggedFriends = friends.filter(f => taggedIds.includes(f.userId));
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -103,10 +149,9 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
             </div>
           </div>
 
-          {/* Tag Friends */}
+          {/* "Lifted with" tag friends */}
           {friends.length > 0 && (
             <div className="mb-4">
-              {/* Tagged friends chips */}
               {taggedFriends.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {taggedFriends.map(f => (
@@ -126,11 +171,10 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
                 onClick={() => setShowTagPicker(!showTagPicker)}
                 className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                {taggedIds.length > 0 ? 'Tag more friends' : 'Tag friends'}
+                <Users className="w-3.5 h-3.5" />
+                {taggedIds.length > 0 ? 'Edit workout partners' : 'Lifted with...'}
               </button>
 
-              {/* Friend picker dropdown */}
               {showTagPicker && (
                 <div className="mt-2 bg-[#111] border border-gray-800 rounded-xl max-h-36 overflow-y-auto">
                   {friends.map(friend => {
@@ -165,28 +209,54 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
             </div>
           )}
 
-          {/* Caption Input */}
+          {/* Caption Input with @mention autocomplete */}
           <div className="mb-5">
             <div className="relative">
               <textarea
+                ref={textareaRef}
                 value={caption}
-                onChange={(e) => setCaption(e.target.value.slice(0, 500))}
-                placeholder="Add a caption (optional)..."
+                onChange={handleCaptionChange}
+                placeholder="Add a caption... type @ to mention friends"
                 rows={3}
                 className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-[#00ff00] transition-colors"
               />
               <span className="absolute bottom-2 right-3 text-[10px] text-gray-600">
                 {caption.length}/500
               </span>
+
+              {/* @mention suggestions dropdown */}
+              {mentionQuery !== null && mentionSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 bottom-full mb-1 bg-[#111] border border-gray-800 rounded-xl overflow-hidden shadow-xl z-10">
+                  {mentionSuggestions.map(friend => (
+                    <button
+                      key={friend.userId}
+                      onClick={() => insertMention(friend.username || friend.name.split(' ')[0].toLowerCase())}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-[#1a1a1a] transition-colors"
+                    >
+                      {friend.avatarUrl ? (
+                        <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
+                          <img src={friend.avatarUrl} alt={friend.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${getGradient(friend.name)} flex items-center justify-center font-bold text-[8px] flex-shrink-0`}>
+                          {getInitials(friend.name)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{friend.name}</p>
+                      </div>
+                      <span className="text-[10px] text-[#00ff00]">@{friend.username || friend.name.split(' ')[0].toLowerCase()}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Error */}
           {error && (
             <p className="text-xs text-red-400 mb-4 text-center">{error}</p>
           )}
 
-          {/* Share Button */}
           <button
             onClick={handleShare}
             disabled={sharing}
@@ -205,7 +275,6 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
             )}
           </button>
 
-          {/* Skip Button */}
           <button
             onClick={onDone}
             disabled={sharing}

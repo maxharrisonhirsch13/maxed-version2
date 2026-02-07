@@ -1,5 +1,6 @@
 import { X, Dumbbell, Clock, Calendar, Activity, Trophy } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
+import { renderCaption } from '../utils/renderCaption';
 import type { FeedItem } from '../types';
 
 interface WorkoutDetailModalProps {
@@ -117,7 +118,7 @@ export function WorkoutDetailModal({ item, onClose }: WorkoutDetailModalProps) {
           {/* Caption */}
           {post.caption && (
             <div className="bg-[#0a0a0a] border-l-2 border-[#00ff00]/40 rounded-r-xl px-4 py-3 mb-5">
-              <p className="text-sm text-gray-300 italic leading-relaxed">{post.caption}</p>
+              <p className="text-sm text-gray-300 italic leading-relaxed">{renderCaption(post.caption)}</p>
             </div>
           )}
 
