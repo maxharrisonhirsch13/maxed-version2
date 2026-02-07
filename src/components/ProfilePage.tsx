@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon, Home as HomeIcon } from 'lucide-react';
 import { useState } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
@@ -312,6 +312,61 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Training Setup */}
+        <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
+          <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
+            {userData?.isHomeGym ? <HomeIcon className="w-4 h-4 text-[#00ff00]" /> : <MapPin className="w-4 h-4 text-[#00ff00]" />}
+            Training Setup
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <MapPin className="w-4 h-4 text-gray-500" />
+              <div className="flex-1">
+                <p className="text-xs text-gray-500">{userData?.isHomeGym ? 'Home Gym' : 'Default Gym'}</p>
+                <p className="text-sm font-medium">{userData?.gym || 'Not set'}</p>
+                {userData?.gymAddress && !userData?.isHomeGym && <p className="text-xs text-gray-500">{userData.gymAddress}</p>}
+              </div>
+            </div>
+            {userData?.isHomeGym && userData?.homeEquipment && (
+              <div className="flex items-center gap-3">
+                <Dumbbell className="w-4 h-4 text-gray-500" />
+                <div>
+                  <p className="text-xs text-gray-500">Equipment</p>
+                  <p className="text-sm font-medium">
+                    {[
+                      userData.homeEquipment.dumbbells.has && `Dumbbells (${userData.homeEquipment.dumbbells.maxWeight}lb)`,
+                      userData.homeEquipment.barbell.has && `Barbell (${userData.homeEquipment.barbell.maxWeight}lb)`,
+                      userData.homeEquipment.kettlebell?.has && `Kettlebell (${userData.homeEquipment.kettlebell.maxWeight}lb)`,
+                      userData.homeEquipment.cables && 'Cables/Bands',
+                      userData.homeEquipment.pullUpBar && 'Pull-up Bar',
+                    ].filter(Boolean).join(' · ') || 'Bodyweight only'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              const cs = userData?.customSplit || [];
+              setEditData({
+                name: userData?.name || '',
+                heightFeet: userData?.heightFeet || 5,
+                heightInches: userData?.heightInches || 10,
+                weight: userData?.weight || 175,
+                experience: userData?.experience || '',
+                gym: userData?.gym || '',
+                split: userData?.split || '',
+                customSplit: cs.length > 0 ? cs : Array.from({ length: 3 }, (_, i) => ({ day: i + 1, muscles: [] })),
+              });
+              setEditCustomDays(cs.length > 0 ? cs.length : 3);
+              setShowEditProfile(true);
+            }}
+            className="w-full mt-3 bg-[#1a1a1a] hover:bg-[#252525] text-white font-medium py-2.5 rounded-xl text-xs transition-colors"
+          >
+            Edit Training Setup
+          </button>
         </div>
 
         {/* Friends Section */}

@@ -9,6 +9,7 @@ import type { GymResult } from '../types';
 interface HomeEquipment {
   dumbbells: { has: boolean; maxWeight: number };
   barbell: { has: boolean; maxWeight: number };
+  kettlebell: { has: boolean; maxWeight: number };
   cables: boolean;
   pullUpBar: boolean;
 }
@@ -59,6 +60,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     homeEquipment: {
       dumbbells: { has: false, maxWeight: 50 },
       barbell: { has: false, maxWeight: 135 },
+      kettlebell: { has: false, maxWeight: 35 },
       cables: false,
       pullUpBar: false,
     },
@@ -680,6 +682,32 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       )}
                     </div>
 
+                    {/* Kettlebell */}
+                    <div className={`rounded-2xl border-2 transition-all overflow-hidden ${data.homeEquipment.kettlebell.has ? 'border-[#00ff00]/50 bg-[#00ff00]/5' : 'border-gray-800 bg-[#0a0a0a]'}`}>
+                      <button
+                        onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, kettlebell: { ...data.homeEquipment.kettlebell, has: !data.homeEquipment.kettlebell.has } } })}
+                        className="w-full p-4 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Dumbbell className="w-5 h-5 text-gray-400" />
+                          <span className="font-medium text-sm">Kettlebell</span>
+                        </div>
+                        <div className={`w-10 h-6 rounded-full transition-colors flex items-center ${data.homeEquipment.kettlebell.has ? 'bg-[#00ff00] justify-end' : 'bg-gray-700 justify-start'}`}>
+                          <div className="w-5 h-5 bg-white rounded-full mx-0.5 shadow" />
+                        </div>
+                      </button>
+                      {data.homeEquipment.kettlebell.has && (
+                        <div className="px-4 pb-4 flex items-center justify-between">
+                          <span className="text-xs text-gray-400">Heaviest kettlebell</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, kettlebell: { ...data.homeEquipment.kettlebell, maxWeight: Math.max(10, data.homeEquipment.kettlebell.maxWeight - 5) } } })} className="w-7 h-7 bg-gray-800 rounded-lg flex items-center justify-center text-gray-300 font-bold text-sm">&minus;</button>
+                            <span className="text-sm font-bold w-12 text-center">{data.homeEquipment.kettlebell.maxWeight} lb</span>
+                            <button onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, kettlebell: { ...data.homeEquipment.kettlebell, maxWeight: Math.min(106, data.homeEquipment.kettlebell.maxWeight + 5) } } })} className="w-7 h-7 bg-gray-800 rounded-lg flex items-center justify-center text-gray-300 font-bold text-sm">+</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Cables / Bands */}
                     <button
                       onClick={() => setData({ ...data, homeEquipment: { ...data.homeEquipment, cables: !data.homeEquipment.cables } })}
@@ -1006,6 +1034,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                         {[
                           data.homeEquipment.dumbbells.has && `Dumbbells (${data.homeEquipment.dumbbells.maxWeight}lb)`,
                           data.homeEquipment.barbell.has && `Barbell (${data.homeEquipment.barbell.maxWeight}lb)`,
+                          data.homeEquipment.kettlebell.has && `Kettlebell (${data.homeEquipment.kettlebell.maxWeight}lb)`,
                           data.homeEquipment.cables && 'Cables/Bands',
                           data.homeEquipment.pullUpBar && 'Pull-up Bar',
                         ].filter(Boolean).join(' · ') || 'Bodyweight only'}

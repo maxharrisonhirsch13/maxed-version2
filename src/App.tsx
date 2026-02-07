@@ -473,7 +473,7 @@ export default function App() {
       )}
 
       {/* Workout Start Page */}
-      {showWorkoutStart && <WorkoutStartPage onClose={() => { setShowWorkoutStart(false); setActiveMuscleGroup(''); setTrainingLocation(''); }} muscleGroup={currentMuscleGroup} />}
+      {showWorkoutStart && <WorkoutStartPage onClose={() => { setShowWorkoutStart(false); setActiveMuscleGroup(''); setTrainingLocation(''); }} muscleGroup={currentMuscleGroup} trainingLocation={trainingLocation} />}
 
       {/* Integrations Page */}
       {showIntegrations && (

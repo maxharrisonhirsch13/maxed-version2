@@ -9,6 +9,7 @@ export interface GymResult {
 export interface HomeEquipment {
   dumbbells: { has: boolean; maxWeight: number }
   barbell: { has: boolean; maxWeight: number }
+  kettlebell: { has: boolean; maxWeight: number }
   cables: boolean
   pullUpBar: boolean
 }

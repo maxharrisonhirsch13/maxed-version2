@@ -13,6 +13,7 @@ interface ActiveWorkoutPageProps {
   fewerSets?: boolean;     // Cap all exercises at 3 sets
   quickVersion?: boolean;  // Only 4 exercises, 3 sets each
   customBuild?: boolean;   // Start empty, user adds exercises
+  trainingAtHome?: boolean; // Whether user is training at home gym
 }
 
 interface LoggedSet {
@@ -106,6 +107,33 @@ const exerciseLibrary: Record<string, Exercise[]> = {
     { id: 704, name: 'Plank', muscleGroups: 'Core • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '45-60s' } },
     { id: 705, name: 'Russian Twists', muscleGroups: 'Obliques • Dumbbells', videoId: '', sets: 3, aiSuggestion: { weight: 25, reps: '20' } },
     { id: 706, name: 'Decline Sit-ups', muscleGroups: 'Abs • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '15-20' } },
+    { id: 707, name: 'Mountain Climbers', muscleGroups: 'Core • Cardio • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '30s' } },
+    { id: 708, name: 'Dead Bug', muscleGroups: 'Core • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '12-15' } },
+    { id: 709, name: 'Kettlebell Windmill', muscleGroups: 'Core • Obliques • Kettlebell', videoId: '', sets: 3, aiSuggestion: { weight: 25, reps: '8-10' } },
+  ],
+  'Kettlebell': [
+    { id: 901, name: 'Kettlebell Swings', muscleGroups: 'Glutes • Hamstrings • Core • Kettlebell', videoId: '', sets: 4, aiSuggestion: { weight: 35, reps: '15-20' } },
+    { id: 902, name: 'Goblet Squat', muscleGroups: 'Quads • Glutes • Kettlebell', videoId: '', sets: 4, aiSuggestion: { weight: 35, reps: '12-15' } },
+    { id: 903, name: 'Turkish Get-Up', muscleGroups: 'Full Body • Core • Kettlebell', videoId: '', sets: 3, aiSuggestion: { weight: 25, reps: '3-5' } },
+    { id: 904, name: 'Kettlebell Clean & Press', muscleGroups: 'Shoulders • Full Body • Kettlebell', videoId: '', sets: 4, aiSuggestion: { weight: 35, reps: '8-10' } },
+    { id: 905, name: 'Kettlebell Snatch', muscleGroups: 'Shoulders • Full Body • Kettlebell', videoId: '', sets: 3, aiSuggestion: { weight: 35, reps: '8-10' } },
+    { id: 906, name: 'Kettlebell Row', muscleGroups: 'Back • Biceps • Kettlebell', videoId: '', sets: 3, aiSuggestion: { weight: 35, reps: '10-12' } },
+    { id: 907, name: 'Kettlebell Halo', muscleGroups: 'Shoulders • Core • Kettlebell', videoId: '', sets: 3, aiSuggestion: { weight: 25, reps: '10-12' } },
+    { id: 908, name: 'Kettlebell Deadlift', muscleGroups: 'Hamstrings • Glutes • Kettlebell', videoId: '', sets: 4, aiSuggestion: { weight: 45, reps: '10-12' } },
+  ],
+  'Calisthenics': [
+    { id: 1001, name: 'Push-ups', muscleGroups: 'Chest • Triceps • Bodyweight', videoId: 'KEFQyLkDYtI', sets: 3, aiSuggestion: { weight: 0, reps: '15-25' } },
+    { id: 1002, name: 'Pull-ups', muscleGroups: 'Lats • Biceps • Bodyweight', videoId: '', sets: 4, aiSuggestion: { weight: 0, reps: '8-12' } },
+    { id: 1003, name: 'Dips', muscleGroups: 'Chest • Triceps • Bodyweight', videoId: 'FG1ENBFsdHU', sets: 3, aiSuggestion: { weight: 0, reps: '10-15' } },
+    { id: 1004, name: 'Pistol Squats', muscleGroups: 'Quads • Glutes • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '5-8' } },
+    { id: 1005, name: 'Burpees', muscleGroups: 'Full Body • Cardio • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '10-15' } },
+    { id: 1006, name: 'Pike Push-ups', muscleGroups: 'Shoulders • Triceps • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '10-12' } },
+    { id: 1007, name: 'Inverted Rows', muscleGroups: 'Back • Biceps • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '10-15' } },
+    { id: 1008, name: 'L-Sit Hold', muscleGroups: 'Core • Hip Flexors • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '15-30s' } },
+    { id: 1009, name: 'Muscle-ups', muscleGroups: 'Lats • Chest • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '3-5' } },
+    { id: 1010, name: 'Handstand Push-ups', muscleGroups: 'Shoulders • Triceps • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '5-8' } },
+    { id: 1011, name: 'Archer Push-ups', muscleGroups: 'Chest • Triceps • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '8-10' } },
+    { id: 1012, name: 'Dragon Flags', muscleGroups: 'Core • Bodyweight', videoId: '', sets: 3, aiSuggestion: { weight: 0, reps: '6-8' } },
   ],
 };
 
@@ -139,6 +167,10 @@ function getExercisesForWorkout(muscleGroup: string): Exercise[] {
     'lower': ['Legs'],
     'full': ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core'],
     'forearms': ['Biceps'],
+    'kettlebell': ['Kettlebell'],
+    'calisthenics': ['Calisthenics'],
+    'bodyweight': ['Calisthenics'],
+    'general health': ['Calisthenics', 'Kettlebell', 'Core'],
   };
 
   // Find all matching muscle groups from the workout name
@@ -179,6 +211,8 @@ function getRelatedExercises(muscleGroup: string): Exercise[] {
     'lower': ['Legs'],
     'full': ['Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Core'],
     'forearms': ['Biceps'],
+    'kettlebell': ['Kettlebell'], 'calisthenics': ['Calisthenics'],
+    'bodyweight': ['Calisthenics'], 'general health': ['Calisthenics', 'Kettlebell', 'Core'],
   };
 
   for (const key of Object.keys(exerciseLibrary)) {
@@ -217,12 +251,14 @@ function filterForHomeGym(exercises: Exercise[], equipment: HomeEquipment): Exer
     if (mg.includes('dumbbell') && !equipment.dumbbells.has) return false;
     // Check cable
     if (mg.includes('cable') && !equipment.cables) return false;
+    // Check kettlebell
+    if (mg.includes('kettlebell') && !equipment.kettlebell.has) return false;
     // Bodyweight, custom, and equipment-less exercises always pass
     return true;
   });
 }
 
-export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild }: ActiveWorkoutPageProps) {
+export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild, trainingAtHome }: ActiveWorkoutPageProps) {
   const { saveWorkout, saving } = useWorkouts();
   const { profile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 20 });
@@ -237,8 +273,8 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const computeInitialExercises = (): Exercise[] => {
     if (customBuild) return [];
     let exs = muscleGroup ? getExercisesForWorkout(muscleGroup) : getExercisesForWorkout('Full Body');
-    // Filter for home gym equipment
-    if (profile?.isHomeGym && profile.homeEquipment) {
+    // Filter for home gym equipment only when actually training at home
+    if (trainingAtHome && profile?.homeEquipment) {
       exs = filterForHomeGym(exs, profile.homeEquipment);
     }
     if (quickVersion) {
@@ -549,7 +585,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const getSwapAlternatives = () => {
     const currentNames = exercises.map(e => e.name);
     let related = getRelatedExercises(muscleGroup || 'Shoulders/Arms');
-    if (profile?.isHomeGym && profile.homeEquipment) {
+    if (trainingAtHome && profile?.homeEquipment) {
       related = filterForHomeGym(related, profile.homeEquipment);
     }
     return related.filter(e => !currentNames.includes(e.name));
@@ -557,7 +593,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
 
   const filteredLibraryExercises = (() => {
     let pool = allExercises;
-    if (profile?.isHomeGym && profile.homeEquipment) {
+    if (trainingAtHome && profile?.homeEquipment) {
       pool = filterForHomeGym(pool, profile.homeEquipment);
     }
     return pool.filter(e =>
