@@ -114,7 +114,10 @@ export function LoginScreen() {
           </button>
 
           <p className="text-xs text-gray-600 text-center pt-4">
-            By continuing, you agree to our Terms & Privacy Policy
+            By continuing, you agree to our{' '}
+            <a href="/terms.html" target="_blank" className="text-gray-400 underline hover:text-white">Terms</a>
+            {' '}&{' '}
+            <a href="/privacy.html" target="_blank" className="text-gray-400 underline hover:text-white">Privacy Policy</a>
           </p>
         </div>
       </div>
