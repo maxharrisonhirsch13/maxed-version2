@@ -40,10 +40,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single()
 
     if (dbError || !tokenRow) {
-      console.log('[WHOOP] No tokens found for user:', user.id, 'dbError:', dbError?.message)
       return res.json({ connected: false, recovery: null, sleep: null, strain: null })
     }
-    console.log('[WHOOP] Token found, expires:', tokenRow.expires_at, 'now:', new Date().toISOString())
 
     let accessToken = tokenRow.access_token
 
@@ -72,10 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           expires_at: expiresAt,
           updated_at: new Date().toISOString(),
         }).eq('user_id', user.id)
-        console.log('WHOOP token refreshed successfully')
       } else {
-        const refreshErr = await refreshRes.text().catch(() => '')
-        console.error('WHOOP token refresh failed:', refreshRes.status, refreshErr)
+        console.error('WHOOP token refresh failed:', refreshRes.status)
         // Use existing token — it might still work
       }
     }
@@ -92,11 +88,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let sleep = null
     let strain = null
 
-    console.log('WHOOP API status — recovery:', recoveryRes.status, 'sleep:', sleepRes.status, 'cycle:', cycleRes.status)
+    // Log only errors, not success status
 
     if (recoveryRes.ok) {
       const recoveryData = await recoveryRes.json()
-      console.log('WHOOP recovery records:', recoveryData.records?.length ?? 0)
       const r = recoveryData.records?.[0]?.score
       if (r) {
         recovery = {
@@ -110,14 +105,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!recoveryRes.ok) {
-      const errBody = await recoveryRes.text().catch(() => '')
-      console.error('[WHOOP] Recovery API error:', recoveryRes.status, errBody)
+      console.error('[WHOOP] Recovery API error:', recoveryRes.status)
     }
     if (!sleepRes.ok) {
-      console.error('[WHOOP] Sleep API error:', sleepRes.status, await sleepRes.text().catch(() => ''))
+      console.error('[WHOOP] Sleep API error:', sleepRes.status)
     }
     if (!cycleRes.ok) {
-      console.error('[WHOOP] Cycle API error:', cycleRes.status, await cycleRes.text().catch(() => ''))
+      console.error('[WHOOP] Cycle API error:', cycleRes.status)
     }
 
     if (sleepRes.ok) {
@@ -180,10 +174,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recovery,
       sleep,
       strain,
-      _debug: {
-        tokenExpired: new Date(tokenRow.expires_at) <= new Date(),
-        apiStatus: { recovery: recoveryRes.status, sleep: sleepRes.status, cycle: cycleRes.status },
-      },
     })
   } catch (err) {
     console.error('WHOOP data fetch error:', err)

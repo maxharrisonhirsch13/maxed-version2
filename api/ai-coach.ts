@@ -91,6 +91,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body = req.body
+  // Reject oversized payloads
+  const bodyStr = JSON.stringify(body)
+  if (bodyStr.length > 50000) {
+    return res.status(413).json({ error: 'Request body too large' })
+  }
   if (!body?.type) {
     return res.status(400).json({ error: 'Missing request type' })
   }

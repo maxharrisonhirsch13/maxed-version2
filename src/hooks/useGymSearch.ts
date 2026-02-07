@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import { useAuth } from '../context/AuthContext'
 import type { GymResult } from '../types'
 
 export function useGymSearch(query: string) {
+  const { session } = useAuth()
   const [results, setResults] = useState<GymResult[]>([])
   const [loading, setLoading] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -19,7 +21,11 @@ export function useGymSearch(query: string) {
 
     timeoutRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search-gyms?query=${encodeURIComponent(query.trim())}`)
+        const headers: Record<string, string> = {}
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`
+        }
+        const res = await fetch(`/api/search-gyms?query=${encodeURIComponent(query.trim())}`, { headers })
         const data = await res.json()
         setResults(data.results || [])
       } catch (err) {
@@ -33,7 +39,7 @@ export function useGymSearch(query: string) {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [query])
+  }, [query, session?.access_token])
 
   return { results, loading }
 }

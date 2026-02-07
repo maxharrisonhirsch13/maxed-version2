@@ -150,6 +150,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
     setProfile(null)
     setAuthError(null)
+    // Clear app-specific storage
+    localStorage.removeItem('maxed_onboarding_step')
+    localStorage.removeItem('maxed_onboarding_data')
+    sessionStorage.clear()
   }
 
   async function refreshProfile() {

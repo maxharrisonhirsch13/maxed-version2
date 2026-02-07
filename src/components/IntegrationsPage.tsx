@@ -48,9 +48,13 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
       alert('Not logged in');
       return;
     }
+    const { session: sess } = (await supabase.auth.getSession()).data;
+    if (!sess) return;
     setWhoopConnecting(true);
     try {
-      const res = await fetch(`/api/whoop-auth?userId=${user.id}`);
+      const res = await fetch(`/api/whoop-auth?userId=${user.id}`, {
+        headers: { Authorization: `Bearer ${sess.access_token}` },
+      });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
@@ -122,9 +126,13 @@ export function IntegrationsPage({ onBack }: IntegrationsPageProps) {
       alert('Not logged in');
       return;
     }
+    const { session: sess } = (await supabase.auth.getSession()).data;
+    if (!sess) return;
     setOuraConnecting(true);
     try {
-      const res = await fetch(`/api/oura-auth?userId=${user.id}`);
+      const res = await fetch(`/api/oura-auth?userId=${user.id}`, {
+        headers: { Authorization: `Bearer ${sess.access_token}` },
+      });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;

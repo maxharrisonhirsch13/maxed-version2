@@ -40,7 +40,7 @@ interface OnboardingPageProps {
 }
 
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { updateProfile } = useProfile();
   const { connected: whoopConnected, loading: whoopStatusLoading, refetch: refetchWhoop } = useWhoopStatus();
   const { connected: ouraConnected, loading: ouraStatusLoading, refetch: refetchOura } = useOuraStatus();
@@ -90,19 +90,19 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     const isOAuthReturn = search.includes('whoop=connected') || search.includes('oura=connected');
 
     if (isOAuthReturn) {
-      // Restore saved onboarding data
-      const savedData = localStorage.getItem('maxed_onboarding_data');
+      // Restore saved onboarding data from sessionStorage (more secure than localStorage)
+      const savedData = sessionStorage.getItem('maxed_onboarding_data');
       if (savedData) {
         try {
           setData(JSON.parse(savedData));
         } catch {}
-        localStorage.removeItem('maxed_onboarding_data');
+        sessionStorage.removeItem('maxed_onboarding_data');
       }
 
-      const savedStep = localStorage.getItem('maxed_onboarding_step');
+      const savedStep = sessionStorage.getItem('maxed_onboarding_step');
       if (savedStep) {
         setStep(parseInt(savedStep));
-        localStorage.removeItem('maxed_onboarding_step');
+        sessionStorage.removeItem('maxed_onboarding_step');
       }
 
       if (search.includes('whoop=connected')) refetchWhoop();
@@ -113,16 +113,18 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   }, []);
 
   const saveOnboardingData = () => {
-    localStorage.setItem('maxed_onboarding_step', String(step));
-    localStorage.setItem('maxed_onboarding_data', JSON.stringify(data));
+    sessionStorage.setItem('maxed_onboarding_step', String(step));
+    sessionStorage.setItem('maxed_onboarding_data', JSON.stringify(data));
   };
 
   const handleWhoopConnect = async () => {
-    if (!user) return;
+    if (!user || !session) return;
     setWhoopConnecting(true);
     saveOnboardingData();
     try {
-      const res = await fetch(`/api/whoop-auth?userId=${user.id}`);
+      const res = await fetch(`/api/whoop-auth?userId=${user.id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
       const d = await res.json();
       if (d.url) {
         window.location.href = d.url;
@@ -135,11 +137,13 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   };
 
   const handleOuraConnect = async () => {
-    if (!user) return;
+    if (!user || !session) return;
     setOuraConnecting(true);
     saveOnboardingData();
     try {
-      const res = await fetch(`/api/oura-auth?userId=${user.id}`);
+      const res = await fetch(`/api/oura-auth?userId=${user.id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
       const d = await res.json();
       if (d.url) {
         window.location.href = d.url;

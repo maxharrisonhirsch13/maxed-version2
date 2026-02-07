@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 export interface NearbyGym {
   placeId: string
@@ -12,6 +13,7 @@ export interface NearbyGym {
 }
 
 export function useNearbyGyms(lat: number | null, lng: number | null) {
+  const { session } = useAuth()
   const [gyms, setGyms] = useState<NearbyGym[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -24,7 +26,12 @@ export function useNearbyGyms(lat: number | null, lng: number | null) {
     let cancelled = false
     setLoading(true)
 
-    fetch(`/api/search-gyms?lat=${lat}&lng=${lng}&radius=8000`)
+    const headers: Record<string, string> = {}
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`
+    }
+
+    fetch(`/api/search-gyms?lat=${lat}&lng=${lng}&radius=8000`, { headers })
       .then(res => res.json())
       .then(data => {
         if (!cancelled) setGyms(data.results || [])
@@ -37,7 +44,7 @@ export function useNearbyGyms(lat: number | null, lng: number | null) {
       })
 
     return () => { cancelled = true }
-  }, [lat, lng])
+  }, [lat, lng, session?.access_token])
 
   return { gyms, loading }
 }

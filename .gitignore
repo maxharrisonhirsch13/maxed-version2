@@ -2,3 +2,16 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

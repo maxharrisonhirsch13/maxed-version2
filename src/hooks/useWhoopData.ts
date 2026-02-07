@@ -10,7 +10,6 @@ export function useWhoopData() {
 
   const fetchData = useCallback(async () => {
     if (!session?.access_token) {
-      console.log('[WHOOP] No session token, skipping fetch')
       setData(null)
       setError(null)
       setLoading(false)
@@ -18,14 +17,12 @@ export function useWhoopData() {
     }
     setLoading(true)
     setError(null)
-    console.log('[WHOOP] Fetching data...')
     try {
       const res = await fetch('/api/whoop-data', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (res.ok) {
         const json = await res.json()
-        console.log('[WHOOP] Response:', JSON.stringify(json, null, 2))
         setData(json)
       } else {
         const errText = await res.text().catch(() => '')

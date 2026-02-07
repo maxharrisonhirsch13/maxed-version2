@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon, Home as HomeIcon, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import { useGarminStatus } from '../hooks/useGarminStatus';
 import { useOuraStatus } from '../hooks/useOuraStatus';
 import { useGymSearch } from '../hooks/useGymSearch';
+import { usePrivacySettings } from '../hooks/usePrivacySettings';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -45,6 +46,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const { connected: whoopConnected } = useWhoopStatus();
   const { connected: garminConnected } = useGarminStatus();
   const { connected: ouraConnected } = useOuraStatus();
+  const { settings: privacyFromDb, updateSettings: updatePrivacyInDb } = usePrivacySettings();
 
   // Convert real workout data to calendar-friendly format
   const workoutHistory: WorkoutLog[] = rawWorkouts.map(w => ({
@@ -98,12 +100,23 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   // Privacy settings
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   const [privacySettings, setPrivacySettings] = useState({
-    shareLiveActivity: true,
-    sharePRs: true,
-    shareWorkoutHistory: true,
-    shareStreak: true,
-    profileVisibility: 'everyone' as 'everyone' | 'friends' | 'private',
+    shareLiveActivity: privacyFromDb.shareLiveActivity,
+    sharePRs: privacyFromDb.sharePrs,
+    shareWorkoutHistory: privacyFromDb.shareWorkoutHistory,
+    shareStreak: privacyFromDb.shareStreak,
+    profileVisibility: privacyFromDb.profileVisibility,
   });
+
+  // Sync privacy settings from DB when they load
+  useEffect(() => {
+    setPrivacySettings({
+      shareLiveActivity: privacyFromDb.shareLiveActivity,
+      sharePRs: privacyFromDb.sharePrs,
+      shareWorkoutHistory: privacyFromDb.shareWorkoutHistory,
+      shareStreak: privacyFromDb.shareStreak,
+      profileVisibility: privacyFromDb.profileVisibility,
+    });
+  }, [privacyFromDb]);
 
   // Edit profile state
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -1350,7 +1363,16 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             {/* Save Button */}
             <div className="px-5 py-4 border-t border-gray-900">
               <button
-                onClick={() => setShowPrivacySettings(false)}
+                onClick={() => {
+                  updatePrivacyInDb({
+                    share_live_activity: privacySettings.shareLiveActivity,
+                    share_prs: privacySettings.sharePRs,
+                    share_workout_history: privacySettings.shareWorkoutHistory,
+                    share_streak: privacySettings.shareStreak,
+                    profile_visibility: privacySettings.profileVisibility,
+                  });
+                  setShowPrivacySettings(false);
+                }}
                 className="w-full bg-[#00ff00] text-black font-bold py-3.5 rounded-2xl text-sm hover:bg-[#00dd00] transition-all active:scale-[0.97]"
               >
                 Save Settings
