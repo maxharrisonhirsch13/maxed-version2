@@ -10,6 +10,7 @@ import { useGarminStatus } from '../hooks/useGarminStatus';
 import { useOuraStatus } from '../hooks/useOuraStatus';
 import { useGymSearch } from '../hooks/useGymSearch';
 import { usePrivacySettings } from '../hooks/usePrivacySettings';
+import { useFriendships } from '../hooks/useFriendships';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -47,6 +48,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const { connected: garminConnected } = useGarminStatus();
   const { connected: ouraConnected } = useOuraStatus();
   const { settings: privacyFromDb, updateSettings: updatePrivacyInDb } = usePrivacySettings();
+  const { friends } = useFriendships();
 
   // Convert real workout data to calendar-friendly format
   const workoutHistory: WorkoutLog[] = rawWorkouts.map(w => ({
@@ -85,17 +87,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const [selectedDay, setSelectedDay] = useState<WorkoutLog[] | null>(null);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [viewAllFriends, setViewAllFriends] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<{
-    id: number;
-    name: string;
-    username: string;
-    profilePic: string;
-    location?: string;
-    currentActivity?: string;
-    streak?: number;
-    workoutsThisWeek?: number;
-    joined?: string;
-  } | null>(null);
+  const [selectedFriendUserId, setSelectedFriendUserId] = useState<string | null>(null);
 
   // Privacy settings
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
@@ -255,16 +247,9 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  // Mock friends data
-  const friendsPreview = [
-    { id: 1, name: 'Sarah', username: 'sarahlifts', profilePic: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop', streak: 12, workoutsThisWeek: 5, joined: 'Jan 24', currentActivity: 'Leg Day', location: 'Gold\'s Gym' },
-    { id: 2, name: 'Mike', username: 'mikefit', profilePic: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', streak: 8, workoutsThisWeek: 4, joined: 'Feb 24' },
-    { id: 3, name: 'Emma', username: 'emmalifts', profilePic: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop', streak: 5, workoutsThisWeek: 3, joined: 'Dec 23' },
-    { id: 4, name: 'Josh', username: 'joshfit', profilePic: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', streak: 15, workoutsThisWeek: 6, joined: 'Oct 23' },
-    { id: 5, name: 'Alex', username: 'alexgains', profilePic: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop', streak: 20, workoutsThisWeek: 5, joined: 'Sep 23' },
-    { id: 6, name: 'Kate', username: 'katefit', profilePic: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop', streak: 3, workoutsThisWeek: 2, joined: 'Mar 24' },
-    { id: 7, name: 'Tom', username: 'tomstrong', profilePic: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&h=150&fit=crop', streak: 10, workoutsThisWeek: 4, joined: 'Nov 23' },
-  ];
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const gradients = ['from-purple-500 to-blue-500', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-yellow-500 to-red-500', 'from-indigo-500 to-purple-500'];
+  const getGradient = (name: string) => gradients[name.charCodeAt(0) % gradients.length];
 
   return (
     <div className="min-h-screen bg-black text-white pb-20 overflow-y-auto">
@@ -275,7 +260,8 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
             {initials}
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold mb-1">{userData?.name || 'User'}</h1>
+            <h1 className="text-2xl font-bold mb-0.5">{userData?.name || 'User'}</h1>
+            {userData?.username && <p className="text-sm text-[#00ff00] font-medium mb-0.5">@{userData.username}</p>}
             <p className="text-sm text-gray-500">Member since {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'recently'}</p>
           </div>
           <div className="flex items-center gap-1">
@@ -436,27 +422,33 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
               <UsersIcon className="w-4 h-4 text-[#00ff00]" />
               Friends
             </h3>
-            <span className="text-xs text-gray-500">24 friends</span>
+            <span className="text-xs text-gray-500">{friends.length} friends</span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {friendsPreview.map((friend, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedFriend(friend)}
-                className="flex-shrink-0 text-center hover:opacity-80 transition-opacity"
-              >
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800 mb-1">
-                  <img 
-                    src={friend.profilePic} 
-                    alt={friend.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <p className="text-[10px] text-gray-500">{friend.name}</p>
-              </button>
-            ))}
-          </div>
-          <button 
+          {friends.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {friends.slice(0, 10).map((friend) => (
+                <button
+                  key={friend.friendshipId}
+                  onClick={() => setSelectedFriendUserId(friend.userId)}
+                  className="flex-shrink-0 text-center hover:opacity-80 transition-opacity"
+                >
+                  {friend.avatarUrl ? (
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800 mb-1">
+                      <img src={friend.avatarUrl} alt={friend.name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getGradient(friend.name)} flex items-center justify-center font-bold text-xs mb-1`}>
+                      {getInitials(friend.name)}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-gray-500">{friend.name.split(' ')[0]}</p>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 text-center py-3">No friends yet. Add friends from the Community tab!</p>
+          )}
+          <button
             onClick={() => setViewAllFriends(true)}
             className="w-full mt-2 bg-[#1a1a1a] hover:bg-[#252525] text-white font-medium py-2.5 rounded-xl text-xs transition-colors"
           >
@@ -785,10 +777,10 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
       )}
 
       {/* Friend Profile Modal */}
-      {selectedFriend && (
+      {selectedFriendUserId && (
         <FriendProfileModal
-          friend={selectedFriend}
-          onClose={() => setSelectedFriend(null)}
+          friendUserId={selectedFriendUserId}
+          onClose={() => setSelectedFriendUserId(null)}
         />
       )}
 
@@ -797,7 +789,7 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
         <ViewAllFriendsModal
           onClose={() => setViewAllFriends(false)}
           onSelectFriend={(friend) => {
-            setSelectedFriend(friend);
+            setSelectedFriendUserId(friend.userId);
             setViewAllFriends(false);
           }}
         />

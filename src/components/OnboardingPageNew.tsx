@@ -1,8 +1,9 @@
-import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil, RefreshCw, Moon } from 'lucide-react';
+import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil, RefreshCw, Moon, AtSign } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useGymSearch } from '../hooks/useGymSearch';
+import { supabase } from '../lib/supabase';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import { useOuraStatus } from '../hooks/useOuraStatus';
 import { DataConsentModal, WHOOP_DATA_POINTS, OURA_DATA_POINTS } from './DataConsentModal';
@@ -18,6 +19,7 @@ interface HomeEquipment {
 
 interface OnboardingData {
   name: string;
+  username: string;
   heightFeet: number;
   heightInches: number;
   weight: number;
@@ -50,8 +52,12 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [consentFor, setConsentFor] = useState<'whoop' | 'oura' | null>(null);
   const [step, setStep] = useState(1);
   const [saveError, setSaveError] = useState('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+
   const [data, setData] = useState<OnboardingData>({
     name: '',
+    username: '',
     heightFeet: 5,
     heightInches: 10,
     weight: 175,
@@ -162,20 +168,20 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const handleWhoopConnect = () => setConsentFor('whoop');
   const handleOuraConnect = () => setConsentFor('oura');
 
-  const totalSteps = 8;
+  const totalSteps = 9;
 
   const handleNext = () => {
-    if (step === 6 && data.goal === 'Ask AI') {
+    if (step === 7 && data.goal === 'Ask AI') {
       setShowAIGoalInput(true);
       return;
     }
-    if (step === 7 && data.split === 'custom') {
+    if (step === 8 && data.split === 'custom') {
       setShowCustomSplit(true);
       return;
     }
     if (editingFromReview) {
       setEditingFromReview(false);
-      setStep(8);
+      setStep(9);
       return;
     }
     if (step < totalSteps) {
@@ -211,6 +217,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     try {
       await updateProfile({
         name: data.name,
+        username: data.username,
         height_feet: data.heightFeet,
         height_inches: data.heightInches,
         weight_lbs: data.weight,
@@ -240,16 +247,36 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const isStepValid = () => {
     switch (step) {
       case 1: return data.name.trim().length > 0;
-      case 2: return data.heightFeet > 0 && data.weight > 0;
-      case 3: return data.experience !== '';
-      case 4: return data.isHomeGym || !!data.gymPlaceId;
-      case 5: return true; // Wearables are optional
-      case 6: return data.goal !== '';
-      case 7: return data.split !== '';
-      case 8: return true;
+      case 2: return /^[a-z0-9_]{3,20}$/.test(data.username) && usernameAvailable === true;
+      case 3: return data.heightFeet > 0 && data.weight > 0;
+      case 4: return data.experience !== '';
+      case 5: return data.isHomeGym || !!data.gymPlaceId;
+      case 6: return true; // Wearables are optional
+      case 7: return data.goal !== '';
+      case 8: return data.split !== '';
+      case 9: return true;
       default: return false;
     }
   };
+
+  // Username availability check
+  useEffect(() => {
+    if (!/^[a-z0-9_]{3,20}$/.test(data.username)) {
+      setUsernameAvailable(null);
+      return;
+    }
+    setCheckingUsername(true);
+    const timer = setTimeout(async () => {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', data.username)
+        .maybeSingle();
+      setUsernameAvailable(!existing);
+      setCheckingUsername(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [data.username]);
 
   const wearableOptions = [
     { value: 'whoop', label: 'WHOOP', icon: <Activity className="w-5 h-5" />, color: 'from-red-500 to-pink-600' },
@@ -340,7 +367,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <button
             onClick={() => {
               setShowAIGoalInput(false);
-              setStep(7);
+              setStep(9);
             }}
             disabled={data.customGoal.trim().length < 10}
             className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2 mt-6"
@@ -437,7 +464,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <button
             onClick={() => {
               setShowCustomSplit(false);
-              setStep(8);
+              setStep(9);
             }}
             disabled={!data.customSplit.every(day => day.muscles.length > 0)}
             className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
@@ -471,7 +498,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             onClick={() => {
               if (editingFromReview) {
                 setEditingFromReview(false);
-                setStep(8);
+                setStep(9);
               } else {
                 setStep(step - 1);
               }
@@ -504,8 +531,47 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 2: Height & Weight */}
+          {/* Step 2: Username */}
           {step === 2 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <AtSign className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Claim your username</h2>
+              <p className="text-gray-400 text-sm mb-8">This is how friends will find you on Maxed</p>
+              <div className="relative mb-3">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg font-medium">@</span>
+                <input
+                  type="text"
+                  value={data.username}
+                  onChange={(e) => setData({ ...data, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) })}
+                  placeholder="username"
+                  maxLength={20}
+                  className="w-full bg-[#0a0a0a] border border-gray-800 rounded-2xl pl-10 pr-12 py-4 text-white placeholder-gray-600 text-base focus:outline-none focus:border-[#00ff00] transition-colors"
+                  autoFocus
+                />
+                {checkingUsername && (
+                  <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 animate-spin" />
+                )}
+                {!checkingUsername && usernameAvailable === true && data.username.length >= 3 && (
+                  <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#00ff00]" />
+                )}
+              </div>
+              {data.username.length > 0 && data.username.length < 3 && (
+                <p className="text-xs text-gray-500">Must be at least 3 characters</p>
+              )}
+              {usernameAvailable === false && (
+                <p className="text-xs text-red-400">Username is already taken</p>
+              )}
+              {usernameAvailable === true && data.username.length >= 3 && (
+                <p className="text-xs text-[#00ff00]">@{data.username} is available!</p>
+              )}
+              <p className="text-xs text-gray-600 mt-4">Lowercase letters, numbers, and underscores only. 3-20 characters.</p>
+            </>
+          )}
+
+          {/* Step 3: Height & Weight */}
+          {step === 3 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Ruler className="w-6 h-6 text-black" />
@@ -604,8 +670,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 3: Experience */}
-          {step === 3 && (
+          {/* Step 4: Experience */}
+          {step === 4 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Dumbbell className="w-6 h-6 text-black" />
@@ -626,7 +692,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       setData({ ...data, experience: newVal });
                       if (editingFromReview && newVal) {
                         setEditingFromReview(false);
-                        setTimeout(() => setStep(8), 150);
+                        setTimeout(() => setStep(9), 150);
                       }
                     }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
@@ -643,8 +709,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 4: Gym Location */}
-          {step === 4 && (
+          {/* Step 5: Gym Location */}
+          {step === 5 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <MapPin className="w-6 h-6 text-black" />
@@ -858,7 +924,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                             setGymSearchQuery(gym.name);
                             if (editingFromReview) {
                               setEditingFromReview(false);
-                              setTimeout(() => setStep(8), 150);
+                              setTimeout(() => setStep(9), 150);
                             }
                           }}
                           className="w-full p-3 bg-[#0a0a0a] border border-gray-800 rounded-xl text-left hover:border-gray-700 transition-colors"
@@ -874,8 +940,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 5: Wearables */}
-          {step === 5 && (
+          {/* Step 6: Wearables */}
+          {step === 6 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Watch className="w-6 h-6 text-black" />
@@ -963,8 +1029,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
               <button
                 onClick={() => {
-                  if (editingFromReview) { setEditingFromReview(false); setStep(8); }
-                  else setStep(6);
+                  if (editingFromReview) { setEditingFromReview(false); setStep(9); }
+                  else setStep(7);
                 }}
                 className="w-full text-sm text-gray-500 hover:text-white transition-colors"
               >
@@ -973,8 +1039,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 6: Goals */}
-          {step === 6 && (
+          {/* Step 7: Goals */}
+          {step === 7 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Target className="w-6 h-6 text-black" />
@@ -998,7 +1064,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       setData({ ...data, goal: newVal });
                       if (editingFromReview && newVal && newVal !== 'Ask AI') {
                         setEditingFromReview(false);
-                        setTimeout(() => setStep(8), 150);
+                        setTimeout(() => setStep(9), 150);
                       }
                     }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
@@ -1018,8 +1084,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 7: Split */}
-          {step === 7 && (
+          {/* Step 8: Split */}
+          {step === 8 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Calendar className="w-6 h-6 text-black" />
@@ -1042,7 +1108,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       setData({ ...data, split: newVal });
                       if (editingFromReview && newVal && newVal !== 'custom') {
                         setEditingFromReview(false);
-                        setTimeout(() => setStep(8), 150);
+                        setTimeout(() => setStep(9), 150);
                       }
                     }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
@@ -1062,8 +1128,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 8: Final Review */}
-          {step === 8 && (
+          {/* Step 9: Final Review */}
+          {step === 9 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-black" />
@@ -1084,10 +1150,20 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 <div className="h-px bg-gray-800" />
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500">Username</p>
+                    <p className="font-medium text-[#00ff00]">@{data.username}</p>
+                  </div>
+                  <button onClick={() => { setEditingFromReview(true); setStep(2); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                    Edit
+                  </button>
+                </div>
+                <div className="h-px bg-gray-800" />
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500">Stats</p>
                     <p className="font-medium">{data.heightFeet} ft {data.heightInches} in · {data.weight} lbs</p>
                   </div>
-                  <button onClick={() => { setEditingFromReview(true); setStep(2); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(3); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -1097,7 +1173,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <p className="text-xs text-gray-500">Experience</p>
                     <p className="font-medium capitalize">{data.experience}</p>
                   </div>
-                  <button onClick={() => { setEditingFromReview(true); setStep(3); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(4); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -1118,7 +1194,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       </p>
                     )}
                   </div>
-                  <button onClick={() => { setEditingFromReview(true); setStep(4); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(5); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -1133,7 +1209,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                           {(whoopConnected || ouraConnected) && ' — AUTO'}
                         </p>
                       </div>
-                      <button onClick={() => { setEditingFromReview(true); setStep(5); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                      <button onClick={() => { setEditingFromReview(true); setStep(6); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                         Edit
                       </button>
                     </div>
@@ -1152,7 +1228,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                        data.goal === 'athletic' ? 'Athletic Performance' : data.goal}
                     </p>
                   </div>
-                  <button onClick={() => { setEditingFromReview(true); setStep(6); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(7); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -1168,7 +1244,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                        data.split === 'custom' ? 'Custom Split' : data.split}
                     </p>
                   </div>
-                  <button onClick={() => { setEditingFromReview(true); setStep(7); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(8); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -1183,7 +1259,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           disabled={!isStepValid()}
           className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
         >
-          {step === 8 ? 'Get Maxed' : editingFromReview ? 'Save & Back' : 'Continue'}
+          {step === 9 ? 'Get Maxed' : editingFromReview ? 'Save & Back' : 'Continue'}
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>

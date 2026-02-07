@@ -1,45 +1,30 @@
-import { X, Search, Dumbbell, MapPin } from 'lucide-react';
+import { X, Search, UserPlus, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-
-interface Friend {
-  id: number;
-  name: string;
-  username: string;
-  profilePic: string;
-  isActive?: boolean;
-  currentActivity?: string;
-  location?: string;
-  streak?: number;
-  workoutsThisWeek?: number;
-  joined?: string;
-}
+import { useFriendships } from '../hooks/useFriendships';
+import { useUserSearch } from '../hooks/useUserSearch';
 
 interface ViewAllFriendsModalProps {
   onClose: () => void;
-  onSelectFriend: (friend: Friend) => void;
+  onSelectFriend: (friend: { userId: string; name: string; username: string | null }) => void;
 }
 
 export function ViewAllFriendsModal({ onClose, onSelectFriend }: ViewAllFriendsModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const { friends, loading: friendsLoading } = useFriendships();
+  const { results: searchResults, loading: searchLoading } = useUserSearch(searchQuery);
 
-  const friends: Friend[] = [
-    { id: 1, name: 'Sarah Chen', username: 'sarahlifts', profilePic: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop', isActive: true, currentActivity: 'Leg Day', location: 'Gold\'s Gym', streak: 12, workoutsThisWeek: 5, joined: 'Jan 24' },
-    { id: 2, name: 'Mike Rodriguez', username: 'mikefit', profilePic: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', isActive: true, currentActivity: 'Push Day', location: '24 Hour Fitness', streak: 8, workoutsThisWeek: 4, joined: 'Feb 24' },
-    { id: 3, name: 'Jessica Wong', username: 'jesswong', profilePic: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop', isActive: false, streak: 5, workoutsThisWeek: 3, joined: 'Dec 23' },
-    { id: 4, name: 'David Kim', username: 'davidk', profilePic: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', isActive: false, streak: 15, workoutsThisWeek: 6, joined: 'Oct 23' },
-    { id: 5, name: 'Emily Taylor', username: 'emilytfit', profilePic: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop', isActive: true, currentActivity: 'Cardio - HIIT', location: 'Equinox', streak: 20, workoutsThisWeek: 5, joined: 'Sep 23' },
-    { id: 6, name: 'Alex Johnson', username: 'alexj', profilePic: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop', isActive: false, streak: 3, workoutsThisWeek: 2, joined: 'Mar 24' },
-    { id: 7, name: 'Nina Patel', username: 'ninastrength', profilePic: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop', isActive: false, streak: 10, workoutsThisWeek: 4, joined: 'Nov 23' },
-    { id: 8, name: 'Chris Martinez', username: 'chrism', profilePic: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&h=150&fit=crop', isActive: true, currentActivity: 'Shoulders', location: 'LA Fitness', streak: 7, workoutsThisWeek: 3, joined: 'Jan 24' },
-  ];
+  const isSearching = searchQuery.trim().length >= 2;
 
-  const filteredFriends = friends.filter(friend =>
-    friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    friend.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredFriends = searchQuery.trim().length > 0 && searchQuery.trim().length < 2
+    ? friends.filter(f =>
+        f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (f.username ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : friends;
 
-  const activeFriends = filteredFriends.filter(f => f.isActive);
-  const inactiveFriends = filteredFriends.filter(f => !f.isActive);
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const gradients = ['from-purple-500 to-blue-500', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-yellow-500 to-red-500', 'from-indigo-500 to-purple-500'];
+  const getGradient = (name: string) => gradients[name.charCodeAt(0) % gradients.length];
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
@@ -52,47 +37,43 @@ export function ViewAllFriendsModal({ onClose, onSelectFriend }: ViewAllFriendsM
         <div className="px-6 pt-4 pb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Search friends..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-[#00ff00] transition-colors" />
+            <input type="text" placeholder="Search friends or find new..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-[#00ff00] transition-colors" />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 pb-6">
-          {activeFriends.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
-                <div className="w-2 h-2 bg-[#00ff00] rounded-full animate-pulse"></div>
-                Active Now ({activeFriends.length})
-              </h3>
-              <div className="space-y-2">
-                {activeFriends.map((friend) => (
-                  <button key={friend.id} onClick={() => { onSelectFriend(friend); onClose(); }} className="w-full bg-[#1a1a1a] hover:bg-[#252525] rounded-xl p-4 flex items-center gap-3 transition-colors">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800"><img src={friend.profilePic} alt={friend.name} className="w-full h-full object-cover" /></div>
-                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00ff00] border-2 border-[#1a1a1a] rounded-full"></div>
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="font-semibold text-sm">{friend.name}</p>
-                      <p className="text-xs text-gray-400">@{friend.username}</p>
-                      {friend.currentActivity && (<div className="flex items-center gap-1.5 mt-1"><Dumbbell className="w-3 h-3 text-[#00ff00]" /><span className="text-xs text-[#00ff00]">{friend.currentActivity}</span></div>)}
-                      {friend.location && (<div className="flex items-center gap-1.5 mt-0.5"><MapPin className="w-3 h-3 text-gray-500" /><span className="text-xs text-gray-500">{friend.location}</span></div>)}
-                    </div>
-                  </button>
-                ))}
-              </div>
+          {(friendsLoading || searchLoading) && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
             </div>
           )}
 
-          {inactiveFriends.length > 0 && (
+          {/* Show search results when searching */}
+          {isSearching && !searchLoading && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-400 mb-3">All Friends ({inactiveFriends.length})</h3>
+              <h3 className="text-sm font-semibold text-gray-400 mb-3">Search Results</h3>
+              {searchResults.length === 0 && (
+                <p className="text-center text-gray-500 text-sm py-4">No users found</p>
+              )}
               <div className="space-y-2">
-                {inactiveFriends.map((friend) => (
-                  <button key={friend.id} onClick={() => { onSelectFriend(friend); onClose(); }} className="w-full bg-[#1a1a1a] hover:bg-[#252525] rounded-xl p-4 flex items-center gap-3 transition-colors">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800"><img src={friend.profilePic} alt={friend.name} className="w-full h-full object-cover" /></div>
+                {searchResults.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => { onSelectFriend({ userId: user.id, name: user.name, username: user.username }); onClose(); }}
+                    className="w-full bg-[#1a1a1a] hover:bg-[#252525] rounded-xl p-4 flex items-center gap-3 transition-colors"
+                  >
+                    {user.avatarUrl ? (
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800">
+                        <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getGradient(user.name)} flex items-center justify-center font-bold text-sm`}>
+                        {getInitials(user.name)}
+                      </div>
+                    )}
                     <div className="flex-1 text-left">
-                      <p className="font-semibold text-sm">{friend.name}</p>
-                      <p className="text-xs text-gray-400">@{friend.username}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{friend.workoutsThisWeek} workouts this week</p>
+                      <p className="font-semibold text-sm">{user.name}</p>
+                      {user.username && <p className="text-xs text-gray-400">@{user.username}</p>}
                     </div>
                   </button>
                 ))}
@@ -100,7 +81,42 @@ export function ViewAllFriendsModal({ onClose, onSelectFriend }: ViewAllFriendsM
             </div>
           )}
 
-          {filteredFriends.length === 0 && (<div className="text-center py-12"><p className="text-gray-400">No friends found</p></div>)}
+          {/* Show friends list when not searching */}
+          {!isSearching && !friendsLoading && (
+            <>
+              {filteredFriends.length === 0 && (
+                <div className="text-center py-12">
+                  <UserPlus className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">
+                    {searchQuery ? 'No friends match your search' : 'No friends yet'}
+                  </p>
+                </div>
+              )}
+              <div className="space-y-2">
+                {filteredFriends.map((friend) => (
+                  <button
+                    key={friend.friendshipId}
+                    onClick={() => { onSelectFriend({ userId: friend.userId, name: friend.name, username: friend.username }); onClose(); }}
+                    className="w-full bg-[#1a1a1a] hover:bg-[#252525] rounded-xl p-4 flex items-center gap-3 transition-colors"
+                  >
+                    {friend.avatarUrl ? (
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800">
+                        <img src={friend.avatarUrl} alt={friend.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getGradient(friend.name)} flex items-center justify-center font-bold text-sm`}>
+                        {getInitials(friend.name)}
+                      </div>
+                    )}
+                    <div className="flex-1 text-left">
+                      <p className="font-semibold text-sm">{friend.name}</p>
+                      {friend.username && <p className="text-xs text-gray-400">@{friend.username}</p>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

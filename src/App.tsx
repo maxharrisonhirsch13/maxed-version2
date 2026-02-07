@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2, Activity } from 'lucide-react';
+import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2, Activity, X, Clock } from 'lucide-react';
 import { ProgressPage } from './components/ProgressPage';
 import { CommunityPage } from './components/CommunityPage';
 import { WorkoutStartPage } from './components/WorkoutStartPage';
@@ -13,7 +13,6 @@ import { CardioSetupPage } from './components/CardioSetupPage';
 import { CardioSessionPage } from './components/CardioSessionPage';
 import { SecondSessionPage } from './components/SecondSessionPage';
 import { ReadinessModal } from './components/ReadinessModal';
-import { WorkoutDetailModal } from './components/WorkoutDetailModal';
 import { useAuth } from './context/AuthContext';
 import { useWorkoutHistory } from './hooks/useWorkoutHistory';
 import { useWhoopData } from './hooks/useWhoopData';
@@ -575,10 +574,52 @@ export default function App() {
 
       {/* Workout Detail Modal */}
       {selectedWorkout && (
-        <WorkoutDetailModal 
-          workout={selectedWorkout} 
-          onClose={() => setSelectedWorkout(null)} 
-        />
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4">
+          <div className="bg-[#0a0a0a] border border-gray-800 rounded-t-3xl md:rounded-3xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-gray-800">
+              <div>
+                <h3 className="font-bold text-lg">{selectedWorkout.workoutType}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{selectedWorkout.date} · {selectedWorkout.startTime}</p>
+              </div>
+              <button onClick={() => setSelectedWorkout(null)} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {selectedWorkout.duration > 0 && (
+                <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                  <Clock className="w-4 h-4" />
+                  <span>{selectedWorkout.duration} minutes</span>
+                </div>
+              )}
+              {selectedWorkout.exercises.map((ex: any, idx: number) => (
+                <div key={idx} className="bg-[#1a1a1a] rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    {ex.cardioData ? <Activity className="w-4 h-4 text-red-400" /> : <Dumbbell className="w-4 h-4 text-[#00ff00]" />}
+                    <span className="font-semibold text-sm">{ex.name}</span>
+                  </div>
+                  {ex.cardioData ? (
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {ex.cardioData.duration > 0 && <div className="bg-black/30 rounded-lg px-3 py-2"><span className="text-gray-500">Duration</span><p className="font-bold">{ex.cardioData.duration} min</p></div>}
+                      {ex.cardioData.distance && <div className="bg-black/30 rounded-lg px-3 py-2"><span className="text-gray-500">Distance</span><p className="font-bold">{ex.cardioData.distance} mi</p></div>}
+                      {ex.cardioData.speed && <div className="bg-black/30 rounded-lg px-3 py-2"><span className="text-gray-500">Speed</span><p className="font-bold">{ex.cardioData.speed} mph</p></div>}
+                      {ex.cardioData.calories && <div className="bg-black/30 rounded-lg px-3 py-2"><span className="text-gray-500">Calories</span><p className="font-bold">{ex.cardioData.calories} cal</p></div>}
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {ex.sets.map((set: any, sIdx: number) => (
+                        <div key={sIdx} className="flex items-center justify-between text-xs bg-black/30 rounded-lg px-3 py-2">
+                          <span className="text-gray-500">Set {sIdx + 1}</span>
+                          <span className="font-semibold">{set.weight > 0 ? `${set.weight} lbs` : 'BW'} × {set.reps}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

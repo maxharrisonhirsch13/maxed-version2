@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Play, Pause, Square, Check, Loader2, Heart, Flame, Zap, TrendingUp, Activity, ChevronDown, ChevronUp, Clock, ClipboardList } from 'lucide-react';
 import { useWorkouts } from '../hooks/useWorkouts';
+import { ShareWorkoutPrompt } from './ShareWorkoutPrompt';
 
 interface CardioSessionPageProps {
   onClose: () => void;
@@ -100,9 +101,13 @@ export function CardioSessionPage({ onClose, goal, details }: CardioSessionPageP
     }
   };
 
+  const [savedWorkoutId, setSavedWorkoutId] = useState<string | null>(null);
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
+  const [savedDuration, setSavedDuration] = useState(0);
+
   const handleSave = async (durationMinutes: number) => {
     try {
-      await saveWorkout({
+      const workoutId = await saveWorkout({
         workoutType: `Cardio — ${goalNames[goal] || goal}`,
         startedAt: startedAt.current,
         durationMinutes,
@@ -117,7 +122,14 @@ export function CardioSessionPage({ onClose, goal, details }: CardioSessionPageP
           }],
         }],
       });
-      onClose();
+      if (workoutId) {
+        setSavedWorkoutId(workoutId);
+        setSavedDuration(durationMinutes);
+        setShowEndConfirm(false);
+        setShowSharePrompt(true);
+      } else {
+        onClose();
+      }
     } catch (err) {
       console.error('Failed to save cardio:', err);
       onClose();
@@ -388,6 +400,19 @@ export function CardioSessionPage({ onClose, goal, details }: CardioSessionPageP
       </div>
 
       {/* End Confirm Modal (live mode) */}
+      {/* Share Workout Prompt */}
+      {showSharePrompt && savedWorkoutId && (
+        <ShareWorkoutPrompt
+          workoutId={savedWorkoutId}
+          workoutSummary={{
+            exerciseCount: 1,
+            durationMinutes: savedDuration,
+            totalVolume: 0,
+          }}
+          onDone={onClose}
+        />
+      )}
+
       {showEndConfirm && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#1a1a1a] rounded-3xl p-6 text-center">

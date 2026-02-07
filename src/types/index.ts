@@ -17,6 +17,7 @@ export interface HomeEquipment {
 export interface UserProfile {
   id: string
   name: string
+  username: string | null
   phone: string | null
   heightFeet: number | null
   heightInches: number | null
@@ -132,4 +133,55 @@ export interface PrivacySettings {
   shareWorkoutHistory: boolean
   shareStreak: boolean
   profileVisibility: 'everyone' | 'friends' | 'private'
+}
+
+export interface Friendship {
+  id: string
+  requesterId: string
+  addresseeId: string
+  status: 'pending' | 'accepted' | 'declined' | 'blocked'
+  createdAt: string
+  updatedAt: string
+  // Joined profile data (for the other user)
+  profile?: {
+    id: string
+    name: string
+    username: string | null
+    avatarUrl: string | null
+  }
+}
+
+export interface WorkoutPost {
+  id: string
+  userId: string
+  workoutId: string
+  caption: string | null
+  createdAt: string
+}
+
+export interface FeedItem {
+  post: WorkoutPost
+  user: {
+    id: string
+    name: string
+    username: string | null
+    avatarUrl: string | null
+  }
+  workout: {
+    id: string
+    workoutType: string
+    startedAt: string
+    completedAt: string | null
+    durationMinutes: number | null
+    exercises: {
+      exerciseName: string
+      sets: {
+        setNumber: number
+        weightLbs: number | null
+        reps: number | null
+        durationMinutes: number | null
+        distanceMiles: number | null
+      }[]
+    }[]
+  }
 }

@@ -1,65 +1,16 @@
-import { useState } from 'react';
-import { TrendingUp, Users, MapPin, Dumbbell, Clock, User, Flame, Trophy, Activity, ArrowUp, ArrowDown, Minus, Star, Loader2 } from 'lucide-react';
-import { FriendProfileModal } from './FriendProfileModal';
-import { ViewAllFriendsModal } from './ViewAllFriendsModal';
+import { useState, useEffect } from 'react';
+import { Users, MapPin, Dumbbell, Flame, Trophy, Star, Loader2, UserPlus, Clock, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNearbyGyms } from '../hooks/useNearbyGyms';
+import { useFriendships } from '../hooks/useFriendships';
+import { useWorkoutPosts } from '../hooks/useWorkoutPosts';
+import { useFriendLeaderboard } from '../hooks/useFriendLeaderboard';
+import { UserSearchModal } from './UserSearchModal';
+import { WorkoutDetailModal } from './WorkoutDetailModal';
+import { FriendProfileModal } from './FriendProfileModal';
+import type { FeedItem } from '../types';
 
-type Tab = 'trending' | 'friends' | 'classes' | 'nearby';
-
-type LeaderboardTab = 'streaks' | 'prs' | 'movement';
-
-function getTrendingData(userGym: string) {
-  return {
-    topGym: { name: userGym || 'Your Gym', subtitle: 'Most active gym in your area', change: '+34%', activeNow: 47 },
-    topLift: { name: 'Bench Press', subtitle: 'Most popular lift', change: '+22%', performedToday: 234 },
-    streakLeaderboard: [
-      { rank: 1, name: 'James Lee', gym: userGym || 'Local Gym', streak: 89, isYou: false },
-      { rank: 2, name: 'Mike Reynolds', gym: userGym || 'Local Gym', streak: 47, isYou: false },
-      { rank: 3, name: 'Alex Park', gym: userGym || 'Local Gym', streak: 41, isYou: false },
-      { rank: 4, name: 'You', gym: userGym || 'Local Gym', streak: 38, isYou: true },
-      { rank: 5, name: 'Chris Johnson', gym: userGym || 'Local Gym', streak: 32, isYou: false },
-    ],
-    prLeaderboard: [
-      { rank: 1, name: 'Mike Reynolds', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 315, isYou: false },
-      { rank: 2, name: 'James Lee', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 285, isYou: false },
-      { rank: 3, name: 'You', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 245, isYou: true },
-      { rank: 4, name: 'Alex Park', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 225, isYou: false },
-      { rank: 5, name: 'Chris Johnson', gym: userGym || 'Local Gym', lift: 'Bench Press', weight: 205, isYou: false },
-    ],
-    squatLeaderboard: [
-      { rank: 1, name: 'James Lee', gym: userGym || 'Local Gym', lift: 'Squat', weight: 405, isYou: false },
-      { rank: 2, name: 'You', gym: userGym || 'Local Gym', lift: 'Squat', weight: 365, isYou: true },
-      { rank: 3, name: 'Mike Reynolds', gym: userGym || 'Local Gym', lift: 'Squat', weight: 345, isYou: false },
-      { rank: 4, name: 'Chris Johnson', gym: userGym || 'Local Gym', lift: 'Squat', weight: 315, isYou: false },
-      { rank: 5, name: 'Alex Park', gym: userGym || 'Local Gym', lift: 'Squat', weight: 275, isYou: false },
-    ],
-    movementLeaderboard: [
-      { rank: 1, name: 'James Lee', gym: userGym || 'Local Gym', change: 0, prevRank: 1, isYou: false, reason: 'Consistent king — 89 day streak' },
-      { rank: 2, name: 'You', gym: userGym || 'Local Gym', change: 2, prevRank: 4, isYou: true, reason: 'New squat PR + 5 day streak' },
-      { rank: 3, name: 'Mike Reynolds', gym: userGym || 'Local Gym', change: -1, prevRank: 2, isYou: false, reason: 'Missed 2 days this week' },
-      { rank: 4, name: 'Alex Park', gym: userGym || 'Local Gym', change: -1, prevRank: 3, isYou: false, reason: 'Dropped volume this week' },
-      { rank: 5, name: 'Chris Johnson', gym: userGym || 'Local Gym', change: 0, prevRank: 5, isYou: false, reason: 'Steady — 32 day streak' },
-    ],
-  };
-}
-
-const friendsData = [
-  { id: 1, name: 'Sarah Johnson', avatar: 'SJ', gym: 'UM CCRB', status: 'Working out now', exercise: 'Deadlifts', streak: 23, activeNow: true },
-  { id: 2, name: 'Mike Chen', avatar: 'MC', gym: 'Gold\'s Gym', status: 'Finished 2h ago', exercise: 'Upper Body', streak: 15, activeNow: false },
-  { id: 3, name: 'Jessica Taylor', avatar: 'JT', gym: 'UM CCRB', status: 'Working out now', exercise: 'Squats', streak: 31, activeNow: true },
-  { id: 4, name: 'David Rodriguez', avatar: 'DR', gym: 'Planet Fitness', status: 'Rest day', exercise: null, streak: 8, activeNow: false },
-];
-
-function getClassesData(userGym: string) {
-  const gym = userGym || 'Your Gym';
-  return [
-    { id: 1, name: 'HIIT Burn', instructor: 'Sarah M.', time: '6:00 AM', duration: 45, enrolled: 14, friendsCount: 2, spotsLeft: 6, difficulty: 'High', gym },
-    { id: 2, name: 'Power Lift', instructor: 'Mike R.', time: '7:30 AM', duration: 60, enrolled: 12, friendsCount: 1, spotsLeft: 3, difficulty: 'Medium', gym },
-    { id: 3, name: 'Spin Class', instructor: 'Jenny L.', time: '12:00 PM', duration: 45, enrolled: 23, friendsCount: 3, spotsLeft: 2, difficulty: 'Medium', gym },
-    { id: 4, name: 'Yoga Flow', instructor: 'Amanda K.', time: '5:30 PM', duration: 60, enrolled: 18, friendsCount: 2, spotsLeft: 7, difficulty: 'Low', gym },
-  ];
-}
+type Tab = 'feed' | 'friends' | 'leaderboard' | 'nearby';
 
 function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): string {
   const R = 3959;
@@ -70,16 +21,35 @@ function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number
   return d < 0.1 ? '<0.1 mi' : `${d.toFixed(1)} mi`;
 }
 
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export function CommunityPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('trending');
-  const [leaderboardTab, setLeaderboardTab] = useState<LeaderboardTab>('streaks');
-  const [prLift, setPrLift] = useState<'bench' | 'squat'>('bench');
-  const [selectedFriend, setSelectedFriend] = useState<typeof friendsData[0] | null>(null);
-  const [viewAllFriends, setViewAllFriends] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('feed');
+  const [showSearch, setShowSearch] = useState(false);
+  const [selectedFeedItem, setSelectedFeedItem] = useState<FeedItem | null>(null);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const { profile } = useAuth();
   const { gyms: nearbyGyms, loading: nearbyLoading } = useNearbyGyms(profile?.gymLat ?? null, profile?.gymLng ?? null);
-  const trendingData = getTrendingData(profile?.gym || '');
-  const classesData = getClassesData(profile?.gym || '');
+  const { friends, incomingRequests, loading: friendsLoading } = useFriendships();
+  const { feed, feedLoading, fetchFeed } = useWorkoutPosts();
+  const { leaderboard, loading: leaderboardLoading } = useFriendLeaderboard();
+
+  // Fetch feed on mount
+  useEffect(() => {
+    fetchFeed();
+  }, [fetchFeed]);
 
   const getRankColor = (rank: number) => {
     if (rank === 1) return 'bg-yellow-500';
@@ -88,30 +58,21 @@ export function CommunityPage() {
     return 'bg-gray-600';
   };
 
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  const gradients = ['from-purple-500 to-blue-500', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-yellow-500 to-red-500', 'from-indigo-500 to-purple-500'];
+  const getGradient = (name: string) => gradients[name.charCodeAt(0) % gradients.length];
+
+  const formatWorkoutType = (type: string) => type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
   return (
     <div className="min-h-screen bg-black text-white pb-24">
-      {selectedFriend && (
+      {showSearch && <UserSearchModal onClose={() => setShowSearch(false)} />}
+      {selectedFeedItem && <WorkoutDetailModal item={selectedFeedItem} onClose={() => setSelectedFeedItem(null)} />}
+      {selectedFriendId && (
         <FriendProfileModal
-          friend={selectedFriend as any}
-          onClose={() => setSelectedFriend(null)}
-        />
-      )}
-
-      {viewAllFriends && (
-        <ViewAllFriendsModal
-          onClose={() => setViewAllFriends(false)}
-          onSelectFriend={(friend) => {
-            setSelectedFriend({
-              id: friend.id,
-              name: friend.name,
-              avatar: friend.name.split(' ').map((n: string) => n[0]).join(''),
-              gym: friend.location || '',
-              status: friend.currentActivity ? 'Working out now' : 'Offline',
-              exercise: friend.currentActivity || null,
-              streak: friend.streak || 0,
-              activeNow: !!friend.currentActivity
-            } as any);
-          }}
+          friendUserId={selectedFriendId}
+          onClose={() => setSelectedFriendId(null)}
         />
       )}
 
@@ -121,98 +82,247 @@ export function CommunityPage() {
 
       <div className="px-4 mb-4">
         <div className="flex gap-2">
-          {(['trending', 'friends', 'classes', 'nearby'] as Tab[]).map((tab) => (
+          {(['feed', 'friends', 'leaderboard', 'nearby'] as Tab[]).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${activeTab === tab ? 'bg-white text-black' : 'bg-[#1a1a1a] text-gray-400 hover:bg-[#252525]'}`}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'friends' && incomingRequests.length > 0 && (
+                <span className="ml-1.5 w-4 h-4 bg-[#00ff00] text-black text-[10px] font-bold rounded-full inline-flex items-center justify-center">
+                  {incomingRequests.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
       </div>
 
       <div className="px-4 space-y-3">
-        {activeTab === 'trending' && (
+        {/* FEED TAB */}
+        {activeTab === 'feed' && (
           <>
-            <div className="bg-[#1a1a1a] rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-4"><TrendingUp className="w-4 h-4 text-[#00ff00]" /><h2 className="font-bold text-sm">Trending This Week</h2></div>
+            {feedLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+                <span className="text-sm text-gray-400 ml-2">Loading feed...</span>
+              </div>
+            )}
+
+            {!feedLoading && feed.length === 0 && (
+              <div className="text-center py-16">
+                <Dumbbell className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+                <p className="text-gray-400 font-semibold">No posts yet</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {friends.length === 0
+                    ? 'Add friends to see their workouts here'
+                    : 'Your friends haven\'t shared any workouts yet'}
+                </p>
+                {friends.length === 0 && (
+                  <button onClick={() => setShowSearch(true)} className="mt-4 px-4 py-2 bg-[#00ff00] text-black font-bold rounded-xl text-xs">
+                    Find Friends
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!feedLoading && feed.length > 0 && (
               <div className="space-y-3">
-                <div className="bg-black/50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-1"><h3 className="font-bold">{trendingData.topGym.name}</h3><div className="flex items-center gap-1 text-[#00ff00]"><TrendingUp className="w-3 h-3" /><span className="text-xs font-semibold">{trendingData.topGym.change}</span></div></div>
-                  <p className="text-xs text-gray-400 mb-2">{trendingData.topGym.subtitle}</p>
-                  <div className="flex items-center gap-1 text-[#00ff00]"><Activity className="w-3 h-3" /><span className="text-xs font-semibold">{trendingData.topGym.activeNow} lifting now</span></div>
-                </div>
-                <div className="bg-black/50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-1"><h3 className="font-bold">{trendingData.topLift.name}</h3><div className="flex items-center gap-1 text-[#00ff00]"><TrendingUp className="w-3 h-3" /><span className="text-xs font-semibold">{trendingData.topLift.change}</span></div></div>
-                  <p className="text-xs text-gray-400 mb-2">{trendingData.topLift.subtitle}</p>
-                  <div className="flex items-center gap-1"><Dumbbell className="w-3 h-3 text-blue-400" /><span className="text-xs font-semibold text-blue-400">{trendingData.topLift.performedToday} performed today</span></div>
+                {feed.map((item) => {
+                  const totalVolume = item.workout.exercises.reduce((sum, ex) =>
+                    sum + ex.sets.reduce((s, set) =>
+                      s + ((set.weightLbs || 0) * (set.reps || 0)), 0), 0);
+
+                  return (
+                    <button
+                      key={item.post.id}
+                      onClick={() => setSelectedFeedItem(item)}
+                      className="w-full bg-[#1a1a1a] rounded-2xl p-4 text-left hover:bg-[#202020] transition-colors"
+                    >
+                      {/* User row */}
+                      <div className="flex items-center gap-3 mb-3">
+                        {item.user.avatarUrl ? (
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800">
+                            <img src={item.user.avatarUrl} alt={item.user.name} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(item.user.name)} flex items-center justify-center font-bold text-xs`}>
+                            {getInitials(item.user.name)}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{item.user.name}</p>
+                          {item.user.username && <p className="text-[11px] text-gray-500">@{item.user.username}</p>}
+                        </div>
+                        <span className="text-[11px] text-gray-600">{timeAgo(item.post.createdAt)}</span>
+                      </div>
+
+                      {/* Workout summary */}
+                      <div className="bg-black/40 rounded-xl p-3 mb-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-0.5 bg-[#00ff00]/10 text-[#00ff00] text-[10px] font-bold rounded-md">
+                            {formatWorkoutType(item.workout.workoutType)}
+                          </span>
+                          {item.workout.durationMinutes && (
+                            <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                              <Clock className="w-3 h-3" />
+                              {item.workout.durationMinutes} min
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="text-gray-400">
+                            <span className="font-semibold text-white">{item.workout.exercises.length}</span> exercises
+                          </span>
+                          {totalVolume > 0 && (
+                            <span className="text-gray-400">
+                              <span className="font-semibold text-white">{totalVolume.toLocaleString()}</span> lbs
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Caption */}
+                      {item.post.caption && (
+                        <div className="flex items-start gap-2 mt-2">
+                          <MessageSquare className="w-3.5 h-3.5 text-gray-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-gray-300 leading-relaxed line-clamp-2">{item.post.caption}</p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* FRIENDS TAB */}
+        {activeTab === 'friends' && (
+          <>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-bold text-gray-400">
+                Your Friends ({friends.length})
+              </h3>
+              <button
+                onClick={() => setShowSearch(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00ff00] text-black font-bold rounded-lg text-xs"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Add
+              </button>
+            </div>
+
+            {/* Incoming requests */}
+            {incomingRequests.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-[#00ff00] rounded-full animate-pulse" />
+                  Friend Requests ({incomingRequests.length})
+                </h3>
+                <div className="space-y-2">
+                  {incomingRequests.map((req) => (
+                    <IncomingRequestCard key={req.friendshipId} request={req} />
+                  ))}
                 </div>
               </div>
-            </div>
-            <div className="bg-[#1a1a1a] rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-3"><Trophy className="w-4 h-4 text-yellow-500" /><h2 className="font-bold text-sm">Leaderboard</h2></div>
-              <div className="flex gap-1.5 mb-4">
-                {([['streaks', 'Streaks'], ['prs', 'PRs'], ['movement', 'Movement']] as [LeaderboardTab, string][]).map(([tab, label]) => (
-                  <button key={tab} onClick={() => setLeaderboardTab(tab)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${leaderboardTab === tab ? 'bg-[#00ff00] text-black' : 'bg-black/50 text-gray-400 hover:bg-black/70'}`}>
-                    {label}
+            )}
+
+            {friendsLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+                <span className="text-sm text-gray-400 ml-2">Loading friends...</span>
+              </div>
+            )}
+
+            {!friendsLoading && friends.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+                <p className="text-gray-400 font-semibold">No friends yet</p>
+                <p className="text-xs text-gray-600 mt-1">Search for friends by name or username</p>
+                <button onClick={() => setShowSearch(true)} className="mt-4 px-4 py-2 bg-[#00ff00] text-black font-bold rounded-xl text-xs">
+                  Find Friends
+                </button>
+              </div>
+            )}
+
+            {!friendsLoading && friends.length > 0 && (
+              <div className="space-y-2">
+                {friends.map((friend) => (
+                  <button
+                    key={friend.friendshipId}
+                    onClick={() => setSelectedFriendId(friend.userId)}
+                    className="w-full bg-[#1a1a1a] hover:bg-[#252525] rounded-xl p-4 flex items-center gap-3 transition-colors text-left"
+                  >
+                    {friend.avatarUrl ? (
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800">
+                        <img src={friend.avatarUrl} alt={friend.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getGradient(friend.name)} flex items-center justify-center font-bold text-sm`}>
+                        {getInitials(friend.name)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{friend.name}</p>
+                      {friend.username && <p className="text-xs text-gray-400 truncate">@{friend.username}</p>}
+                    </div>
                   </button>
                 ))}
               </div>
+            )}
+          </>
+        )}
 
-              {leaderboardTab === 'streaks' && (
-                <div className="space-y-2">
-                  {trendingData.streakLeaderboard.map((person) => (
-                    <div key={person.rank} className={`rounded-xl p-3 flex items-center gap-3 ${person.isYou ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(person.rank)}`}>{person.rank}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2"><p className="font-semibold text-sm">{person.name}</p>{person.isYou && (<span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>)}</div>
-                        <p className="text-xs text-gray-400">{person.gym}</p>
-                      </div>
-                      <div className="text-right"><p className="text-lg font-bold text-orange-500">{person.streak}</p><p className="text-[10px] text-gray-400">days</p></div>
-                    </div>
-                  ))}
+        {/* LEADERBOARD TAB */}
+        {activeTab === 'leaderboard' && (
+          <>
+            <div className="bg-[#1a1a1a] rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="w-4 h-4 text-yellow-500" />
+                <h2 className="font-bold text-sm">Weekly Leaderboard</h2>
+              </div>
+
+              {leaderboardLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+                  <span className="text-sm text-gray-400 ml-2">Loading...</span>
                 </div>
               )}
 
-              {leaderboardTab === 'prs' && (
-                <>
-                  <div className="flex gap-2 mb-3">
-                    <button onClick={() => setPrLift('bench')} className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${prLift === 'bench' ? 'bg-white text-black' : 'bg-black/50 text-gray-400'}`}>Bench Press</button>
-                    <button onClick={() => setPrLift('squat')} className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${prLift === 'squat' ? 'bg-white text-black' : 'bg-black/50 text-gray-400'}`}>Squat</button>
-                  </div>
-                  <div className="space-y-2">
-                    {(prLift === 'bench' ? trendingData.prLeaderboard : trendingData.squatLeaderboard).map((person) => (
-                      <div key={person.rank} className={`rounded-xl p-3 flex items-center gap-3 ${person.isYou ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(person.rank)}`}>{person.rank}</div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2"><p className="font-semibold text-sm">{person.name}</p>{person.isYou && (<span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>)}</div>
-                          <p className="text-xs text-gray-400">{person.gym}</p>
-                        </div>
-                        <div className="text-right"><p className="text-lg font-bold text-blue-400">{person.weight}</p><p className="text-[10px] text-gray-400">lbs</p></div>
-                      </div>
-                    ))}
-                  </div>
-                </>
+              {!leaderboardLoading && leaderboard.length === 0 && (
+                <div className="text-center py-8">
+                  <Trophy className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Add friends to see the leaderboard</p>
+                </div>
               )}
 
-              {leaderboardTab === 'movement' && (
+              {!leaderboardLoading && leaderboard.length > 0 && (
                 <div className="space-y-2">
-                  {trendingData.movementLeaderboard.map((person) => (
-                    <div key={person.rank} className={`rounded-xl p-3 flex items-center gap-3 ${person.isYou ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(person.rank)}`}>{person.rank}</div>
-                      <div className="flex-1">
+                  {leaderboard.map((person, idx) => (
+                    <div
+                      key={person.userId}
+                      className={`rounded-xl p-3 flex items-center gap-3 ${person.isCurrentUser ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(idx + 1)}`}>
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold text-sm">{person.name}</p>
-                          {person.isYou && (<span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>)}
+                          <p className="font-semibold text-sm truncate">{person.name}</p>
+                          {person.isCurrentUser && (
+                            <span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>
+                          )}
                         </div>
-                        <p className="text-xs text-gray-500">{person.reason}</p>
+                        {person.username && <p className="text-xs text-gray-500">@{person.username}</p>}
                       </div>
-                      <div className="flex items-center gap-1">
-                        {person.change > 0 ? (
-                          <span className="flex items-center gap-0.5 text-[#00ff00] font-bold text-sm"><ArrowUp className="w-3.5 h-3.5" />{person.change}</span>
-                        ) : person.change < 0 ? (
-                          <span className="flex items-center gap-0.5 text-red-400 font-bold text-sm"><ArrowDown className="w-3.5 h-3.5" />{Math.abs(person.change)}</span>
-                        ) : (
-                          <span className="flex items-center gap-0.5 text-gray-500 font-bold text-sm"><Minus className="w-3.5 h-3.5" /></span>
-                        )}
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-lg font-bold">{person.workoutsThisWeek}</p>
+                        <p className="text-[10px] text-gray-400">workouts</p>
+                      </div>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <div className="flex items-center gap-1">
+                          <Flame className="w-3 h-3 text-orange-500" />
+                          <span className="text-sm font-bold text-orange-500">{person.streak}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400">streak</p>
                       </div>
                     </div>
                   ))}
@@ -222,65 +332,7 @@ export function CommunityPage() {
           </>
         )}
 
-        {activeTab === 'friends' && (
-          <>
-            <div className="bg-gradient-to-br from-green-900/20 to-blue-900/20 rounded-xl p-3 border border-green-500/20 mb-3">
-              <div className="flex items-center justify-between"><div><p className="text-xs text-gray-400 mb-1">Friends Active Now</p><p className="text-2xl font-bold">{friendsData.filter(f => f.activeNow).length}</p></div><Activity className="w-8 h-8 text-[#00ff00]" /></div>
-            </div>
-            <div className="space-y-2">
-              {friendsData.map((friend) => (
-                <div key={friend.id} className="bg-[#1a1a1a] rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <button className="relative" onClick={() => setSelectedFriend(friend)}>
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold cursor-pointer hover:opacity-80 transition-opacity">{friend.avatar}</div>
-                      {friend.activeNow && (<div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#00ff00] border-2 border-black rounded-full"></div>)}
-                    </button>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1"><h3 className="font-bold text-sm">{friend.name}</h3><div className="flex items-center gap-1"><Flame className="w-3 h-3 text-orange-500" /><span className="text-xs font-semibold text-orange-500">{friend.streak}</span></div></div>
-                      <div className="flex items-center gap-1 mb-1"><MapPin className="w-3 h-3 text-gray-400" /><p className="text-xs text-gray-400">{friend.gym}</p></div>
-                      {friend.activeNow && friend.exercise ? (
-                        <div className="flex items-center gap-1 text-[#00ff00]"><Dumbbell className="w-3 h-3" /><span className="text-xs font-semibold">{friend.status} • {friend.exercise}</span></div>
-                      ) : (<p className="text-xs text-gray-500">{friend.status}</p>)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="text-center mt-4"><button className="px-4 py-2 bg-white text-black font-semibold rounded-lg text-xs hover:bg-gray-100 transition-colors" onClick={() => setViewAllFriends(true)}>View All Friends</button></div>
-          </>
-        )}
-
-        {activeTab === 'classes' && (
-          <>
-            <div className="mb-3"><h3 className="text-sm font-bold text-gray-400">Classes near you</h3></div>
-            <div className="space-y-3">
-              {classesData.map((classItem) => (
-                <div key={classItem.id} className="bg-[#1a1a1a] rounded-xl p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-bold text-base mb-1">{classItem.name}</h3>
-                      <div className="flex items-center gap-3 text-xs text-gray-400 mb-2">
-                        <span className="flex items-center gap-1"><User className="w-3 h-3" />{classItem.instructor}</span><span>•</span>
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{classItem.time}</span><span>•</span><span>{classItem.duration} min</span>
-                      </div>
-                      <p className="text-xs text-gray-500">{classItem.gym}</p>
-                    </div>
-                    <div className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${classItem.spotsLeft <= 3 ? 'bg-red-500/20 text-red-400' : classItem.spotsLeft <= 6 ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-[#00ff00]'}`}>{classItem.spotsLeft} spots</div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="text-gray-400">{classItem.enrolled} enrolled</span>
-                      <span className="text-[#00ff00] font-semibold">{classItem.friendsCount} friends</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${classItem.difficulty === 'High' ? 'bg-red-500/20 text-red-400' : classItem.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'}`}>{classItem.difficulty}</span>
-                    </div>
-                    <button className="px-4 py-2 bg-white text-black font-semibold rounded-lg text-xs hover:bg-gray-100 transition-colors">Join</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
+        {/* NEARBY TAB */}
         {activeTab === 'nearby' && (
           <>
             {profile?.gym && !profile?.isHomeGym && (
@@ -347,6 +399,55 @@ export function CommunityPage() {
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Inline sub-component for incoming friend request cards
+function IncomingRequestCard({ request }: { request: { friendshipId: string; name: string; username: string | null; avatarUrl: string | null } }) {
+  const { acceptRequest, declineRequest } = useFriendships();
+  const [accepting, setAccepting] = useState(false);
+
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const gradients = ['from-purple-500 to-blue-500', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500'];
+  const gradient = gradients[request.name.charCodeAt(0) % gradients.length];
+
+  const handleAccept = async () => {
+    setAccepting(true);
+    try { await acceptRequest(request.friendshipId); } catch {}
+    setAccepting(false);
+  };
+
+  return (
+    <div className="bg-[#1a1a1a] rounded-xl p-3 flex items-center gap-3 border border-[#00ff00]/10">
+      {request.avatarUrl ? (
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800">
+          <img src={request.avatarUrl} alt={request.name} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-xs`}>
+          {getInitials(request.name)}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm truncate">{request.name}</p>
+        {request.username && <p className="text-[11px] text-gray-500 truncate">@{request.username}</p>}
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={handleAccept}
+          disabled={accepting}
+          className="px-3 py-1.5 bg-[#00ff00] text-black font-bold rounded-lg text-xs disabled:opacity-50"
+        >
+          {accepting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Accept'}
+        </button>
+        <button
+          onClick={() => declineRequest(request.friendshipId)}
+          className="px-3 py-1.5 bg-gray-800 text-gray-400 font-semibold rounded-lg text-xs"
+        >
+          Decline
+        </button>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useWhoopData } from '../hooks/useWhoopData';
 import { useAuth } from '../context/AuthContext';
 import { useAICoach } from '../hooks/useAICoach';
+import { ShareWorkoutPrompt } from './ShareWorkoutPrompt';
 import type { HomeEquipment } from '../types';
 
 interface ActiveWorkoutPageProps {
@@ -332,6 +333,8 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const [loggedData, setLoggedData] = useState<Record<number, Record<number, LoggedSet>>>({});
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [workoutFinished, setWorkoutFinished] = useState(false);
+  const [savedWorkoutId, setSavedWorkoutId] = useState<string | null>(null);
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
 
   // Settings state
   const [showSettings, setShowSettings] = useState(false);
@@ -514,16 +517,21 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
     }
 
     try {
-      await saveWorkout({
+      const workoutId = await saveWorkout({
         workoutType: muscleGroup || 'Workout',
         startedAt: startedAt.current,
         durationMinutes,
         exercises: exercisesToSave,
       });
-      onClose();
+      if (workoutId) {
+        setSavedWorkoutId(workoutId);
+        setWorkoutFinished(false);
+        setShowSharePrompt(true);
+      } else {
+        onClose();
+      }
     } catch (err) {
       console.error('Failed to save workout:', err);
-      // Still close on error for now
       onClose();
     }
   };
@@ -1216,6 +1224,20 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
             </button>
           </div>
         </div>
+      )}
+
+      {/* Share Workout Prompt */}
+      {showSharePrompt && savedWorkoutId && (
+        <ShareWorkoutPrompt
+          workoutId={savedWorkoutId}
+          workoutSummary={{
+            exerciseCount: Object.keys(loggedData).length,
+            durationMinutes: Math.round((new Date().getTime() - new Date(startedAt.current).getTime()) / 60000),
+            totalVolume: Object.values(loggedData).reduce((total, sets) =>
+              total + Object.values(sets).reduce((sum, s) => sum + (s.weight * s.reps), 0), 0),
+          }}
+          onDone={onClose}
+        />
       )}
 
       {/* Add Exercise Modal */}

@@ -98,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile({
         id: data.id,
         name: data.name,
+        username: data.username ?? null,
         phone: data.phone,
         heightFeet: data.height_feet,
         heightInches: data.height_inches,

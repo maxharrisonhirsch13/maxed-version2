@@ -6,6 +6,7 @@ export function useProfile() {
 
   async function updateProfile(updates: {
     name?: string | null
+    username?: string | null
     phone?: string | null
     height_feet?: number | null
     height_inches?: number | null
@@ -36,5 +37,22 @@ export function useProfile() {
     await refreshProfile()
   }
 
-  return { updateProfile }
+  async function updateUsername(username: string) {
+    if (!user) throw new Error('Not authenticated')
+    const trimmed = username.trim().toLowerCase()
+    if (!/^[a-z0-9_]{3,20}$/.test(trimmed)) {
+      throw new Error('Username must be 3-20 characters, lowercase letters, numbers, and underscores only')
+    }
+    const { error } = await supabase
+      .from('profiles')
+      .update({ username: trimmed })
+      .eq('id', user.id)
+    if (error) {
+      if (error.code === '23505') throw new Error('Username is already taken')
+      throw error
+    }
+    await refreshProfile()
+  }
+
+  return { updateProfile, updateUsername }
 }
