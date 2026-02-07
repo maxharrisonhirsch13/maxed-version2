@@ -102,6 +102,30 @@ export interface WhoopData {
   connected: boolean
 }
 
+export interface OuraData {
+  readiness: {
+    score: number | null
+    temperatureDeviation: number | null
+    hrvBalance: number | null
+    restingHeartRate: number | null
+  } | null
+  sleep: {
+    score: number | null
+    totalSleepDuration: number | null
+    deepSleepDuration: number | null
+    remSleepDuration: number | null
+    efficiency: number | null
+    restfulness: number | null
+  } | null
+  activity: {
+    score: number | null
+    activeCalories: number | null
+    steps: number | null
+    walkingDistance: number | null
+  } | null
+  connected: boolean
+}
+
 export interface PrivacySettings {
   shareLiveActivity: boolean
   sharePrs: boolean

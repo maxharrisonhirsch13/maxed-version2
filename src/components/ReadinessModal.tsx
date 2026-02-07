@@ -1,6 +1,7 @@
 import { X, Activity, Moon, Heart, Zap, TrendingUp, Brain, Link2, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useWhoopData } from '../hooks/useWhoopData';
+import { useOuraData } from '../hooks/useOuraData';
 import { useWearableData } from '../hooks/useWearableData';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useAuth } from '../context/AuthContext';
@@ -36,12 +37,14 @@ function getRating(value: number, thresholds: [number, number]): string {
 
 export function ReadinessModal({ onClose }: ReadinessModalProps) {
   const { data: whoop } = useWhoopData();
+  const { data: oura } = useOuraData();
   const { data: wearable } = useWearableData();
   const { profile } = useAuth();
   const { workouts } = useWorkoutHistory({ limit: 10 });
   const { readiness, readinessLoading, fetchReadiness } = useAICoach();
   const hasWhoopData = whoop?.connected && (whoop.recovery || whoop.sleep || whoop.strain);
-  const hasData = hasWhoopData || wearable != null;
+  const hasOuraData = oura?.connected && (oura.readiness || oura.sleep || oura.activity);
+  const hasData = hasWhoopData || hasOuraData || wearable != null;
 
   // Fetch AI readiness when data is available
   useEffect(() => {
@@ -54,7 +57,7 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
         durationMinutes: w.durationMinutes || 0,
       }));
 
-    // Build wearable data payload from whichever source has data
+    // Build wearable data payload from whichever source has data (WHOOP > Oura > snapshot)
     const wearablePayload = whoop?.connected ? {
       recovery: whoop.recovery,
       sleep: whoop.sleep ? {
@@ -63,6 +66,10 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
         sleepScore: whoop.sleep.sleepScore,
       } : null,
       strain: whoop.strain ? { score: whoop.strain.score, kilojoules: whoop.strain.kilojoules } : null,
+    } : oura?.connected ? {
+      recovery: oura.readiness?.score != null ? { score: oura.readiness.score, restingHeartRate: null, hrv: null } : null,
+      sleep: oura.sleep?.score != null ? { sleepScore: oura.sleep.score, qualityDuration: null, deepSleepDuration: null } : null,
+      strain: null,
     } : wearable ? {
       recovery: wearable.recoveryScore != null ? { score: wearable.recoveryScore, restingHeartRate: wearable.restingHeartRate, hrv: wearable.hrv } : null,
       sleep: wearable.sleepScore != null ? { sleepScore: wearable.sleepScore, qualityDuration: wearable.sleepDurationMs, deepSleepDuration: wearable.deepSleepMs } : null,
@@ -77,10 +84,10 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
         goal: profile?.goal || null,
       },
     });
-  }, [whoop?.connected, wearable?.recoveryScore, workouts.length]);
+  }, [whoop?.connected, oura?.connected, wearable?.recoveryScore, workouts.length]);
 
-  // Use AI score if available, otherwise fall back to WHOOP or wearable data — floor at 55
-  const rawScore = readiness?.readinessScore ?? whoop?.recovery?.score ?? wearable?.recoveryScore ?? null;
+  // Use AI score if available, otherwise fall back to WHOOP → Oura → wearable snapshot — floor at 55
+  const rawScore = readiness?.readinessScore ?? whoop?.recovery?.score ?? oura?.readiness?.score ?? wearable?.recoveryScore ?? null;
   const score = rawScore != null ? Math.max(rawScore, 55) : null;
   const scoreColor = score != null ? getScoreColor(score) : '#00ff00';
   const scoreInfo = score != null ? getScoreLabel(score) : { label: 'No Data', detail: 'Connect a wearable for insights' };
@@ -171,7 +178,7 @@ export function ReadinessModal({ onClose }: ReadinessModalProps) {
             <div className="space-y-3">
               {/* Sleep */}
               {(() => {
-                const sleepScore = whoop?.sleep?.sleepScore ?? wearable?.sleepScore ?? null;
+                const sleepScore = whoop?.sleep?.sleepScore ?? oura?.sleep?.score ?? wearable?.sleepScore ?? null;
                 const sleepDuration = whoop?.sleep?.qualityDuration ?? wearable?.sleepDurationMs ?? null;
                 const deepSleep = whoop?.sleep?.deepSleepDuration ?? wearable?.deepSleepMs ?? null;
                 return (
