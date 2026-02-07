@@ -120,6 +120,20 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
 
+  // Edit Training Setup state
+  const [showEditTraining, setShowEditTraining] = useState(false);
+  const [trainingIsHome, setTrainingIsHome] = useState(false);
+  const [trainingGymName, setTrainingGymName] = useState('');
+  const [trainingEquipment, setTrainingEquipment] = useState({
+    dumbbells: { has: false, maxWeight: 50 },
+    barbell: { has: false, maxWeight: 225 },
+    kettlebell: { has: false, maxWeight: 35 },
+    cables: false,
+    pullUpBar: false,
+  });
+  const [trainingSaving, setTrainingSaving] = useState(false);
+  const [trainingError, setTrainingError] = useState('');
+
   const editMuscleGroups = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Core', 'Cardio'];
 
   // Get user's first name and initials
@@ -158,6 +172,24 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
       setEditError(err.message || 'Failed to save');
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  const handleSaveTraining = async () => {
+    setTrainingSaving(true);
+    setTrainingError('');
+    try {
+      await updateProfile({
+        is_home_gym: trainingIsHome,
+        gym: trainingIsHome ? 'Home Gym' : (trainingGymName || null),
+        gym_address: trainingIsHome ? null : undefined,
+        home_equipment: trainingIsHome ? trainingEquipment : null,
+      });
+      setShowEditTraining(false);
+    } catch (err: any) {
+      setTrainingError(err.message || 'Failed to save');
+    } finally {
+      setTrainingSaving(false);
     }
   };
 
@@ -349,19 +381,18 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
           </div>
           <button
             onClick={() => {
-              const cs = userData?.customSplit || [];
-              setEditData({
-                name: userData?.name || '',
-                heightFeet: userData?.heightFeet || 5,
-                heightInches: userData?.heightInches || 10,
-                weight: userData?.weight || 175,
-                experience: userData?.experience || '',
-                gym: userData?.gym || '',
-                split: userData?.split || '',
-                customSplit: cs.length > 0 ? cs : Array.from({ length: 3 }, (_, i) => ({ day: i + 1, muscles: [] })),
+              const eq = userData?.homeEquipment;
+              setTrainingIsHome(userData?.isHomeGym || false);
+              setTrainingGymName(userData?.gym || '');
+              setTrainingEquipment({
+                dumbbells: eq?.dumbbells || { has: false, maxWeight: 50 },
+                barbell: eq?.barbell || { has: false, maxWeight: 225 },
+                kettlebell: eq?.kettlebell || { has: false, maxWeight: 35 },
+                cables: eq?.cables || false,
+                pullUpBar: eq?.pullUpBar || false,
               });
-              setEditCustomDays(cs.length > 0 ? cs.length : 3);
-              setShowEditProfile(true);
+              setTrainingError('');
+              setShowEditTraining(true);
             }}
             className="w-full mt-3 bg-[#1a1a1a] hover:bg-[#252525] text-white font-medium py-2.5 rounded-xl text-xs transition-colors"
           >
@@ -952,6 +983,206 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                   </>
                 ) : (
                   'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Training Setup Modal */}
+      {showEditTraining && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-gradient-to-b from-[#0f0f0f] to-black rounded-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-900">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-[#00ff00]/10 rounded-xl">
+                  <HomeIcon className="w-4 h-4 text-[#00ff00]" />
+                </div>
+                <h3 className="font-bold text-lg">Training Setup</h3>
+              </div>
+              <button onClick={() => setShowEditTraining(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {/* Gym vs Home Toggle */}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 tracking-wide mb-3 block">TRAINING LOCATION</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setTrainingIsHome(false)}
+                    className={`p-3.5 rounded-xl border-2 transition-all text-center ${
+                      !trainingIsHome ? 'border-[#00ff00] bg-[#00ff00]/10' : 'border-gray-800 bg-[#1a1a1a] hover:border-gray-700'
+                    }`}
+                  >
+                    <MapPin className={`w-5 h-5 mx-auto mb-1.5 ${!trainingIsHome ? 'text-[#00ff00]' : 'text-gray-500'}`} />
+                    <p className="text-sm font-medium">Gym</p>
+                  </button>
+                  <button
+                    onClick={() => setTrainingIsHome(true)}
+                    className={`p-3.5 rounded-xl border-2 transition-all text-center ${
+                      trainingIsHome ? 'border-[#00ff00] bg-[#00ff00]/10' : 'border-gray-800 bg-[#1a1a1a] hover:border-gray-700'
+                    }`}
+                  >
+                    <HomeIcon className={`w-5 h-5 mx-auto mb-1.5 ${trainingIsHome ? 'text-[#00ff00]' : 'text-gray-500'}`} />
+                    <p className="text-sm font-medium">Home Gym</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Gym Name (only for non-home) */}
+              {!trainingIsHome && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 tracking-wide mb-2 block">GYM NAME</label>
+                  <input
+                    type="text"
+                    value={trainingGymName}
+                    onChange={(e) => setTrainingGymName(e.target.value)}
+                    placeholder="e.g. Gold's Gym"
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#00ff00] transition-colors"
+                  />
+                </div>
+              )}
+
+              {/* Equipment (only for home gym) */}
+              {trainingIsHome && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 tracking-wide mb-3 block">EQUIPMENT</label>
+                  <div className="space-y-3">
+                    {/* Dumbbells */}
+                    <div className="bg-[#1a1a1a] rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Dumbbells</span>
+                        <button
+                          onClick={() => setTrainingEquipment(prev => ({ ...prev, dumbbells: { ...prev.dumbbells, has: !prev.dumbbells.has } }))}
+                          className={`w-11 h-6 rounded-full transition-colors relative ${trainingEquipment.dumbbells.has ? 'bg-[#00ff00]' : 'bg-gray-700'}`}
+                        >
+                          <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${trainingEquipment.dumbbells.has ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                        </button>
+                      </div>
+                      {trainingEquipment.dumbbells.has && (
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-xs text-gray-400">Max weight (per dumbbell)</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setTrainingEquipment(prev => ({ ...prev, dumbbells: { ...prev.dumbbells, maxWeight: Math.max(5, prev.dumbbells.maxWeight - 5) } }))}
+                              className="w-7 h-7 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-sm font-bold text-gray-400"
+                            >&minus;</button>
+                            <span className="text-sm font-bold w-12 text-center">{trainingEquipment.dumbbells.maxWeight}lb</span>
+                            <button
+                              onClick={() => setTrainingEquipment(prev => ({ ...prev, dumbbells: { ...prev.dumbbells, maxWeight: Math.min(200, prev.dumbbells.maxWeight + 5) } }))}
+                              className="w-7 h-7 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-sm font-bold text-gray-400"
+                            >+</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Barbell */}
+                    <div className="bg-[#1a1a1a] rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Barbell</span>
+                        <button
+                          onClick={() => setTrainingEquipment(prev => ({ ...prev, barbell: { ...prev.barbell, has: !prev.barbell.has } }))}
+                          className={`w-11 h-6 rounded-full transition-colors relative ${trainingEquipment.barbell.has ? 'bg-[#00ff00]' : 'bg-gray-700'}`}
+                        >
+                          <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${trainingEquipment.barbell.has ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                        </button>
+                      </div>
+                      {trainingEquipment.barbell.has && (
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-xs text-gray-400">Max weight (total)</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setTrainingEquipment(prev => ({ ...prev, barbell: { ...prev.barbell, maxWeight: Math.max(45, prev.barbell.maxWeight - 10) } }))}
+                              className="w-7 h-7 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-sm font-bold text-gray-400"
+                            >&minus;</button>
+                            <span className="text-sm font-bold w-12 text-center">{trainingEquipment.barbell.maxWeight}lb</span>
+                            <button
+                              onClick={() => setTrainingEquipment(prev => ({ ...prev, barbell: { ...prev.barbell, maxWeight: Math.min(700, prev.barbell.maxWeight + 10) } }))}
+                              className="w-7 h-7 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-sm font-bold text-gray-400"
+                            >+</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Kettlebell */}
+                    <div className="bg-[#1a1a1a] rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Kettlebell</span>
+                        <button
+                          onClick={() => setTrainingEquipment(prev => ({ ...prev, kettlebell: { ...prev.kettlebell, has: !prev.kettlebell.has } }))}
+                          className={`w-11 h-6 rounded-full transition-colors relative ${trainingEquipment.kettlebell.has ? 'bg-[#00ff00]' : 'bg-gray-700'}`}
+                        >
+                          <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${trainingEquipment.kettlebell.has ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                        </button>
+                      </div>
+                      {trainingEquipment.kettlebell.has && (
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-xs text-gray-400">Max weight</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setTrainingEquipment(prev => ({ ...prev, kettlebell: { ...prev.kettlebell, maxWeight: Math.max(10, prev.kettlebell.maxWeight - 5) } }))}
+                              className="w-7 h-7 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-sm font-bold text-gray-400"
+                            >&minus;</button>
+                            <span className="text-sm font-bold w-12 text-center">{trainingEquipment.kettlebell.maxWeight}lb</span>
+                            <button
+                              onClick={() => setTrainingEquipment(prev => ({ ...prev, kettlebell: { ...prev.kettlebell, maxWeight: Math.min(106, prev.kettlebell.maxWeight + 5) } }))}
+                              className="w-7 h-7 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-sm font-bold text-gray-400"
+                            >+</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Cables */}
+                    <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between">
+                      <span className="text-sm font-medium">Cables / Bands</span>
+                      <button
+                        onClick={() => setTrainingEquipment(prev => ({ ...prev, cables: !prev.cables }))}
+                        className={`w-11 h-6 rounded-full transition-colors relative ${trainingEquipment.cables ? 'bg-[#00ff00]' : 'bg-gray-700'}`}
+                      >
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${trainingEquipment.cables ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+
+                    {/* Pull-up Bar */}
+                    <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-between">
+                      <span className="text-sm font-medium">Pull-up Bar</span>
+                      <button
+                        onClick={() => setTrainingEquipment(prev => ({ ...prev, pullUpBar: !prev.pullUpBar }))}
+                        className={`w-11 h-6 rounded-full transition-colors relative ${trainingEquipment.pullUpBar ? 'bg-[#00ff00]' : 'bg-gray-700'}`}
+                      >
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${trainingEquipment.pullUpBar ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {trainingError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                  <p className="text-red-400 text-xs">{trainingError}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-900">
+              <button
+                onClick={handleSaveTraining}
+                disabled={trainingSaving}
+                className="w-full bg-[#00ff00] text-black font-bold py-3.5 rounded-2xl text-sm hover:bg-[#00dd00] transition-all active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {trainingSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Training Setup'
                 )}
               </button>
             </div>
