@@ -57,7 +57,7 @@ function getScheduledWorkout(split: string | undefined, customSplit?: { day: num
 
 export default function App() {
   const { session, profile, loading, authError, refreshProfile } = useAuth();
-  const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
+  const { workouts: recentWorkouts, refetch: refetchWorkouts } = useWorkoutHistory({ limit: 10 });
   const { data: whoopData, loading: whoopLoading, error: whoopError } = useWhoopData();
   const { data: wearableData } = useWearableData();
   const { readiness, readinessLoading, fetchReadiness } = useAICoach();
@@ -145,6 +145,13 @@ export default function App() {
   const currentMuscleGroup = activeMuscleGroup || scheduledWorkout.name;
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Filter workouts to this week (Monday through today)
+  const startOfWeek = new Date(today);
+  const dayOfWeek = startOfWeek.getDay(); // 0=Sun, 1=Mon ...
+  startOfWeek.setDate(startOfWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)); // Go back to Monday
+  startOfWeek.setHours(0, 0, 0, 0);
+  const thisWeekWorkouts = recentWorkouts.filter(w => new Date(w.startedAt) >= startOfWeek);
 
   // Loading state while auth initializes
   if (loading) {
@@ -353,18 +360,18 @@ export default function App() {
             <div className="pt-2 lg:pt-4">
               <div className="flex justify-between items-center mb-3 lg:mb-4">
                 <h3 className="text-base lg:text-lg font-bold">This Week</h3>
-                <p className="text-gray-400 text-xs">{recentWorkouts.length} workout{recentWorkouts.length !== 1 ? 's' : ''}</p>
+                <p className="text-gray-400 text-xs">{thisWeekWorkouts.length} workout{thisWeekWorkouts.length !== 1 ? 's' : ''}</p>
               </div>
 
-              {recentWorkouts.length === 0 ? (
+              {thisWeekWorkouts.length === 0 ? (
                 <div className="bg-[#1a1a1a] rounded-xl p-6 flex flex-col items-center justify-center">
                   <Dumbbell className="w-8 h-8 text-gray-600 mb-2" />
-                  <p className="text-gray-500 text-sm">No workouts yet</p>
+                  <p className="text-gray-500 text-sm">No workouts yet this week</p>
                   <p className="text-gray-600 text-xs mt-1">Start your first workout above!</p>
                 </div>
               ) : (
                 <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-                  {recentWorkouts.slice(0, 5).map((workout) => {
+                  {thisWeekWorkouts.map((workout) => {
                     const isCardio = workout.workoutType.toLowerCase().includes('cardio');
                     return (
                       <button
@@ -487,7 +494,7 @@ export default function App() {
       )}
 
       {/* Workout Start Page */}
-      {showWorkoutStart && <WorkoutStartPage onClose={() => { setShowWorkoutStart(false); setActiveMuscleGroup(''); setTrainingLocation(''); }} muscleGroup={currentMuscleGroup} trainingLocation={trainingLocation} />}
+      {showWorkoutStart && <WorkoutStartPage onClose={() => { setShowWorkoutStart(false); setActiveMuscleGroup(''); setTrainingLocation(''); refetchWorkouts(); }} muscleGroup={currentMuscleGroup} trainingLocation={trainingLocation} />}
 
       {/* Integrations Page */}
       {showIntegrations && (
@@ -541,7 +548,7 @@ export default function App() {
       {/* Cardio Session Page */}
       {showCardioSession && (
         <CardioSessionPage
-          onClose={() => { setShowCardioSession(false); setCardioGoal(''); setCardioDetails(null); }}
+          onClose={() => { setShowCardioSession(false); setCardioGoal(''); setCardioDetails(null); refetchWorkouts(); }}
           goal={cardioGoal}
           details={cardioDetails}
         />
