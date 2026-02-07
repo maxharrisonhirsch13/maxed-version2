@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Phone, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon, Home as HomeIcon, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon, Home as HomeIcon, Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
@@ -41,7 +41,7 @@ interface WorkoutLog {
 
 
 export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps) {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { updateProfile } = useProfile();
   const { workouts: rawWorkouts } = useWorkoutHistory();
   const { connected: whoopConnected } = useWhoopStatus();
@@ -323,10 +323,10 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
           </h3>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <Phone className="w-4 h-4 text-gray-500" />
+              <Mail className="w-4 h-4 text-gray-500" />
               <div>
-                <p className="text-xs text-gray-500">Phone</p>
-                <p className="text-sm font-medium">{userData?.phone || 'No phone set'}</p>
+                <p className="text-xs text-gray-500">Email</p>
+                <p className="text-sm font-medium">{user?.email || 'No email set'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

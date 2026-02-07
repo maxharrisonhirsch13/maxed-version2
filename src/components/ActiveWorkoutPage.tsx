@@ -70,7 +70,7 @@ const exerciseLibrary: Record<string, Exercise[]> = {
     { id: 310, name: 'Shrugs', muscleGroups: 'Traps • Dumbbells', videoId: '6hNudn7Peco', sets: 3, aiSuggestion: { weight: 70, reps: '12-15' } },
   ],
   'Biceps': [
-    { id: 401, name: 'Barbell Curl', muscleGroups: 'Biceps • Barbell', videoId: 'kwG2ipFRgFo', sets: 4, aiSuggestion: { weight: 75, reps: '10-12' } },
+    { id: 401, name: 'Barbell Curl', muscleGroups: 'Biceps • Barbell', videoId: 'QZEqB6wUPxQ', sets: 4, aiSuggestion: { weight: 75, reps: '10-12' } },
     { id: 402, name: 'Hammer Curls', muscleGroups: 'Biceps • Brachialis • Dumbbells', videoId: 'zC3nLlEvin4', sets: 3, aiSuggestion: { weight: 35, reps: '10-12' } },
     { id: 403, name: 'Incline Dumbbell Curl', muscleGroups: 'Biceps • Dumbbells', videoId: 'UeleXjsE-98', sets: 3, aiSuggestion: { weight: 30, reps: '10-12' } },
     { id: 404, name: 'Preacher Curls', muscleGroups: 'Biceps • Machine', videoId: 'nbcgEmZ0Be4', sets: 3, aiSuggestion: { weight: 55, reps: '10-12' } },
@@ -267,6 +267,25 @@ function filterForHomeGym(exercises: Exercise[], equipment: HomeEquipment): Exer
   }
 
   return filtered;
+}
+
+// Auto-save component: fires handleFinishWorkout on mount so user goes straight to share screen
+function WorkoutFinishedAutoSave({ onSave }: { onSave: () => void }) {
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!fired.current) {
+      fired.current = true;
+      onSave();
+    }
+  }, [onSave]);
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-[#1a1a1a] rounded-3xl p-6 text-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#00ff00] mx-auto mb-4" />
+        <p className="text-sm text-gray-400">Saving workout...</p>
+      </div>
+    </div>
+  );
 }
 
 export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild, trainingAtHome }: ActiveWorkoutPageProps) {
@@ -475,23 +494,24 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
     const newCompleted = [...completedSets, currentSet];
     setCompletedSets(newCompleted);
 
+    // Build completed sets array from what we already have + what we just logged
+    // Don't rely on loggedData state (stale in this closure)
+    const allLoggedSets: { weight: number; reps: number }[] = [];
+    const existingData = loggedData[currentExerciseIndex] || {};
+    for (let s = 1; s < currentSet; s++) {
+      const d = existingData[s];
+      if (d) allLoggedSets.push({ weight: d.weight, reps: d.reps });
+    }
+    allLoggedSets.push(justLogged); // the set we JUST logged
+
+    const setsRemaining = currentExercise.sets - allLoggedSets.length;
+    const exerciseIdx = currentExerciseIndex;
+    const exerciseName = currentExercise.name;
+
     if (currentSet < currentExercise.sets) {
       setCurrentSet(currentSet + 1);
 
-      // Build completed sets array from what we already have + what we just logged
-      // Don't rely on loggedData state (stale in this closure)
-      const allLoggedSets: { weight: number; reps: number }[] = [];
-      const existingData = loggedData[currentExerciseIndex] || {};
-      for (let s = 1; s < currentSet; s++) {
-        const d = existingData[s];
-        if (d) allLoggedSets.push({ weight: d.weight, reps: d.reps });
-      }
-      allLoggedSets.push(justLogged); // the set we JUST logged
-
-      const setsRemaining = currentExercise.sets - allLoggedSets.length;
-      const exerciseIdx = currentExerciseIndex;
-      const exerciseName = currentExercise.name;
-
+      // Trigger live AI update for the next set
       setLiveAiUpdating(true);
       liveUpdateActive.current = true;
 
@@ -520,6 +540,21 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
         setLiveAiUpdating(false);
       });
     } else {
+      // Last set of this exercise — still fire AI update for context, then advance
+      setLiveAiUpdating(true);
+      liveUpdateActive.current = true;
+
+      fetchSetUpdate({
+        exercise: exerciseName,
+        completedSets: allLoggedSets,
+        setsRemaining: 0,
+        goal: profile?.goal || null,
+      }).then(update => {
+        if (update) {
+          setAiNote(update.note);
+        }
+        setLiveAiUpdating(false);
+      });
       advanceToNextExercise();
     }
   };
@@ -1254,27 +1289,9 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
         </div>
       )}
 
-      {/* Workout Finished */}
+      {/* Workout Finished — auto-save and go straight to share screen */}
       {workoutFinished && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[#1a1a1a] rounded-3xl p-6 text-center">
-            <div className="w-16 h-16 bg-[#00ff00] rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-black" />
-            </div>
-            <h2 className="font-bold text-xl mb-2">Workout Complete!</h2>
-            <p className="text-sm text-gray-400 mb-6">
-              {Object.keys(loggedData).length} exercise{Object.keys(loggedData).length !== 1 ? 's' : ''} logged
-            </p>
-            <button
-              onClick={handleFinishWorkout}
-              disabled={saving}
-              className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-sm hover:bg-[#00dd00] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {saving ? 'Saving...' : 'Save Workout'}
-            </button>
-          </div>
-        </div>
+        <WorkoutFinishedAutoSave onSave={handleFinishWorkout} />
       )}
 
       {/* Share Workout Prompt */}
