@@ -495,7 +495,8 @@ export default function App() {
             } else if (type === 'ai' && details.name) {
               setActiveMuscleGroup(details.name);
             }
-            setShowWorkoutStart(true);
+            // Go through PreWorkoutModal (location prompt) instead of straight to workout
+            setShowPreWorkout(true);
           }}
           userSplit={profile?.split || ''}
           customSplit={profile?.customSplit || []}

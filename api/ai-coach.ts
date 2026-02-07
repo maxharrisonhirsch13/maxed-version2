@@ -27,6 +27,18 @@ You must respond with valid JSON matching this schema:
 
 Include one entry per exercise in the input. The "reps" field should be a range like "8-10".`
 
+const WORKOUT_FROM_PROMPT_SYSTEM_PROMPT = `You are a fitness workout designer. The user will describe the kind of workout they want in natural language. Generate a workout name and brief description that captures their intent.
+
+Rules:
+- The "name" should be a short, clean workout title (2-4 words) like "Calisthenics & Core", "Upper Hypertrophy", "Kettlebell HIIT", etc.
+- The "description" should be 1 sentence explaining the workout focus
+- Match the user's intent closely — if they say "calisthenics with stability", don't give them a barbell workout
+- If they mention specific muscle groups, include those in the name
+- If the scheduled workout type is provided, acknowledge they're switching from it
+
+You must respond with valid JSON matching this schema:
+{ "name": string, "description": string }`
+
 const READINESS_SYSTEM_PROMPT = `You are a concise, motivating fitness readiness coach AI. Analyze biometric data from any wearable platform (WHOOP, Garmin, Apple Health, Oura, etc.) and training history to produce a readiness assessment.
 
 Data normalization across platforms:
@@ -93,6 +105,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         exercises: body.exercises,
         userProfile: body.userProfile,
         recovery: body.recovery,
+      })
+    } else if (body.type === 'workout-from-prompt') {
+      systemPrompt = WORKOUT_FROM_PROMPT_SYSTEM_PROMPT
+      userPrompt = JSON.stringify({
+        userRequest: body.prompt,
+        scheduledWorkout: body.scheduledWorkout || null,
+        userSplit: body.userSplit || null,
       })
     } else if (body.type === 'readiness') {
       systemPrompt = READINESS_SYSTEM_PROMPT
