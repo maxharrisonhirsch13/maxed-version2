@@ -14,6 +14,7 @@ const goalIcons: Record<string, any> = {
   'endurance': TrendingUp,
   'recovery': Activity,
   'liss': Heart,
+  'quick': Heart,
 };
 
 const goalColors: Record<string, string> = {
@@ -22,6 +23,7 @@ const goalColors: Record<string, string> = {
   'endurance': 'from-blue-500 to-cyan-500',
   'recovery': 'from-green-500 to-emerald-500',
   'liss': 'from-purple-500 to-pink-500',
+  'quick': 'from-red-500 to-orange-500',
 };
 
 const goalNames: Record<string, string> = {
@@ -30,6 +32,7 @@ const goalNames: Record<string, string> = {
   'endurance': 'Endurance',
   'recovery': 'Active Recovery',
   'liss': 'LISS',
+  'quick': 'Cardio',
 };
 
 function formatTime(seconds: number) {
@@ -61,9 +64,11 @@ export function CardioSessionPage({ onClose, goal, details }: CardioSessionPageP
 
   const Icon = goalIcons[goal] || Heart;
   const color = goalColors[goal] || 'from-gray-500 to-gray-600';
-  const equipmentName = details?.equipment
-    ? details.equipment.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-    : '';
+  const equipmentName = details?.activityName
+    ? details.activityName
+    : details?.equipment
+      ? details.equipment.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+      : '';
 
   // Timer
   useEffect(() => {

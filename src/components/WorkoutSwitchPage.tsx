@@ -1,4 +1,4 @@
-import { X, Dumbbell, Sparkles, ChevronRight, Loader2, Send } from 'lucide-react';
+import { X, Dumbbell, Sparkles, ChevronRight, Loader2, Send, Heart, MapPin, Bike, Footprints, Waves, Mountain, CircleDot } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,7 +12,7 @@ interface WorkoutSwitchPageProps {
 
 export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customSplit, scheduledWorkout }: WorkoutSwitchPageProps) {
   const { session } = useAuth();
-  const [selectedMode, setSelectedMode] = useState<'split' | 'custom' | 'ai' | null>(null);
+  const [selectedMode, setSelectedMode] = useState<'split' | 'custom' | 'ai' | 'cardio' | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
 
@@ -20,6 +20,18 @@ export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customS
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<{ name: string; description: string } | null>(null);
+
+  // Cardio state
+  const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
+
+  const cardioActivities = [
+    { id: 'outdoor-run', name: 'Outdoor Run', icon: MapPin, color: 'from-blue-500 to-cyan-500' },
+    { id: 'walk', name: 'Walk', icon: Footprints, color: 'from-green-500 to-emerald-500' },
+    { id: 'treadmill', name: 'Treadmill', icon: CircleDot, color: 'from-red-500 to-orange-500' },
+    { id: 'bike', name: 'Bike Ride', icon: Bike, color: 'from-yellow-500 to-orange-500' },
+    { id: 'swim', name: 'Swim', icon: Waves, color: 'from-cyan-500 to-blue-500' },
+    { id: 'hike', name: 'Hike', icon: Mountain, color: 'from-emerald-500 to-green-600' },
+  ];
 
   const getSplitDays = () => {
     if (userSplit === 'ppl') return ['Push (Chest, Shoulders, Triceps)', 'Pull (Back, Biceps)', 'Legs (Quads, Hamstrings, Calves)'];
@@ -103,6 +115,10 @@ export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customS
     if (selectedMode === 'split' && selectedDay !== null) onSelectWorkout('split', { day: selectedDay, name: getSplitDays()[selectedDay] });
     else if (selectedMode === 'custom' && selectedMuscles.length > 0) onSelectWorkout('custom', { muscles: selectedMuscles });
     else if (selectedMode === 'ai' && aiResult) onSelectWorkout('ai', { name: aiResult.name });
+    else if (selectedMode === 'cardio' && selectedActivity) {
+      const activity = cardioActivities.find(a => a.id === selectedActivity);
+      onSelectWorkout('cardio', { activity: selectedActivity, activityName: activity?.name || selectedActivity });
+    }
   };
 
   const splitDays = getSplitDays();
@@ -147,6 +163,13 @@ export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customS
                 <div className="text-left"><h3 className="font-bold mb-1">Ask AI</h3><p className="text-sm text-gray-400">Describe the workout you want</p></div>
               </div>
               <ChevronRight className="w-5 h-5 text-[#00ff00]" />
+            </button>
+            <button onClick={() => setSelectedMode('cardio')} className="w-full bg-[#1a1a1a] hover:bg-[#252525] rounded-2xl p-5 flex items-center justify-between transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center"><Heart className="w-6 h-6 text-white" /></div>
+                <div className="text-left"><h3 className="font-bold mb-1">Cardio / Run</h3><p className="text-sm text-gray-400">Run, walk, bike, or log any cardio</p></div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
           </div>
         )}
@@ -258,7 +281,28 @@ export function WorkoutSwitchPage({ onClose, onSelectWorkout, userSplit, customS
           </div>
         )}
 
-        {((selectedMode === 'split' && selectedDay !== null) || (selectedMode === 'custom' && selectedMuscles.length > 0) || (selectedMode === 'ai' && aiResult)) && (
+        {selectedMode === 'cardio' && (
+          <div className="space-y-3">
+            <button onClick={() => { setSelectedMode(null); setSelectedActivity(null); }} className="text-[#00ff00] text-sm mb-4 flex items-center gap-1">← Back</button>
+            <p className="text-gray-400 text-sm mb-4">What type of cardio?</p>
+            {cardioActivities.map((activity) => {
+              const Icon = activity.icon;
+              return (
+                <button key={activity.id} onClick={() => setSelectedActivity(activity.id)} className={`w-full rounded-2xl p-5 flex items-center justify-between transition-colors ${selectedActivity === activity.id ? 'bg-gradient-to-br ' + activity.color + ' text-white' : 'bg-[#1a1a1a] hover:bg-[#252525] text-white'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 ${selectedActivity === activity.id ? 'bg-white/20' : 'bg-gradient-to-br ' + activity.color} rounded-lg flex items-center justify-center`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <h3 className="font-bold">{activity.name}</h3>
+                  </div>
+                  {selectedActivity === activity.id && (<div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center"><span className="text-white text-sm">✓</span></div>)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {((selectedMode === 'split' && selectedDay !== null) || (selectedMode === 'custom' && selectedMuscles.length > 0) || (selectedMode === 'ai' && aiResult) || (selectedMode === 'cardio' && selectedActivity)) && (
           <button onClick={handleContinue} className="fixed bottom-6 left-4 right-4 bg-[#00ff00] text-black font-bold py-4 rounded-xl hover:bg-[#00cc00] transition-colors">Continue</button>
         )}
       </div>

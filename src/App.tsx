@@ -488,6 +488,13 @@ export default function App() {
           onClose={() => setShowWorkoutSwitch(false)}
           onSelectWorkout={(type, details) => {
             setShowWorkoutSwitch(false);
+            if (type === 'cardio') {
+              // Go directly to CardioSessionPage — skip PreWorkoutModal for cardio
+              setCardioGoal('quick');
+              setCardioDetails({ equipment: details.activity, activityName: details.activityName });
+              setShowCardioSession(true);
+              return;
+            }
             if (type === 'split' && details.name) {
               setActiveMuscleGroup(details.name);
             } else if (type === 'custom' && details.muscles) {
