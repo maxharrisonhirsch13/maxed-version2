@@ -3,8 +3,8 @@ import { Sparkles, Users, TrendingUp, Zap, ChevronRight, ArrowLeft, Mail, Lock, 
 import { useAuth } from '../context/AuthContext';
 
 export function LoginScreen() {
-  const { signUp, signIn } = useAuth();
-  const [step, setStep] = useState<'splash' | 'signup' | 'login'>('splash');
+  const { signUp, signIn, authError } = useAuth();
+  const [step, setStep] = useState<'splash' | 'signup' | 'login' | 'check-email'>('splash');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,13 +28,15 @@ export function LoginScreen() {
     }
 
     setLoading(true);
-    const { error } = await signUp(email.trim(), password);
+    const { error, needsConfirmation } = await signUp(email.trim(), password);
     setLoading(false);
 
     if (error) {
       setError(error.message);
+    } else if (needsConfirmation) {
+      setStep('check-email');
     }
-    // On success, AuthContext auto-updates session → App.tsx re-renders past login
+    // On success (no confirmation needed), AuthContext auto-updates session
   };
 
   const handleSignIn = async () => {
@@ -99,6 +101,11 @@ export function LoginScreen() {
         </div>
 
         <div className="w-full max-w-sm space-y-3 relative z-10">
+          {authError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-2">
+              <p className="text-red-400 text-xs text-center">{authError}</p>
+            </div>
+          )}
           <button
             onClick={() => setStep('signup')}
             className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] shadow-lg shadow-[#00ff00]/20"
@@ -120,6 +127,28 @@ export function LoginScreen() {
             <a href="/privacy.html" target="_blank" className="text-gray-400 underline hover:text-white">Privacy Policy</a>
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // Check email screen (after signup with confirmation required)
+  if (step === 'check-email') {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
+        <div className="w-16 h-16 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-[#00ff00]/20">
+          <Mail className="w-8 h-8 text-black" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Check Your Email</h2>
+        <p className="text-gray-400 text-sm text-center max-w-xs mb-6">
+          We sent a confirmation link to <span className="text-white font-medium">{email}</span>. Click the link to activate your account.
+        </p>
+        <button
+          onClick={() => { setStep('login'); setError(''); }}
+          className="bg-[#00ff00] text-black font-bold py-3 px-8 rounded-2xl text-sm hover:bg-[#00dd00] transition-all active:scale-[0.98]"
+        >
+          Go to Sign In
+        </button>
+        <p className="text-gray-600 text-xs mt-4">Didn't get it? Check your spam folder.</p>
       </div>
     );
   }

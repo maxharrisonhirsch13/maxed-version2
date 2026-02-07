@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 export function useWorkouts() {
   const { user } = useAuth()
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   async function saveWorkout(workout: {
     workoutType: string
@@ -27,9 +28,10 @@ export function useWorkouts() {
   }) {
     if (!user) throw new Error('Not authenticated')
     setSaving(true)
+    setSaveError(null)
 
     try {
-      // Insert the workout
+      // 1. Insert the workout row
       const { data: workoutRow, error: wErr } = await supabase
         .from('workouts')
         .insert({
@@ -42,24 +44,37 @@ export function useWorkouts() {
         .select()
         .single()
 
-      if (wErr || !workoutRow) throw wErr
+      if (wErr || !workoutRow) {
+        throw new Error(wErr?.message || 'Failed to save workout')
+      }
 
-      // Insert exercises and sets
-      for (const exercise of workout.exercises) {
-        const { data: exRow, error: exErr } = await supabase
-          .from('workout_exercises')
-          .insert({
-            workout_id: workoutRow.id,
-            exercise_name: exercise.exerciseName,
-            sort_order: exercise.sortOrder,
-          })
-          .select()
-          .single()
+      // 2. Batch insert all exercises at once
+      const exerciseInserts = workout.exercises.map(ex => ({
+        workout_id: workoutRow.id,
+        exercise_name: ex.exerciseName,
+        sort_order: ex.sortOrder,
+      }))
 
-        if (exErr || !exRow) throw exErr
+      const { data: exerciseRows, error: exErr } = await supabase
+        .from('workout_exercises')
+        .insert(exerciseInserts)
+        .select()
 
-        if (exercise.sets.length > 0) {
-          const setsToInsert = exercise.sets.map(set => ({
+      if (exErr || !exerciseRows) {
+        // Workout was created but exercises failed — clean up
+        await supabase.from('workouts').delete().eq('id', workoutRow.id)
+        throw new Error(exErr?.message || 'Failed to save exercises')
+      }
+
+      // 3. Batch insert all sets at once
+      const allSets: any[] = []
+      for (let i = 0; i < workout.exercises.length; i++) {
+        const exercise = workout.exercises[i]
+        const exRow = exerciseRows[i]
+        if (!exRow) continue
+
+        for (const set of exercise.sets) {
+          allSets.push({
             workout_exercise_id: exRow.id,
             set_number: set.setNumber,
             weight_lbs: set.weightLbs ?? null,
@@ -69,21 +84,31 @@ export function useWorkouts() {
             speed_mph: set.speedMph ?? null,
             incline_percent: set.inclinePercent ?? null,
             calories_burned: set.caloriesBurned ?? null,
-          }))
+          })
+        }
+      }
 
-          const { error: setErr } = await supabase
-            .from('workout_sets')
-            .insert(setsToInsert)
+      if (allSets.length > 0) {
+        const { error: setErr } = await supabase
+          .from('workout_sets')
+          .insert(allSets)
 
-          if (setErr) throw setErr
+        if (setErr) {
+          // Exercises were created but sets failed — clean up the whole workout
+          await supabase.from('workouts').delete().eq('id', workoutRow.id)
+          throw new Error(setErr.message || 'Failed to save sets')
         }
       }
 
       return workoutRow.id
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save workout'
+      setSaveError(msg)
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
-  return { saveWorkout, saving }
+  return { saveWorkout, saving, saveError }
 }

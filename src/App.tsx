@@ -56,7 +56,7 @@ function getScheduledWorkout(split: string | undefined, customSplit?: { day: num
 }
 
 export default function App() {
-  const { session, profile, loading, refreshProfile } = useAuth();
+  const { session, profile, loading, authError, refreshProfile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 10 });
   const { data: whoopData, loading: whoopLoading, error: whoopError } = useWhoopData();
   const { data: wearableData } = useWearableData();
@@ -158,6 +158,20 @@ export default function App() {
   // Not logged in → show login screen
   if (!session) {
     return <LoginScreen />;
+  }
+
+  // Session exists but profile failed to load
+  if (authError && !profile) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-6 py-5 max-w-sm text-center">
+          <p className="text-red-400 text-sm mb-4">{authError}</p>
+          <button onClick={() => window.location.reload()} className="bg-[#00ff00] text-black font-bold py-3 px-6 rounded-xl text-sm hover:bg-[#00dd00] transition-all">
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // Logged in but hasn't completed onboarding
