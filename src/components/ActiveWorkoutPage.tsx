@@ -274,9 +274,10 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const { profile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 20 });
   const { data: whoopData } = useWhoopData();
-  const { workoutSuggestions, workoutLoading, fetchWorkoutSuggestions, setUpdateLoading, fetchSetUpdate } = useAICoach();
+  const { workoutSuggestions, workoutLoading, fetchWorkoutSuggestions, fetchSetUpdate } = useAICoach();
   const startedAt = useRef(new Date().toISOString());
   const userModifiedWeight = useRef(false);
+  const liveUpdateActive = useRef(false);
   const aiFetched = useRef(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
   const [liveAiUpdating, setLiveAiUpdating] = useState(false);
@@ -412,13 +413,13 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
     });
   }, [exercises.length, recentWorkouts.length]);
 
-  // Apply AI suggestions when they arrive
+  // Apply AI suggestions when they arrive (initial load only — don't overwrite live updates)
   useEffect(() => {
-    if (!workoutSuggestions) return;
+    if (!workoutSuggestions || liveUpdateActive.current) return;
     setExercises(prev => prev.map(ex => {
       const s = workoutSuggestions.find(sg => sg.exerciseName === ex.name);
       if (!s) return ex;
-      return { ...ex, aiSuggestion: { weight: s.weight, reps: s.reps }, sets: s.sets };
+      return { ...ex, aiSuggestion: { weight: s.weight, reps: String(s.reps) }, sets: s.sets };
     }));
 
     // Update current weight/reps if user hasn't manually changed them
@@ -426,7 +427,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
       const currentSuggestion = workoutSuggestions.find(s => s.exerciseName === exercises[currentExerciseIndex]?.name);
       if (currentSuggestion) {
         setWeight(currentSuggestion.weight);
-        setReps(parseInt(currentSuggestion.reps.split('-')[0]) || 8);
+        setReps(parseInt(String(currentSuggestion.reps).split('-')[0]) || 8);
         setAiNote(currentSuggestion.note);
       }
     }
@@ -469,41 +470,52 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   };
 
   const handleLogSet = () => {
-    logSetData(currentExerciseIndex, currentSet, { weight, reps });
+    const justLogged = { weight, reps };
+    logSetData(currentExerciseIndex, currentSet, justLogged);
     const newCompleted = [...completedSets, currentSet];
     setCompletedSets(newCompleted);
 
     if (currentSet < currentExercise.sets) {
       setCurrentSet(currentSet + 1);
 
-      // Trigger live AI update for the next set
-      const setsRemaining = currentExercise.sets - newCompleted.length;
+      // Build completed sets array from what we already have + what we just logged
+      // Don't rely on loggedData state (stale in this closure)
       const allLoggedSets: { weight: number; reps: number }[] = [];
       const existingData = loggedData[currentExerciseIndex] || {};
-      for (let s = 1; s <= currentSet; s++) {
-        if (existingData[s]) {
-          allLoggedSets.push({ weight: existingData[s].weight, reps: existingData[s].reps });
-        }
+      for (let s = 1; s < currentSet; s++) {
+        const d = existingData[s];
+        if (d) allLoggedSets.push({ weight: d.weight, reps: d.reps });
       }
-      // Add the set we just logged
-      allLoggedSets.push({ weight, reps });
+      allLoggedSets.push(justLogged); // the set we JUST logged
+
+      const setsRemaining = currentExercise.sets - allLoggedSets.length;
+      const exerciseIdx = currentExerciseIndex;
+      const exerciseName = currentExercise.name;
 
       setLiveAiUpdating(true);
+      liveUpdateActive.current = true;
+
       fetchSetUpdate({
-        exercise: currentExercise.name,
+        exercise: exerciseName,
         completedSets: allLoggedSets,
         setsRemaining,
         goal: profile?.goal || null,
       }).then(update => {
         if (update) {
-          // Update the AI suggestion for this exercise
+          const newWeight = typeof update.weight === 'number' ? update.weight : Number(update.weight) || 0;
+          const newReps = String(update.reps);
+
+          // Update the AI suggestion box
           setExercises(prev => prev.map((ex, idx) =>
-            idx === currentExerciseIndex
-              ? { ...ex, aiSuggestion: { weight: update.weight, reps: update.reps } }
+            idx === exerciseIdx
+              ? { ...ex, aiSuggestion: { weight: newWeight, reps: newReps } }
               : ex
           ));
           setAiNote(update.note);
-          userModifiedWeight.current = false;
+
+          // Auto-apply to the user's input fields so they see the change
+          setWeight(newWeight);
+          setReps(parseInt(newReps) || reps);
         }
         setLiveAiUpdating(false);
       });
