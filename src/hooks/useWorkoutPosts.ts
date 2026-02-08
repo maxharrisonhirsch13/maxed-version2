@@ -38,7 +38,7 @@ export function useWorkoutPosts() {
       // Step 1: Fetch workout_posts from friends + self only
       const { data: posts, error: postsErr } = await supabase
         .from('workout_posts')
-        .select('id, user_id, workout_id, caption, image_url, tagged_user_ids, created_at')
+        .select('id, user_id, workout_id, caption, image_url, tagged_user_ids, workout_score, workout_score_analysis, created_at')
         .in('user_id', feedUserIds)
         .order('created_at', { ascending: false })
         .limit(20)
@@ -183,6 +183,8 @@ export function useWorkoutPosts() {
             caption: p.caption,
             imageUrl: p.image_url ?? null,
             taggedUserIds: taggedIds,
+            workoutScore: p.workout_score ?? null,
+            workoutScoreAnalysis: p.workout_score_analysis ?? null,
             createdAt: p.created_at,
           },
           user: {
@@ -213,7 +215,7 @@ export function useWorkoutPosts() {
     }
   }, [user])
 
-  async function shareWorkout(workoutId: string, caption?: string, taggedUserIds?: string[], imageFile?: File) {
+  async function shareWorkout(workoutId: string, caption?: string, taggedUserIds?: string[], imageFile?: File, workoutScore?: number, workoutScoreAnalysis?: string) {
     if (!user) throw new Error('Not authenticated')
 
     const trimmedCaption = caption?.slice(0, 500) ?? null
@@ -246,6 +248,8 @@ export function useWorkoutPosts() {
         caption: trimmedCaption,
         image_url: imageUrl,
         tagged_user_ids: taggedUserIds && taggedUserIds.length > 0 ? taggedUserIds : null,
+        workout_score: workoutScore ?? null,
+        workout_score_analysis: workoutScoreAnalysis ?? null,
       })
       .select('id')
       .single()

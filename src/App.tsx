@@ -156,6 +156,8 @@ export default function App() {
   const currentMuscleGroup = activeMuscleGroup || scheduledWorkout.name;
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const todayStr = today.toISOString().split('T')[0];
+  const todayCompleted = recentWorkouts.some(w => w.startedAt.split('T')[0] === todayStr);
 
   // Filter workouts to this week (Monday through today)
   const startOfWeek = new Date(today);
@@ -343,9 +345,9 @@ export default function App() {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 ${
-                    currentMuscleGroup === 'Rest' ? 'bg-gray-600 text-white' : 'bg-[#00ff00] text-black'
+                    currentMuscleGroup === 'Rest' ? 'bg-gray-600 text-white' : todayCompleted ? 'bg-[#00ff00]/20 text-[#00ff00]' : 'bg-[#00ff00] text-black'
                   }`}>
-                    {currentMuscleGroup === 'Rest' ? 'REST DAY' : 'SCHEDULED'}
+                    {currentMuscleGroup === 'Rest' ? 'REST DAY' : todayCompleted ? 'COMPLETED' : 'SCHEDULED'}
                   </span>
                   <h2 className="text-lg font-bold mb-0.5">{currentMuscleGroup}</h2>
                   <p className="text-gray-400 text-sm">{scheduledWorkout.splitName}</p>

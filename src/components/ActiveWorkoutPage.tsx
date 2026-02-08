@@ -1633,6 +1633,8 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
             totalVolume: Object.values(loggedData).reduce((total, sets) =>
               total + Object.values(sets).reduce((sum, s) => sum + (s.weight * s.reps), 0), 0),
           }}
+          workoutScore={scoreResult?.score}
+          workoutScoreAnalysis={scoreResult?.analysis}
           onDone={onClose}
         />
       )}

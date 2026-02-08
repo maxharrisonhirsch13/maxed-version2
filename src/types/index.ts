@@ -176,6 +176,8 @@ export interface WorkoutPost {
   caption: string | null
   imageUrl: string | null
   taggedUserIds: string[]
+  workoutScore: number | null
+  workoutScoreAnalysis: string | null
   createdAt: string
 }
 

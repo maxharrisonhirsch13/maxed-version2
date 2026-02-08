@@ -10,10 +10,12 @@ interface ShareWorkoutPromptProps {
     durationMinutes: number;
     totalVolume: number;
   };
+  workoutScore?: number | null;
+  workoutScoreAnalysis?: string | null;
   onDone: () => void;
 }
 
-export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareWorkoutPromptProps) {
+export function ShareWorkoutPrompt({ workoutId, workoutSummary, workoutScore, workoutScoreAnalysis, onDone }: ShareWorkoutPromptProps) {
   const { shareWorkout } = useWorkoutPosts();
   const { friends } = useFriendships();
   const [caption, setCaption] = useState('');
@@ -31,7 +33,7 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
     setError(null);
     setSharing(true);
     try {
-      await shareWorkout(workoutId, caption.trim() || undefined, taggedIds.length > 0 ? taggedIds : undefined, imageFile || undefined);
+      await shareWorkout(workoutId, caption.trim() || undefined, taggedIds.length > 0 ? taggedIds : undefined, imageFile || undefined, workoutScore ?? undefined, workoutScoreAnalysis ?? undefined);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to share workout');
@@ -146,6 +148,17 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
 
           {/* Workout Summary */}
           <div className="bg-[#0a0a0a] border border-gray-900 rounded-2xl p-4 mb-5">
+            {workoutScore != null && (
+              <div className="flex items-center justify-center gap-2 mb-3 pb-3 border-b border-gray-800">
+                <div className={`text-2xl font-bold ${workoutScore >= 75 ? 'text-[#00ff00]' : workoutScore >= 60 ? 'text-yellow-400' : 'text-orange-400'}`}>
+                  {workoutScore}
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500">Performance</p>
+                  <p className="text-[10px] text-gray-500">Score</p>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center">
                 <div className="flex justify-center mb-1.5">

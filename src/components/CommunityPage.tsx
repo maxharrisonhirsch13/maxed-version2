@@ -257,6 +257,15 @@ export function CommunityPage() {
                                 {item.workout.durationMinutes} min
                               </span>
                             )}
+                            {item.post.workoutScore != null && (
+                              <span className={`ml-auto px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                item.post.workoutScore >= 75 ? 'bg-[#00ff00]/15 text-[#00ff00]' :
+                                item.post.workoutScore >= 60 ? 'bg-yellow-400/15 text-yellow-400' :
+                                'bg-orange-400/15 text-orange-400'
+                              }`}>
+                                {item.post.workoutScore}/100
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-3 text-xs">
                             <span className="text-gray-400">
