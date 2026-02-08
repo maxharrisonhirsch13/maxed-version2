@@ -269,6 +269,13 @@ export function LoginScreen() {
               {isSignUp ? 'Sign In' : 'Sign Up'}
             </button>
           </p>
+
+          <p className="text-xs text-gray-600 text-center pt-3">
+            By continuing, you agree to our{' '}
+            <a href="/terms.html" target="_blank" className="text-gray-400 underline hover:text-white">Terms</a>
+            {' '}&{' '}
+            <a href="/privacy.html" target="_blank" className="text-gray-400 underline hover:text-white">Privacy Policy</a>
+          </p>
         </div>
       </div>
     </div>
