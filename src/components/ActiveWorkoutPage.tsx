@@ -6,6 +6,7 @@ import { useWhoopData } from '../hooks/useWhoopData';
 import { useAuth } from '../context/AuthContext';
 import { useAICoach } from '../hooks/useAICoach';
 import { usePersonalRecords } from '../hooks/usePersonalRecords';
+import { useWorkoutTemplates } from '../hooks/useWorkoutTemplates';
 import { ShareWorkoutPrompt } from './ShareWorkoutPrompt';
 import type { HomeEquipment } from '../types';
 
@@ -16,6 +17,7 @@ interface ActiveWorkoutPageProps {
   quickVersion?: boolean;  // Only 4 exercises, 3 sets each
   customBuild?: boolean;   // Start empty, user adds exercises
   trainingAtHome?: boolean; // Whether user is training at home gym
+  templateExercises?: { name: string; sets: number }[]; // From saved template
 }
 
 interface LoggedSet {
@@ -270,7 +272,7 @@ function filterForHomeGym(exercises: Exercise[], equipment: HomeEquipment): Exer
   return filtered;
 }
 
-// Auto-save component: fires handleFinishWorkout on mount so user goes straight to share screen
+// Auto-save component: fires handleFinishWorkout on mount so user goes straight to celebration
 function WorkoutFinishedAutoSave({ onSave }: { onSave: () => void }) {
   const fired = useRef(false);
   useEffect(() => {
@@ -289,7 +291,116 @@ function WorkoutFinishedAutoSave({ onSave }: { onSave: () => void }) {
   );
 }
 
-export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild, trainingAtHome }: ActiveWorkoutPageProps) {
+// Celebration screen shown after saving
+function WorkoutCelebration({ muscleGroup, stats, onContinue }: {
+  muscleGroup: string;
+  stats: { exerciseCount: number; durationMinutes: number; totalVolume: number };
+  onContinue: () => void;
+}) {
+  useEffect(() => {
+    const timer = setTimeout(onContinue, 2500);
+    return () => clearTimeout(timer);
+  }, [onContinue]);
+
+  const formatVolume = (vol: number) => vol >= 1000 ? `${(vol / 1000).toFixed(1).replace(/\.0$/, '')}k` : vol.toLocaleString();
+
+  return (
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[60] flex items-center justify-center p-4" onClick={onContinue}>
+      <div className="text-center">
+        <div className="relative mx-auto mb-6 w-20 h-20">
+          <div className="absolute inset-0 bg-[#00ff00]/20 rounded-full animate-ping" />
+          <div className="relative w-20 h-20 bg-[#00ff00] rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(0,255,0,0.3)]">
+            <Check className="w-10 h-10 text-black" />
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold mb-2">Finished {muscleGroup || 'Workout'}!</h1>
+        <p className="text-gray-400 text-sm mb-8">Great work. Keep showing up.</p>
+        <div className="flex items-center justify-center gap-6">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-[#00ff00]">{stats.exerciseCount}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Exercises</p>
+          </div>
+          <div className="w-px h-8 bg-gray-800" />
+          <div className="text-center">
+            <p className="text-2xl font-bold">{stats.durationMinutes}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Minutes</p>
+          </div>
+          <div className="w-px h-8 bg-gray-800" />
+          <div className="text-center">
+            <p className="text-2xl font-bold text-yellow-500">{formatVolume(stats.totalVolume)}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">lbs Volume</p>
+          </div>
+        </div>
+        <p className="text-gray-600 text-xs mt-8">Tap anywhere to continue</p>
+      </div>
+    </div>
+  );
+}
+
+// Save template prompt for custom builds
+function SaveTemplatePrompt({ muscleGroup, exercises, onSave, onSkip }: {
+  muscleGroup: string;
+  exercises: { name: string; sets: number }[];
+  onSave: (name: string) => void;
+  onSkip: () => void;
+}) {
+  const [name, setName] = useState('');
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-end justify-center">
+      <div className="w-full max-w-md bg-gradient-to-b from-[#0f0f0f] to-black rounded-t-3xl shadow-2xl overflow-hidden">
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-700 rounded-full" />
+        </div>
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="p-2.5 bg-[#00ff00]/10 rounded-xl">
+              <Dumbbell className="w-5 h-5 text-[#00ff00]" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Save This Workout?</h2>
+              <p className="text-xs text-gray-400">Reuse it next time you train {muscleGroup || 'this muscle group'}</p>
+            </div>
+          </div>
+
+          <div className="bg-[#0a0a0a] border border-gray-900 rounded-2xl p-4 mb-4">
+            <p className="text-xs text-gray-500 mb-2">{exercises.length} exercises</p>
+            <div className="space-y-1">
+              {exercises.slice(0, 6).map((ex, i) => (
+                <p key={i} className="text-xs text-gray-300">{ex.name} — {ex.sets} sets</p>
+              ))}
+              {exercises.length > 6 && <p className="text-xs text-gray-600">+{exercises.length - 6} more</p>}
+            </div>
+          </div>
+
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value.slice(0, 50))}
+            placeholder="Name this workout (e.g., My Push Day)"
+            className="w-full bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-sm mb-5 focus:outline-none focus:border-[#00ff00] transition-colors"
+          />
+
+          <button
+            onClick={() => { if (name.trim()) onSave(name.trim()); }}
+            disabled={!name.trim()}
+            className="w-full bg-[#00ff00] hover:bg-[#00dd00] text-black font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 text-sm mb-3"
+          >
+            Save Workout
+          </button>
+          <button
+            onClick={onSkip}
+            className="w-full py-3 text-gray-500 hover:text-gray-300 text-sm font-medium transition-colors"
+          >
+            Skip
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersion, customBuild, trainingAtHome, templateExercises }: ActiveWorkoutPageProps) {
   const { saveWorkout, saving } = useWorkouts();
   const { profile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 20 });
@@ -325,6 +436,18 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   // Compute initial exercises with modifiers applied
   const computeInitialExercises = (): Exercise[] => {
     if (customBuild) return [];
+
+    // If using a saved template, map template exercises to library exercises
+    if (templateExercises && templateExercises.length > 0) {
+      const allLibrary = Object.values(exerciseLibrary).flat();
+      return templateExercises.map((te, idx) => {
+        const found = allLibrary.find(e => e.name === te.name);
+        if (found) return { ...found, sets: te.sets };
+        // Fallback for exercises not in library (custom ones)
+        return { id: 9000 + idx, name: te.name, muscleGroups: muscleGroup || '', videoId: '', sets: te.sets, aiSuggestion: { weight: 0, reps: '8-10' } };
+      });
+    }
+
     let exs = muscleGroup ? getExercisesForWorkout(muscleGroup) : getExercisesForWorkout('Full Body');
     // Filter for home gym — always remove machines when at home, and filter by equipment if configured
     if (trainingAtHome) {
@@ -358,6 +481,9 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const [workoutFinished, setWorkoutFinished] = useState(false);
   const [savedWorkoutId, setSavedWorkoutId] = useState<string | null>(null);
   const [showSharePrompt, setShowSharePrompt] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const { saveTemplate } = useWorkoutTemplates();
 
   // Settings state
   const [showSettings, setShowSettings] = useState(false);
@@ -619,7 +745,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
       });
       if (workoutId) {
         setSavedWorkoutId(workoutId);
-        setShowSharePrompt(true);
+        setShowCelebration(true);
       } else {
         onClose();
       }
@@ -1298,9 +1424,57 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
         </div>
       )}
 
-      {/* Workout Finished — auto-save and go straight to share screen */}
+      {/* Workout Finished — auto-save */}
       {workoutFinished && (
         <WorkoutFinishedAutoSave onSave={handleFinishWorkout} />
+      )}
+
+      {/* Celebration Screen */}
+      {showCelebration && (
+        <WorkoutCelebration
+          muscleGroup={muscleGroup || 'Workout'}
+          stats={{
+            exerciseCount: Object.keys(loggedData).length,
+            durationMinutes: Math.round((new Date().getTime() - new Date(startedAt.current).getTime()) / 60000),
+            totalVolume: Object.values(loggedData).reduce((total, sets) =>
+              total + Object.values(sets).reduce((sum, s) => sum + (s.weight * s.reps), 0), 0),
+          }}
+          onContinue={() => {
+            setShowCelebration(false);
+            if (customBuild) {
+              setShowSaveTemplate(true);
+            } else {
+              setShowSharePrompt(true);
+            }
+          }}
+        />
+      )}
+
+      {/* Save Template Prompt (custom builds only) */}
+      {showSaveTemplate && (
+        <SaveTemplatePrompt
+          muscleGroup={muscleGroup || 'Workout'}
+          exercises={exercises.filter((_, idx) => loggedData[idx] && Object.keys(loggedData[idx]).length > 0).map((ex, idx) => ({
+            name: ex.name,
+            sets: Object.keys(loggedData[exercises.indexOf(ex)] ?? {}).length,
+          }))}
+          onSave={async (name) => {
+            try {
+              const exercisesToSave = exercises
+                .filter((_, idx) => loggedData[idx] && Object.keys(loggedData[idx]).length > 0)
+                .map((ex, idx) => ({ name: ex.name, sets: Object.keys(loggedData[exercises.indexOf(ex)] ?? {}).length }));
+              await saveTemplate(name, muscleGroup || 'Workout', exercisesToSave);
+            } catch (err) {
+              console.error('Failed to save template:', err);
+            }
+            setShowSaveTemplate(false);
+            setShowSharePrompt(true);
+          }}
+          onSkip={() => {
+            setShowSaveTemplate(false);
+            setShowSharePrompt(true);
+          }}
+        />
       )}
 
       {/* Share Workout Prompt */}

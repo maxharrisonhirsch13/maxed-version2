@@ -1,6 +1,7 @@
-import { X, Sparkles, Calendar, Trophy, Shuffle, Zap, Clock, SkipForward, Edit3, ChevronRight, Home } from 'lucide-react';
-import { useState } from 'react';
+import { X, Sparkles, Calendar, Trophy, Shuffle, Zap, Clock, SkipForward, Edit3, ChevronRight, Home, Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useWorkoutTemplates } from '../hooks/useWorkoutTemplates';
 import { ActiveWorkoutPage } from './ActiveWorkoutPage';
 
 interface WorkoutStartPageProps {
@@ -236,10 +237,11 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
-type WorkoutSelection = 'ai' | 'standard' | number; // number = celebrity workout id
+type WorkoutSelection = 'ai' | 'standard' | number | `template-${string}`; // number = celebrity workout id
 
 export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: WorkoutStartPageProps) {
   const { profile } = useAuth();
+  const { templates, loading: templatesLoading, fetchTemplates, deleteTemplate } = useWorkoutTemplates();
   // Only show home gym mode if actually training at home (not when at a different gym)
   const isTrainingAtHome = trainingLocation === 'Home Gym' || (trainingLocation === profile?.gym && profile?.isHomeGym);
   const hasHomeEquipment = isTrainingAtHome && !!profile?.homeEquipment;
@@ -263,6 +265,9 @@ export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: Wor
     : rawCelebrityWorkouts;
   const [displayedWorkouts, setDisplayedWorkouts] = useState<CelebrityWorkout[]>(allCelebrityWorkouts.slice(0, 3));
   const [activeWorkout, setActiveWorkout] = useState(false);
+  const [selectedTemplateExercises, setSelectedTemplateExercises] = useState<{ name: string; sets: number }[] | undefined>(undefined);
+
+  useEffect(() => { fetchTemplates(muscleGroup); }, [muscleGroup]);
 
   // Selection state — pick ONE workout type
   const [selected, setSelected] = useState<WorkoutSelection>('ai');
@@ -280,6 +285,13 @@ export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: Wor
     setSelected(sel === selected ? 'standard' : sel);
     // If selecting a workout, turn off custom build
     if (sel !== 'standard') setCustomBuild(false);
+    // Track template exercises for selected template
+    if (typeof sel === 'string' && sel.startsWith('template-')) {
+      const t = templates.find(t => `template-${t.id}` === sel);
+      setSelectedTemplateExercises(t?.exercises);
+    } else {
+      setSelectedTemplateExercises(undefined);
+    }
   };
 
   const toggleFewerSets = () => {
@@ -306,6 +318,10 @@ export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: Wor
   const getStartLabel = () => {
     const parts: string[] = [];
     if (customBuild) return 'Start Custom Build';
+    if (typeof selected === 'string' && selected.startsWith('template-')) {
+      const t = templates.find(t => `template-${t.id}` === selected);
+      if (t) return `Start: ${t.name}`;
+    }
     if (typeof selected === 'number') {
       const celeb = allCelebrityWorkouts.find(w => w.id === selected);
       if (celeb) parts.push(celeb.name);
@@ -325,6 +341,7 @@ export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: Wor
         quickVersion={quickVersion}
         customBuild={customBuild}
         trainingAtHome={!!isHomeGym}
+        templateExercises={selectedTemplateExercises}
       />
     );
   }
@@ -388,6 +405,45 @@ export function WorkoutStartPage({ onClose, muscleGroup, trainingLocation }: Wor
             {selected === 'standard' && <div className="w-6 h-6 bg-[#00ff00] rounded-full flex items-center justify-center"><span className="text-black text-xs font-bold">✓</span></div>}
           </button>
         </div>
+
+        {/* Saved Workout Templates */}
+        {templates.length > 0 && (
+          <div>
+            <h2 className="text-sm font-bold text-gray-400 mb-3">Your Saved Workouts</h2>
+            <div className="space-y-2">
+              {templates.map((template) => {
+                const isSelected = selected === `template-${template.id}`;
+                return (
+                  <div key={template.id} className="relative">
+                    <button
+                      onClick={() => handleSelect(`template-${template.id}`)}
+                      className={`w-full rounded-xl p-4 flex items-center gap-4 transition-all ${
+                        isSelected
+                          ? 'bg-[#1a1a1a] border-2 border-[#00ff00] ring-1 ring-[#00ff00]/30'
+                          : 'bg-[#1a1a1a] hover:bg-[#252525] border-2 border-transparent'
+                      }`}
+                    >
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isSelected ? 'bg-gradient-to-br from-[#00ff00] to-[#00cc00]' : 'bg-[#252525]'}`}>
+                        <Save className={`w-6 h-6 ${isSelected ? 'text-black' : 'text-[#00ff00]'}`} />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <h3 className="font-bold text-sm mb-1">{template.name}</h3>
+                        <p className="text-xs text-gray-400">{template.exercises.length} exercises</p>
+                      </div>
+                      {isSelected && <div className="w-6 h-6 bg-[#00ff00] rounded-full flex items-center justify-center"><span className="text-black text-xs font-bold">✓</span></div>}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteTemplate(template.id); }}
+                      className="absolute top-2 right-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5 text-gray-600 hover:text-red-400" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Celebrity Workouts — only show when available for this muscle group */}
         {allCelebrityWorkouts.length > 0 && (

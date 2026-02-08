@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2, Activity, X, Clock } from 'lucide-react';
+import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2, Activity, X, Clock, Lock } from 'lucide-react';
 import { ProgressPage } from './components/ProgressPage';
 import { CommunityPage } from './components/CommunityPage';
 import { WorkoutStartPage } from './components/WorkoutStartPage';
@@ -124,6 +124,17 @@ export default function App() {
         : readinessScore != null
           ? readinessScore >= 67 ? 'Peak performance expected' : readinessScore >= 34 ? 'Consider lighter intensity' : 'Active recovery recommended'
           : 'AI readiness coming soon';
+
+  // Readiness gating: require wearable connection OR 4+ workout days in last 14 days
+  const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const workoutDaysLast2Weeks = new Set(
+    recentWorkouts
+      .filter(w => new Date(w.startedAt) >= twoWeeksAgo)
+      .map(w => w.startedAt.split('T')[0])
+  ).size;
+  const hasWearable = whoopData?.connected || wearableData != null;
+  const readinessAvailable = hasWearable || workoutDaysLast2Weeks >= 4;
+
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
   const [showPreWorkout, setShowPreWorkout] = useState(false);
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
@@ -254,6 +265,7 @@ export default function App() {
             {/* Dashboard Grid — side by side on desktop */}
             <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-3 lg:space-y-0">
             {/* Today's Readiness Card */}
+            {readinessAvailable ? (
             <button
               onClick={() => setShowReadinessModal(true)}
               className="w-full bg-[#1a1a1a] rounded-2xl p-4 lg:p-6 relative overflow-hidden hover:bg-[#1f1f1f] transition-colors text-left"
@@ -285,6 +297,20 @@ export default function App() {
                 <div className="h-full" style={{ width: `${readinessScore ?? 0}%`, backgroundColor: readinessColor }}></div>
               </div>
             </button>
+            ) : (
+            <div className="w-full bg-[#1a1a1a] rounded-2xl p-4 lg:p-6 relative overflow-hidden">
+              <div className="flex items-center gap-1.5 mb-3">
+                <Lock className="w-4 h-4 text-gray-500" />
+                <p className="text-gray-400 text-xs font-semibold">Readiness Score</p>
+              </div>
+              <div className="flex items-baseline gap-1.5 mb-2">
+                <span className="text-4xl lg:text-5xl font-bold text-gray-700">--</span>
+                <span className="text-lg text-gray-700">/ 100</span>
+              </div>
+              <p className="text-gray-500 text-xs leading-relaxed">Connect a wearable or log 2 weeks of workouts to unlock your daily readiness score.</p>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800" />
+            </div>
+            )}
 
             {/* Scheduled Workout Card */}
             <div className="bg-[#1a1a1a] rounded-2xl p-4 lg:p-6">
