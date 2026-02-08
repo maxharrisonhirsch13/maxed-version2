@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2, Activity, X, Clock, Lock } from 'lucide-react';
+import { Home, BarChart3, Users, User, Settings, Dumbbell, Play, RefreshCw, Heart, Plus, Loader2, Activity, X, Clock, Lock, Eye } from 'lucide-react';
 import { ProgressPage } from './components/ProgressPage';
 import { CommunityPage } from './components/CommunityPage';
 import { WorkoutStartPage } from './components/WorkoutStartPage';
@@ -157,7 +157,9 @@ export default function App() {
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const todayStr = today.toISOString().split('T')[0];
-  const todayCompleted = recentWorkouts.some(w => w.startedAt.split('T')[0] === todayStr);
+  const todayWorkouts = recentWorkouts.filter(w => w.startedAt.split('T')[0] === todayStr);
+  const todayCompleted = todayWorkouts.length > 0;
+  const todayMuscleGroups = [...new Set(todayWorkouts.map(w => w.workoutType))];
 
   // Filter workouts to this week (Monday through today)
   const startOfWeek = new Date(today);
@@ -349,7 +351,9 @@ export default function App() {
                   }`}>
                     {currentMuscleGroup === 'Rest' ? 'REST DAY' : todayCompleted ? 'COMPLETED' : 'SCHEDULED'}
                   </span>
-                  <h2 className="text-lg font-bold mb-0.5">{currentMuscleGroup}</h2>
+                  <h2 className="text-lg font-bold mb-0.5">
+                    {todayCompleted ? todayMuscleGroups.join(' + ') : currentMuscleGroup}
+                  </h2>
                   <p className="text-gray-400 text-sm">{scheduledWorkout.splitName}</p>
                 </div>
                 <div className="p-2 bg-[#252525] rounded-xl">
@@ -357,7 +361,47 @@ export default function App() {
                 </div>
               </div>
 
-              {currentMuscleGroup !== 'Rest' ? (
+              {todayCompleted ? (
+                <>
+                  {/* Summary of sets logged today */}
+                  <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
+                    <span><span className="font-semibold text-white">{todayWorkouts.reduce((sum, w) => sum + w.exercises.length, 0)}</span> exercises</span>
+                    <span><span className="font-semibold text-white">{todayWorkouts.reduce((sum, w) => sum + w.exercises.reduce((s, ex) => s + ex.sets.length, 0), 0)}</span> sets</span>
+                    {todayWorkouts[0]?.durationMinutes && (
+                      <span><span className="font-semibold text-white">{todayWorkouts.reduce((sum, w) => sum + (w.durationMinutes || 0), 0)}</span> min</span>
+                    )}
+                  </div>
+                  <button
+                    className="w-full bg-white/10 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-white/15 transition-colors"
+                    onClick={() => {
+                      const w = todayWorkouts[0];
+                      setSelectedWorkout({
+                        date: new Date(w.startedAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+                        startTime: new Date(w.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+                        duration: w.durationMinutes || 0,
+                        workoutType: w.workoutType,
+                        exercises: w.exercises.map(ex => {
+                          const hasCardioData = ex.sets.some(s => s.durationMinutes || s.distanceMiles || s.caloriesBurned);
+                          if (hasCardioData) {
+                            const s = ex.sets[0];
+                            return { name: ex.exerciseName, sets: [], cardioData: { duration: s?.durationMinutes || w.durationMinutes || 0, distance: s?.distanceMiles || undefined, speed: s?.speedMph || undefined, calories: s?.caloriesBurned || undefined } };
+                          }
+                          return { name: ex.exerciseName, sets: ex.sets.map(s => ({ weight: s.weightLbs || 0, reps: s.reps || 0 })) };
+                        }),
+                      });
+                    }}
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Workout
+                  </button>
+                  <button
+                    onClick={() => setShowSecondSession(true)}
+                    className="w-full mt-2 py-2 text-center text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    Want to add another session? <span className="text-[#00ff00] font-semibold">Add 2nd Session →</span>
+                  </button>
+                </>
+              ) : currentMuscleGroup !== 'Rest' ? (
                 <button className="w-full bg-white text-black font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
                   onClick={() => setShowPreWorkout(true)}
                 >
