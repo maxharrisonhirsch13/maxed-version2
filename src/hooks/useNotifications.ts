@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 
 interface Notification {
   id: string
-  type: 'mention' | 'tag' | 'friend_request'
+  type: 'mention' | 'tag' | 'friend_request' | 'reaction' | 'comment'
   actorId: string
   actorName: string
   actorUsername: string | null

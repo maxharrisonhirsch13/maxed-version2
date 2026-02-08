@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, MapPin, Dumbbell, Flame, Trophy, Star, Loader2, UserPlus, Clock, MessageSquare, Bell } from 'lucide-react';
+import { Users, MapPin, Dumbbell, Flame, Trophy, Star, Loader2, UserPlus, Clock, MessageSquare, Bell, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNearbyGyms } from '../hooks/useNearbyGyms';
 import { useFriendships } from '../hooks/useFriendships';
@@ -11,7 +11,7 @@ import { UserSearchModal } from './UserSearchModal';
 import { WorkoutDetailModal } from './WorkoutDetailModal';
 import { FriendProfileModal } from './FriendProfileModal';
 import { renderCaption } from '../utils/renderCaption';
-import type { FeedItem } from '../types';
+import type { FeedItem, ReactionEmoji } from '../types';
 
 type Tab = 'feed' | 'friends' | 'leaderboard' | 'nearby';
 
@@ -47,7 +47,7 @@ export function CommunityPage() {
   const { profile } = useAuth();
   const { gyms: nearbyGyms, loading: nearbyLoading } = useNearbyGyms(profile?.gymLat ?? null, profile?.gymLng ?? null);
   const { friends, incomingRequests, loading: friendsLoading } = useFriendships();
-  const { feed, feedLoading, fetchFeed } = useWorkoutPosts();
+  const { feed, feedLoading, fetchFeed, toggleReaction, addComment, fetchComments, deleteComment } = useWorkoutPosts();
   const { leaderboard, loading: leaderboardLoading } = useFriendLeaderboard();
   const { entries: globalEntries, loading: globalLoading } = useGlobalLeaderboard();
   const { notifications, unreadCount, markAllRead } = useNotifications();
@@ -72,10 +72,27 @@ export function CommunityPage() {
 
   const formatWorkoutType = (type: string) => type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
+  const REACTION_EMOJIS: { key: ReactionEmoji; icon: string }[] = [
+    { key: 'fire', icon: '🔥' },
+    { key: 'strong', icon: '💪' },
+    { key: 'cap', icon: '🧢' },
+    { key: 'hundred', icon: '💯' },
+    { key: 'clap', icon: '👏' },
+  ];
+
   return (
     <div className="min-h-screen bg-black text-white pb-24">
       {showSearch && <UserSearchModal onClose={() => setShowSearch(false)} />}
-      {selectedFeedItem && <WorkoutDetailModal item={selectedFeedItem} onClose={() => setSelectedFeedItem(null)} />}
+      {selectedFeedItem && (
+        <WorkoutDetailModal
+          item={selectedFeedItem}
+          onClose={() => setSelectedFeedItem(null)}
+          toggleReaction={toggleReaction}
+          addComment={addComment}
+          fetchComments={fetchComments}
+          deleteComment={deleteComment}
+        />
+      )}
       {selectedFriendId && (
         <FriendProfileModal
           friendUserId={selectedFriendId}
@@ -119,6 +136,8 @@ export function CommunityPage() {
                     {n.type === 'tag' && <span className="text-gray-400"> tagged you in a workout</span>}
                     {n.type === 'mention' && <span className="text-gray-400"> mentioned you in a post</span>}
                     {n.type === 'friend_request' && <span className="text-gray-400"> sent you a friend request</span>}
+                    {n.type === 'reaction' && <span className="text-gray-400"> reacted to your post</span>}
+                    {n.type === 'comment' && <span className="text-gray-400"> commented on your post</span>}
                   </p>
                   <p className="text-[10px] text-gray-600 mt-0.5">{timeAgo(n.createdAt)}</p>
                 </div>
@@ -179,75 +198,121 @@ export function CommunityPage() {
                       s + ((set.weightLbs || 0) * (set.reps || 0)), 0), 0);
 
                   return (
-                    <button
+                    <div
                       key={item.post.id}
-                      onClick={() => setSelectedFeedItem(item)}
-                      className="w-full bg-[#1a1a1a] rounded-2xl p-4 text-left hover:bg-[#202020] transition-colors"
+                      className="w-full bg-[#1a1a1a] rounded-2xl p-4 text-left"
                     >
-                      {/* User row */}
-                      <div className="flex items-center gap-3 mb-3">
-                        {item.user.avatarUrl ? (
-                          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800">
-                            <img src={item.user.avatarUrl} alt={item.user.name} className="w-full h-full object-cover" />
+                      {/* Clickable area for detail modal */}
+                      <button
+                        onClick={() => setSelectedFeedItem(item)}
+                        className="w-full text-left hover:opacity-90 transition-opacity"
+                      >
+                        {/* User row */}
+                        <div className="flex items-center gap-3 mb-3">
+                          {item.user.avatarUrl ? (
+                            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800">
+                              <img src={item.user.avatarUrl} alt={item.user.name} className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(item.user.name)} flex items-center justify-center font-bold text-xs`}>
+                              {getInitials(item.user.name)}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{item.user.name}</p>
+                            {item.user.username && <p className="text-[11px] text-gray-500">@{item.user.username}</p>}
                           </div>
-                        ) : (
-                          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(item.user.name)} flex items-center justify-center font-bold text-xs`}>
-                            {getInitials(item.user.name)}
+                          <span className="text-[11px] text-gray-600">{timeAgo(item.post.createdAt)}</span>
+                        </div>
+
+                        {/* Tagged users */}
+                        {item.taggedUsers && item.taggedUsers.length > 0 && (
+                          <p className="text-[11px] text-gray-500 mb-2">
+                            <span className="text-gray-600">with </span>
+                            {item.taggedUsers.map((t, i) => (
+                              <span key={t.id}>
+                                <span className="text-[#00ff00]/70 font-medium">@{t.username || t.name.split(' ')[0].toLowerCase()}</span>
+                                {i < item.taggedUsers.length - 1 && <span className="text-gray-600">, </span>}
+                              </span>
+                            ))}
+                          </p>
+                        )}
+
+                        {/* Post image */}
+                        {item.post.imageUrl && (
+                          <div className="mb-3 rounded-xl overflow-hidden">
+                            <img src={item.post.imageUrl} alt="Post" className="w-full max-h-64 object-cover" />
                           </div>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm truncate">{item.user.name}</p>
-                          {item.user.username && <p className="text-[11px] text-gray-500">@{item.user.username}</p>}
-                        </div>
-                        <span className="text-[11px] text-gray-600">{timeAgo(item.post.createdAt)}</span>
-                      </div>
 
-                      {/* Tagged users */}
-                      {item.taggedUsers && item.taggedUsers.length > 0 && (
-                        <p className="text-[11px] text-gray-500 mb-2">
-                          <span className="text-gray-600">with </span>
-                          {item.taggedUsers.map((t, i) => (
-                            <span key={t.id}>
-                              <span className="text-[#00ff00]/70 font-medium">@{t.username || t.name.split(' ')[0].toLowerCase()}</span>
-                              {i < item.taggedUsers.length - 1 && <span className="text-gray-600">, </span>}
+                        {/* Workout summary */}
+                        <div className="bg-black/40 rounded-xl p-3 mb-2">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2 py-0.5 bg-[#00ff00]/10 text-[#00ff00] text-[10px] font-bold rounded-md">
+                              {formatWorkoutType(item.workout.workoutType)}
                             </span>
-                          ))}
-                        </p>
-                      )}
-
-                      {/* Workout summary */}
-                      <div className="bg-black/40 rounded-xl p-3 mb-2">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="px-2 py-0.5 bg-[#00ff00]/10 text-[#00ff00] text-[10px] font-bold rounded-md">
-                            {formatWorkoutType(item.workout.workoutType)}
-                          </span>
-                          {item.workout.durationMinutes && (
-                            <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                              <Clock className="w-3 h-3" />
-                              {item.workout.durationMinutes} min
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="text-gray-400">
-                            <span className="font-semibold text-white">{item.workout.exercises.length}</span> exercises
-                          </span>
-                          {totalVolume > 0 && (
+                            {item.workout.durationMinutes && (
+                              <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                                <Clock className="w-3 h-3" />
+                                {item.workout.durationMinutes} min
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
                             <span className="text-gray-400">
-                              <span className="font-semibold text-white">{totalVolume.toLocaleString()}</span> lbs
+                              <span className="font-semibold text-white">{item.workout.exercises.length}</span> exercises
                             </span>
-                          )}
+                            {totalVolume > 0 && (
+                              <span className="text-gray-400">
+                                <span className="font-semibold text-white">{totalVolume.toLocaleString()}</span> lbs
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Caption */}
-                      {item.post.caption && (
-                        <div className="flex items-start gap-2 mt-2">
-                          <MessageSquare className="w-3.5 h-3.5 text-gray-600 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-gray-300 leading-relaxed line-clamp-2">{renderCaption(item.post.caption)}</p>
+                        {/* Caption */}
+                        {item.post.caption && (
+                          <div className="flex items-start gap-2 mt-2">
+                            <MessageSquare className="w-3.5 h-3.5 text-gray-600 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-gray-300 leading-relaxed line-clamp-2">{renderCaption(item.post.caption)}</p>
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Reaction bar + comment count */}
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-800/50">
+                        <div className="flex items-center gap-1.5 flex-1">
+                          {REACTION_EMOJIS.map(({ key, icon }) => {
+                            const reaction = item.reactions.find(r => r.emoji === key);
+                            const count = reaction?.count ?? 0;
+                            const reacted = reaction?.reacted ?? false;
+                            return (
+                              <button
+                                key={key}
+                                onClick={(e) => { e.stopPropagation(); toggleReaction(item.post.id, key); }}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all ${
+                                  reacted
+                                    ? 'bg-[#00ff00]/15 border border-[#00ff00]/30'
+                                    : count > 0
+                                      ? 'bg-gray-800/50 border border-gray-700/50'
+                                      : 'bg-transparent border border-transparent hover:bg-gray-800/30'
+                                }`}
+                              >
+                                <span className="text-sm">{icon}</span>
+                                {count > 0 && <span className={`font-medium ${reacted ? 'text-[#00ff00]' : 'text-gray-400'}`}>{count}</span>}
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
-                    </button>
+                        <button
+                          onClick={() => setSelectedFeedItem(item)}
+                          className="flex items-center gap-1 px-2 py-1 text-gray-400 hover:text-white transition-colors"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          {item.commentCount > 0 && <span className="text-xs font-medium">{item.commentCount}</span>}
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>

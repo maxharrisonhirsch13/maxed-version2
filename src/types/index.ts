@@ -151,11 +151,30 @@ export interface Friendship {
   }
 }
 
+export type ReactionEmoji = 'fire' | 'strong' | 'cap' | 'hundred' | 'clap'
+
+export interface ReactionSummary {
+  emoji: ReactionEmoji
+  count: number
+  reacted: boolean
+}
+
+export interface PostComment {
+  id: string
+  userId: string
+  userName: string
+  userUsername: string | null
+  userAvatarUrl: string | null
+  body: string
+  createdAt: string
+}
+
 export interface WorkoutPost {
   id: string
   userId: string
   workoutId: string
   caption: string | null
+  imageUrl: string | null
   taggedUserIds: string[]
   createdAt: string
 }
@@ -173,6 +192,8 @@ export interface FeedItem {
     name: string
     username: string | null
   }[]
+  reactions: ReactionSummary[]
+  commentCount: number
   workout: {
     id: string
     workoutType: string

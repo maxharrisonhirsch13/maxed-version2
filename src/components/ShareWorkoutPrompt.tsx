@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Share, Loader2, Dumbbell, Clock, Trophy, Users, X } from 'lucide-react';
+import { Share, Loader2, Dumbbell, Clock, Trophy, Users, X, Camera } from 'lucide-react';
 import { useWorkoutPosts } from '../hooks/useWorkoutPosts';
 import { useFriendships } from '../hooks/useFriendships';
 
@@ -20,15 +20,18 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
   const [taggedIds, setTaggedIds] = useState<string[]>([]);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleShare = async () => {
     setError(null);
     setSharing(true);
     try {
-      await shareWorkout(workoutId, caption.trim() || undefined, taggedIds.length > 0 ? taggedIds : undefined);
+      await shareWorkout(workoutId, caption.trim() || undefined, taggedIds.length > 0 ? taggedIds : undefined, imageFile || undefined);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to share workout');
@@ -90,6 +93,25 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
       }).slice(0, 5)
     : [];
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be under 5MB');
+      return;
+    }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setError(null);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const taggedFriends = friends.filter(f => taggedIds.includes(f.userId));
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const gradients = ['from-purple-500 to-blue-500', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-yellow-500 to-red-500', 'from-indigo-500 to-purple-500'];
@@ -147,6 +169,36 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
                 <p className="text-[10px] text-gray-500">lbs Volume</p>
               </div>
             </div>
+          </div>
+
+          {/* Photo upload */}
+          <div className="mb-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            {imagePreview ? (
+              <div className="relative">
+                <img src={imagePreview} alt="Post photo" className="w-full max-h-48 object-cover rounded-xl" />
+                <button
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 p-1.5 bg-black/70 rounded-full hover:bg-black/90 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+              >
+                <Camera className="w-4 h-4" />
+                <span className="text-xs font-medium">Add a photo</span>
+              </button>
+            )}
           </div>
 
           {/* "Lifted with" tag friends */}

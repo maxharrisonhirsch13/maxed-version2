@@ -1,15 +1,61 @@
-import { X, Dumbbell, Clock, Calendar, Activity, Trophy } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Dumbbell, Clock, Calendar, Activity, Trophy, Loader2, Send, Trash2, MessageCircle } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 import { renderCaption } from '../utils/renderCaption';
-import type { FeedItem } from '../types';
+import { useAuth } from '../context/AuthContext';
+import type { FeedItem, ReactionEmoji, PostComment } from '../types';
+
+const REACTION_EMOJIS: { key: ReactionEmoji; icon: string }[] = [
+  { key: 'fire', icon: '🔥' },
+  { key: 'strong', icon: '💪' },
+  { key: 'cap', icon: '🧢' },
+  { key: 'hundred', icon: '💯' },
+  { key: 'clap', icon: '👏' },
+];
 
 interface WorkoutDetailModalProps {
   item: FeedItem;
   onClose: () => void;
+  toggleReaction: (postId: string, emoji: ReactionEmoji) => void;
+  addComment: (postId: string, body: string) => Promise<PostComment | null>;
+  fetchComments: (postId: string) => Promise<PostComment[]>;
+  deleteComment: (commentId: string, postId: string) => void;
 }
 
-export function WorkoutDetailModal({ item, onClose }: WorkoutDetailModalProps) {
-  const { user, workout, post } = item;
+export function WorkoutDetailModal({ item, onClose, toggleReaction, addComment, fetchComments, deleteComment }: WorkoutDetailModalProps) {
+  const { user } = useAuth();
+  const { user: postUser, workout, post } = item;
+  const [comments, setComments] = useState<PostComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  useEffect(() => {
+    loadComments();
+  }, [post.id]);
+
+  async function loadComments() {
+    setCommentsLoading(true);
+    const data = await fetchComments(post.id);
+    setComments(data);
+    setCommentsLoading(false);
+  }
+
+  async function handleSubmitComment() {
+    if (!commentText.trim() || submittingComment) return;
+    setSubmittingComment(true);
+    const newComment = await addComment(post.id, commentText);
+    if (newComment) {
+      setComments(prev => [...prev, newComment]);
+      setCommentText('');
+    }
+    setSubmittingComment(false);
+  }
+
+  function handleDeleteComment(commentId: string) {
+    deleteComment(commentId, post.id);
+    setComments(prev => prev.filter(c => c.id !== commentId));
+  }
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -44,6 +90,20 @@ export function WorkoutDetailModal({ item, onClose }: WorkoutDetailModalProps) {
       .replace(/\b\w/g, c => c.toUpperCase());
   };
 
+  const timeAgo = (dateStr: string) => {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   // Compute total volume across all exercises
   const totalVolume = workout.exercises.reduce((total, exercise) => {
     return total + exercise.sets.reduce((exTotal, set) => {
@@ -70,18 +130,18 @@ export function WorkoutDetailModal({ item, onClose }: WorkoutDetailModalProps) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-900">
           <div className="flex items-center gap-3">
             {/* User Avatar */}
-            {user.avatarUrl ? (
+            {postUser.avatarUrl ? (
               <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800">
-                <ImageWithFallback src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                <ImageWithFallback src={postUser.avatarUrl} alt={postUser.name} className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(user.name)} flex items-center justify-center font-bold text-xs`}>
-                {getInitials(user.name)}
+              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(postUser.name)} flex items-center justify-center font-bold text-xs`}>
+                {getInitials(postUser.name)}
               </div>
             )}
             <div>
-              <h3 className="font-bold text-sm">{user.name}</h3>
-              {user.username && <p className="text-xs text-gray-500">@{user.username}</p>}
+              <h3 className="font-bold text-sm">{postUser.name}</h3>
+              {postUser.username && <p className="text-xs text-gray-500">@{postUser.username}</p>}
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
@@ -115,12 +175,44 @@ export function WorkoutDetailModal({ item, onClose }: WorkoutDetailModalProps) {
             </p>
           )}
 
+          {/* Post image */}
+          {post.imageUrl && (
+            <div className="mb-4 rounded-2xl overflow-hidden">
+              <img src={post.imageUrl} alt="Post" className="w-full object-cover" />
+            </div>
+          )}
+
           {/* Caption */}
           {post.caption && (
             <div className="bg-[#0a0a0a] border-l-2 border-[#00ff00]/40 rounded-r-xl px-4 py-3 mb-5">
               <p className="text-sm text-gray-300 italic leading-relaxed">{renderCaption(post.caption)}</p>
             </div>
           )}
+
+          {/* Reaction bar */}
+          <div className="flex items-center gap-2 mb-5">
+            {REACTION_EMOJIS.map(({ key, icon }) => {
+              const reaction = item.reactions.find(r => r.emoji === key);
+              const count = reaction?.count ?? 0;
+              const reacted = reaction?.reacted ?? false;
+              return (
+                <button
+                  key={key}
+                  onClick={() => toggleReaction(post.id, key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all ${
+                    reacted
+                      ? 'bg-[#00ff00]/15 border border-[#00ff00]/30'
+                      : count > 0
+                        ? 'bg-gray-800/50 border border-gray-700/50'
+                        : 'bg-gray-800/30 border border-transparent hover:bg-gray-800/50'
+                  }`}
+                >
+                  <span className="text-base">{icon}</span>
+                  {count > 0 && <span className={`font-medium ${reacted ? 'text-[#00ff00]' : 'text-gray-400'}`}>{count}</span>}
+                </button>
+              );
+            })}
+          </div>
 
           {/* Duration & Stats */}
           <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900 mb-5">
@@ -239,15 +331,77 @@ export function WorkoutDetailModal({ item, onClose }: WorkoutDetailModalProps) {
               <span className="text-lg font-bold text-[#00ff00]">{totalVolume.toLocaleString()} lbs</span>
             </div>
           )}
+
+          {/* Comments Section */}
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageCircle className="w-4 h-4 text-gray-400" />
+              <h3 className="font-bold text-sm">Comments ({comments.length})</h3>
+            </div>
+
+            {commentsLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-4 h-4 text-[#00ff00] animate-spin" />
+                <span className="text-xs text-gray-400 ml-2">Loading comments...</span>
+              </div>
+            ) : comments.length === 0 ? (
+              <p className="text-xs text-gray-600 text-center py-4">No comments yet. Be the first!</p>
+            ) : (
+              <div className="space-y-3">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-2.5">
+                    {comment.userAvatarUrl ? (
+                      <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
+                        <img src={comment.userAvatarUrl} alt={comment.userName} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getGradient(comment.userName)} flex items-center justify-center font-bold text-[9px] flex-shrink-0`}>
+                        {getInitials(comment.userName)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold">{comment.userName}</span>
+                        {comment.userUsername && <span className="text-[10px] text-gray-600">@{comment.userUsername}</span>}
+                        <span className="text-[10px] text-gray-700">{timeAgo(comment.createdAt)}</span>
+                        {user && comment.userId === user.id && (
+                          <button
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="ml-auto p-1 text-gray-700 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-300 mt-0.5 leading-relaxed">{comment.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="p-5 border-t border-gray-900">
+        {/* Comment Input Bar */}
+        <div className="p-4 border-t border-gray-900 flex items-center gap-3">
+          <input
+            type="text"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value.slice(0, 500))}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitComment(); } }}
+            placeholder="Add a comment..."
+            className="flex-1 bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#00ff00] transition-colors"
+          />
           <button
-            onClick={onClose}
-            className="w-full bg-[#00ff00] hover:bg-[#00dd00] text-black font-bold py-3 rounded-xl transition-colors"
+            onClick={handleSubmitComment}
+            disabled={!commentText.trim() || submittingComment}
+            className="p-2.5 bg-[#00ff00] rounded-xl text-black disabled:opacity-30 transition-opacity"
           >
-            Close
+            {submittingComment ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </button>
         </div>
       </div>
