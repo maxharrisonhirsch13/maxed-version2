@@ -3,7 +3,21 @@ import { createClient } from '@supabase/supabase-js'
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
 
+const ESTIMATE_PRS_SYSTEM_PROMPT = `You are a fitness coach AI that estimates a user's likely 1-rep-max personal records for the Big 3 lifts based on their bodyweight and experience level.
+
+Heuristics (approximate multipliers of bodyweight):
+- Beginner: Bench Press ~0.65x, Squat ~0.9x, Deadlift ~1.1x
+- Intermediate: Bench Press ~1.0x, Squat ~1.4x, Deadlift ~1.7x
+- Advanced: Bench Press ~1.5x, Squat ~2.0x, Deadlift ~2.5x
+
+Round all values to the nearest 5 lbs. These are rough estimates — lean conservative for safety.
+
+You must respond with valid JSON matching this schema:
+{ "benchPress": number, "squat": number, "deadlift": number }`
+
 const WORKOUT_SYSTEM_PROMPT = `You are a concise fitness coach AI. Given a user's exercise list with their recent history, wearable data, and fitness goal, generate personalized weight and rep recommendations.
+
+If prs are provided in userProfile, use bench/squat/deadlift PRs to calibrate working set weights (~75-85% of PR for the corresponding exercise). For related exercises (e.g. incline bench from bench PR, front squat from squat PR), adjust proportionally downward.
 
 GOAL-BASED PROGRAMMING (the user's goal is in userProfile.goal — this is CRITICAL):
 - "strength": heavy weight, low reps. Target 4-6 reps per set, heavier loads. Push progressive overload aggressively on compound lifts. Rest periods should be long (implied by fewer reps).
@@ -163,6 +177,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         setsRemaining: body.setsRemaining,
         goal: body.goal,
       })
+    } else if (body.type === 'estimate-prs') {
+      systemPrompt = ESTIMATE_PRS_SYSTEM_PROMPT
+      userPrompt = JSON.stringify({
+        bodyweightLbs: body.bodyweightLbs,
+        experience: body.experience,
+      })
     } else if (body.type === 'readiness') {
       systemPrompt = READINESS_SYSTEM_PROMPT
       userPrompt = JSON.stringify({
@@ -174,7 +194,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid request type' })
     }
 
-    const maxTokens = body.type === 'set-update' ? 150 : 800
+    const maxTokens = body.type === 'set-update' ? 150 : body.type === 'estimate-prs' ? 150 : 800
 
     const openaiRes = await fetch(OPENAI_URL, {
       method: 'POST',

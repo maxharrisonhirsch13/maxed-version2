@@ -5,6 +5,7 @@ import { useNearbyGyms } from '../hooks/useNearbyGyms';
 import { useFriendships } from '../hooks/useFriendships';
 import { useWorkoutPosts } from '../hooks/useWorkoutPosts';
 import { useFriendLeaderboard } from '../hooks/useFriendLeaderboard';
+import { useGlobalLeaderboard } from '../hooks/useGlobalLeaderboard';
 import { useNotifications } from '../hooks/useNotifications';
 import { UserSearchModal } from './UserSearchModal';
 import { WorkoutDetailModal } from './WorkoutDetailModal';
@@ -39,6 +40,7 @@ function timeAgo(dateStr: string): string {
 
 export function CommunityPage() {
   const [activeTab, setActiveTab] = useState<Tab>('feed');
+  const [leaderboardView, setLeaderboardView] = useState<'weekly' | 'prs' | 'global'>('weekly');
   const [showSearch, setShowSearch] = useState(false);
   const [selectedFeedItem, setSelectedFeedItem] = useState<FeedItem | null>(null);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
@@ -47,6 +49,7 @@ export function CommunityPage() {
   const { friends, incomingRequests, loading: friendsLoading } = useFriendships();
   const { feed, feedLoading, fetchFeed } = useWorkoutPosts();
   const { leaderboard, loading: leaderboardLoading } = useFriendLeaderboard();
+  const { entries: globalEntries, loading: globalLoading } = useGlobalLeaderboard();
   const { notifications, unreadCount, markAllRead } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -332,61 +335,213 @@ export function CommunityPage() {
         {/* LEADERBOARD TAB */}
         {activeTab === 'leaderboard' && (
           <>
-            <div className="bg-[#1a1a1a] rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Trophy className="w-4 h-4 text-yellow-500" />
-                <h2 className="font-bold text-sm">Weekly Leaderboard</h2>
+            {/* Leaderboard view toggle */}
+            <div className="flex gap-1 bg-[#111] rounded-xl p-1 mb-4">
+              {(['weekly', 'prs', 'global'] as const).map((view) => (
+                <button
+                  key={view}
+                  onClick={() => setLeaderboardView(view)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    leaderboardView === view
+                      ? 'bg-white text-black'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {view === 'weekly' ? 'Weekly' : view === 'prs' ? 'Big 3 PRs' : 'Global'}
+                </button>
+              ))}
+            </div>
+
+            {/* Weekly view */}
+            {leaderboardView === 'weekly' && (
+              <div className="bg-[#1a1a1a] rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  <h2 className="font-bold text-sm">Weekly Leaderboard</h2>
+                </div>
+
+                {leaderboardLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+                    <span className="text-sm text-gray-400 ml-2">Loading...</span>
+                  </div>
+                )}
+
+                {!leaderboardLoading && leaderboard.length === 0 && (
+                  <div className="text-center py-8">
+                    <Trophy className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">Add friends to see the leaderboard</p>
+                  </div>
+                )}
+
+                {!leaderboardLoading && leaderboard.length > 0 && (
+                  <div className="space-y-2">
+                    {leaderboard.map((person, idx) => (
+                      <div
+                        key={person.userId}
+                        className={`rounded-xl p-3 flex items-center gap-3 ${person.isCurrentUser ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(idx + 1)}`}>
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm truncate">{person.name}</p>
+                            {person.isCurrentUser && (
+                              <span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>
+                            )}
+                          </div>
+                          {person.username && <p className="text-xs text-gray-500">@{person.username}</p>}
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-lg font-bold">{person.workoutsThisWeek}</p>
+                          <p className="text-[10px] text-gray-400">workouts</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <div className="flex items-center gap-1">
+                            <Flame className="w-3 h-3 text-orange-500" />
+                            <span className="text-sm font-bold text-orange-500">{person.streak}</span>
+                          </div>
+                          <p className="text-[10px] text-gray-400">streak</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+            )}
 
-              {leaderboardLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
-                  <span className="text-sm text-gray-400 ml-2">Loading...</span>
+            {/* Big 3 PRs view (friends) */}
+            {leaderboardView === 'prs' && (
+              <div className="bg-[#1a1a1a] rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Dumbbell className="w-4 h-4 text-[#00ff00]" />
+                  <h2 className="font-bold text-sm">Big 3 PRs — Friends</h2>
                 </div>
-              )}
 
-              {!leaderboardLoading && leaderboard.length === 0 && (
-                <div className="text-center py-8">
-                  <Trophy className="w-8 h-8 text-gray-700 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">Add friends to see the leaderboard</p>
-                </div>
-              )}
+                {leaderboardLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+                    <span className="text-sm text-gray-400 ml-2">Loading...</span>
+                  </div>
+                )}
 
-              {!leaderboardLoading && leaderboard.length > 0 && (
-                <div className="space-y-2">
-                  {leaderboard.map((person, idx) => (
-                    <div
-                      key={person.userId}
-                      className={`rounded-xl p-3 flex items-center gap-3 ${person.isCurrentUser ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getRankColor(idx + 1)}`}>
-                        {idx + 1}
+                {!leaderboardLoading && (() => {
+                  const sorted = [...leaderboard]
+                    .map(p => ({ ...p, total: (p.benchPR || 0) + (p.squatPR || 0) + (p.deadliftPR || 0) }))
+                    .filter(p => p.total > 0)
+                    .sort((a, b) => b.total - a.total);
+
+                  if (sorted.length === 0) return (
+                    <div className="text-center py-8">
+                      <Dumbbell className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">No PRs recorded yet</p>
+                    </div>
+                  );
+
+                  return (
+                    <div>
+                      {/* Header */}
+                      <div className="flex items-center gap-2 px-2 pb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                        <span className="w-6">#</span>
+                        <span className="flex-1">Name</span>
+                        <span className="w-14 text-right">Bench</span>
+                        <span className="w-14 text-right">Squat</span>
+                        <span className="w-14 text-right">Dead</span>
+                        <span className="w-16 text-right">Total</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-sm truncate">{person.name}</p>
-                          {person.isCurrentUser && (
-                            <span className="px-2 py-0.5 bg-[#00ff00] text-black text-[10px] font-bold rounded-full">YOU</span>
-                          )}
-                        </div>
-                        {person.username && <p className="text-xs text-gray-500">@{person.username}</p>}
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-lg font-bold">{person.workoutsThisWeek}</p>
-                        <p className="text-[10px] text-gray-400">workouts</p>
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-2">
-                        <div className="flex items-center gap-1">
-                          <Flame className="w-3 h-3 text-orange-500" />
-                          <span className="text-sm font-bold text-orange-500">{person.streak}</span>
-                        </div>
-                        <p className="text-[10px] text-gray-400">streak</p>
+                      <div className="space-y-1.5">
+                        {sorted.map((person, idx) => (
+                          <div
+                            key={person.userId}
+                            className={`rounded-xl px-2 py-2.5 flex items-center gap-2 ${person.isCurrentUser ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}
+                          >
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] ${getRankColor(idx + 1)}`}>
+                              {idx + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-semibold text-xs truncate">{person.name}</p>
+                                {person.isCurrentUser && (
+                                  <span className="px-1.5 py-0.5 bg-[#00ff00] text-black text-[8px] font-bold rounded-full">YOU</span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="w-14 text-right text-xs font-medium">{person.benchPR || '—'}</span>
+                            <span className="w-14 text-right text-xs font-medium">{person.squatPR || '—'}</span>
+                            <span className="w-14 text-right text-xs font-medium">{person.deadliftPR || '—'}</span>
+                            <span className="w-16 text-right text-sm font-bold text-[#00ff00]">{person.total}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Global view */}
+            {leaderboardView === 'global' && (
+              <div className="bg-[#1a1a1a] rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  <h2 className="font-bold text-sm">Global Big 3 — Top 20</h2>
                 </div>
-              )}
-            </div>
+
+                {globalLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 text-[#00ff00] animate-spin" />
+                    <span className="text-sm text-gray-400 ml-2">Loading...</span>
+                  </div>
+                )}
+
+                {!globalLoading && globalEntries.length === 0 && (
+                  <div className="text-center py-8">
+                    <Trophy className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">No PRs recorded yet</p>
+                  </div>
+                )}
+
+                {!globalLoading && globalEntries.length > 0 && (
+                  <div>
+                    {/* Header */}
+                    <div className="flex items-center gap-2 px-2 pb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                      <span className="w-6">#</span>
+                      <span className="flex-1">Name</span>
+                      <span className="w-14 text-right">Bench</span>
+                      <span className="w-14 text-right">Squat</span>
+                      <span className="w-14 text-right">Dead</span>
+                      <span className="w-16 text-right">Total</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {globalEntries.map((person, idx) => (
+                        <div
+                          key={person.userId}
+                          className={`rounded-xl px-2 py-2.5 flex items-center gap-2 ${person.isCurrentUser ? 'bg-[#00ff00]/10 border border-[#00ff00]/30' : 'bg-black/50'}`}
+                        >
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] ${getRankColor(idx + 1)}`}>
+                            {idx + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-semibold text-xs truncate">{person.name}</p>
+                              {person.isCurrentUser && (
+                                <span className="px-1.5 py-0.5 bg-[#00ff00] text-black text-[8px] font-bold rounded-full">YOU</span>
+                              )}
+                            </div>
+                            {person.username && <p className="text-[10px] text-gray-500">@{person.username}</p>}
+                          </div>
+                          <span className="w-14 text-right text-xs font-medium">{person.benchPR || '—'}</span>
+                          <span className="w-14 text-right text-xs font-medium">{person.squatPR || '—'}</span>
+                          <span className="w-14 text-right text-xs font-medium">{person.deadliftPR || '—'}</span>
+                          <span className="w-16 text-right text-sm font-bold text-[#00ff00]">{person.total}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 

@@ -1,8 +1,10 @@
-import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil, RefreshCw, Moon, AtSign } from 'lucide-react';
+import { ChevronRight, ChevronLeft, User, Ruler, Dumbbell, MapPin, Target, Calendar, Sparkles, Home as HomeIcon, Search, Check, Watch, Activity, Heart, Zap, Loader2, Pencil, RefreshCw, Moon, AtSign, Trophy } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useGymSearch } from '../hooks/useGymSearch';
+import { usePersonalRecords } from '../hooks/usePersonalRecords';
+import { useAICoach } from '../hooks/useAICoach';
 import { supabase } from '../lib/supabase';
 import { useWhoopStatus } from '../hooks/useWhoopStatus';
 import { useOuraStatus } from '../hooks/useOuraStatus';
@@ -34,6 +36,9 @@ interface OnboardingData {
   wearables: string[];
   goal: string;
   customGoal: string;
+  benchPR: number;
+  squatPR: number;
+  deadliftPR: number;
   split: string;
   customSplit: { day: number; muscles: string[] }[];
 }
@@ -45,6 +50,8 @@ interface OnboardingPageProps {
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const { user, session } = useAuth();
   const { updateProfile } = useProfile();
+  const { upsertBig3PRs } = usePersonalRecords();
+  const { fetchEstimatePRs, estimatePRsLoading } = useAICoach();
   const { connected: whoopConnected, loading: whoopStatusLoading, refetch: refetchWhoop } = useWhoopStatus();
   const { connected: ouraConnected, loading: ouraStatusLoading, refetch: refetchOura } = useOuraStatus();
   const [whoopConnecting, setWhoopConnecting] = useState(false);
@@ -78,6 +85,9 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     wearables: [],
     goal: '',
     customGoal: '',
+    benchPR: 0,
+    squatPR: 0,
+    deadliftPR: 0,
     split: '',
     customSplit: []
   });
@@ -168,20 +178,20 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const handleWhoopConnect = () => setConsentFor('whoop');
   const handleOuraConnect = () => setConsentFor('oura');
 
-  const totalSteps = 9;
+  const totalSteps = 10;
 
   const handleNext = () => {
-    if (step === 7 && data.goal === 'Ask AI') {
+    if (step === 8 && data.goal === 'Ask AI') {
       setShowAIGoalInput(true);
       return;
     }
-    if (step === 8 && data.split === 'custom') {
+    if (step === 9 && data.split === 'custom') {
       setShowCustomSplit(true);
       return;
     }
     if (editingFromReview) {
       setEditingFromReview(false);
-      setStep(9);
+      setStep(10);
       return;
     }
     if (step < totalSteps) {
@@ -236,6 +246,9 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
         custom_split: data.customSplit.length > 0 ? data.customSplit : null,
         onboarding_completed: true,
       });
+      if (data.benchPR > 0 || data.squatPR > 0 || data.deadliftPR > 0) {
+        await upsertBig3PRs(data.benchPR, data.squatPR, data.deadliftPR);
+      }
       setTimeout(() => onComplete(), 500);
     } catch (err: any) {
       setSaveError(err.message || 'Failed to save profile');
@@ -250,11 +263,12 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
       case 2: return /^[a-z0-9_]{3,20}$/.test(data.username) && usernameAvailable === true;
       case 3: return data.heightFeet > 0 && data.weight > 0;
       case 4: return data.experience !== '';
-      case 5: return data.isHomeGym || !!data.gymPlaceId;
-      case 6: return true; // Wearables are optional
-      case 7: return data.goal !== '';
-      case 8: return data.split !== '';
-      case 9: return true;
+      case 5: return true; // PRs are optional
+      case 6: return data.isHomeGym || !!data.gymPlaceId;
+      case 7: return true; // Wearables are optional
+      case 8: return data.goal !== '';
+      case 9: return data.split !== '';
+      case 10: return true;
       default: return false;
     }
   };
@@ -367,7 +381,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <button
             onClick={() => {
               setShowAIGoalInput(false);
-              setStep(9);
+              setStep(10);
             }}
             disabled={data.customGoal.trim().length < 10}
             className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2 mt-6"
@@ -464,7 +478,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <button
             onClick={() => {
               setShowCustomSplit(false);
-              setStep(9);
+              setStep(10);
             }}
             disabled={!data.customSplit.every(day => day.muscles.length > 0)}
             className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
@@ -498,7 +512,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             onClick={() => {
               if (editingFromReview) {
                 setEditingFromReview(false);
-                setStep(9);
+                setStep(10);
               } else {
                 setStep(step - 1);
               }
@@ -692,7 +706,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       setData({ ...data, experience: newVal });
                       if (editingFromReview && newVal) {
                         setEditingFromReview(false);
-                        setTimeout(() => setStep(9), 150);
+                        setTimeout(() => setStep(10), 150);
                       }
                     }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
@@ -709,8 +723,83 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 5: Gym Location */}
+          {/* Step 5: Big 3 PRs */}
           {step === 5 && (
+            <>
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
+                <Trophy className="w-6 h-6 text-black" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Your Big 3 PRs</h2>
+              <p className="text-gray-400 text-sm mb-8">Enter your 1-rep max for the Big 3 lifts (optional)</p>
+
+              <div className="space-y-4 mb-6">
+                {[
+                  { label: 'Bench Press', key: 'benchPR' as const },
+                  { label: 'Squat', key: 'squatPR' as const },
+                  { label: 'Deadlift', key: 'deadliftPR' as const },
+                ].map((lift) => (
+                  <div key={lift.key}>
+                    <label className="text-sm font-medium mb-2 block">{lift.label}</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="1500"
+                        value={data[lift.key] || ''}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value) || 0;
+                          setData({ ...data, [lift.key]: Math.min(v, 1500) });
+                        }}
+                        placeholder="0"
+                        className="w-28 bg-[#0a0a0a] border border-gray-800 rounded-xl px-4 py-3 text-white text-center text-lg font-bold focus:outline-none focus:border-[#00ff00] transition-colors"
+                      />
+                      <span className="text-gray-500 text-sm">lbs</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={async () => {
+                  const result = await fetchEstimatePRs({
+                    bodyweightLbs: data.weight,
+                    experience: data.experience || 'beginner',
+                  });
+                  if (result) {
+                    setData({
+                      ...data,
+                      benchPR: result.benchPress,
+                      squatPR: result.squat,
+                      deadliftPR: result.deadlift,
+                    });
+                  }
+                }}
+                disabled={estimatePRsLoading}
+                className="w-full p-3 rounded-2xl border-2 border-gray-800 bg-[#0a0a0a] hover:border-gray-700 transition-all flex items-center justify-center gap-2 mb-4"
+              >
+                {estimatePRsLoading ? (
+                  <Loader2 className="w-4 h-4 text-[#00ff00] animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-[#00ff00]" />
+                )}
+                <span className="text-sm font-semibold">{estimatePRsLoading ? 'Estimating...' : 'Guess my PRs'}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setData({ ...data, benchPR: 0, squatPR: 0, deadliftPR: 0 });
+                  if (editingFromReview) { setEditingFromReview(false); setStep(10); }
+                  else setStep(6);
+                }}
+                className="w-full text-sm text-gray-500 hover:text-white transition-colors"
+              >
+                Skip for now
+              </button>
+            </>
+          )}
+
+          {/* Step 6: Gym Location */}
+          {step === 6 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <MapPin className="w-6 h-6 text-black" />
@@ -924,7 +1013,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                             setGymSearchQuery(gym.name);
                             if (editingFromReview) {
                               setEditingFromReview(false);
-                              setTimeout(() => setStep(9), 150);
+                              setTimeout(() => setStep(10), 150);
                             }
                           }}
                           className="w-full p-3 bg-[#0a0a0a] border border-gray-800 rounded-xl text-left hover:border-gray-700 transition-colors"
@@ -940,8 +1029,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 6: Wearables */}
-          {step === 6 && (
+          {/* Step 7: Wearables */}
+          {step === 7 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Watch className="w-6 h-6 text-black" />
@@ -1029,8 +1118,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
               <button
                 onClick={() => {
-                  if (editingFromReview) { setEditingFromReview(false); setStep(9); }
-                  else setStep(7);
+                  if (editingFromReview) { setEditingFromReview(false); setStep(10); }
+                  else setStep(8);
                 }}
                 className="w-full text-sm text-gray-500 hover:text-white transition-colors"
               >
@@ -1039,8 +1128,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 7: Goals */}
-          {step === 7 && (
+          {/* Step 8: Goals */}
+          {step === 8 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Target className="w-6 h-6 text-black" />
@@ -1064,7 +1153,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       setData({ ...data, goal: newVal });
                       if (editingFromReview && newVal && newVal !== 'Ask AI') {
                         setEditingFromReview(false);
-                        setTimeout(() => setStep(9), 150);
+                        setTimeout(() => setStep(10), 150);
                       }
                     }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
@@ -1084,8 +1173,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 8: Split */}
-          {step === 8 && (
+          {/* Step 9: Split */}
+          {step === 9 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Calendar className="w-6 h-6 text-black" />
@@ -1108,7 +1197,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       setData({ ...data, split: newVal });
                       if (editingFromReview && newVal && newVal !== 'custom') {
                         setEditingFromReview(false);
-                        setTimeout(() => setStep(9), 150);
+                        setTimeout(() => setStep(10), 150);
                       }
                     }}
                     className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
@@ -1128,8 +1217,8 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </>
           )}
 
-          {/* Step 9: Final Review */}
-          {step === 9 && (
+          {/* Step 10: Final Review */}
+          {step === 10 && (
             <>
               <div className="w-12 h-12 bg-gradient-to-br from-[#00ff00] to-[#00cc00] rounded-2xl flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-black" />
@@ -1194,6 +1283,20 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                       </p>
                     )}
                   </div>
+                  <button onClick={() => { setEditingFromReview(true); setStep(6); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                    Edit
+                  </button>
+                </div>
+                <div className="h-px bg-gray-800" />
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500">Big 3 PRs</p>
+                    <p className="font-medium">
+                      {data.benchPR > 0 || data.squatPR > 0 || data.deadliftPR > 0
+                        ? `Bench ${data.benchPR} · Squat ${data.squatPR} · Deadlift ${data.deadliftPR}`
+                        : 'Skipped'}
+                    </p>
+                  </div>
                   <button onClick={() => { setEditingFromReview(true); setStep(5); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
@@ -1209,7 +1312,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                           {(whoopConnected || ouraConnected) && ' — AUTO'}
                         </p>
                       </div>
-                      <button onClick={() => { setEditingFromReview(true); setStep(6); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                      <button onClick={() => { setEditingFromReview(true); setStep(7); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                         Edit
                       </button>
                     </div>
@@ -1228,7 +1331,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                        data.goal === 'athletic' ? 'Athletic Performance' : data.goal}
                     </p>
                   </div>
-                  <button onClick={() => { setEditingFromReview(true); setStep(7); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(8); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -1244,7 +1347,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
                        data.split === 'custom' ? 'Custom Split' : data.split}
                     </p>
                   </div>
-                  <button onClick={() => { setEditingFromReview(true); setStep(8); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
+                  <button onClick={() => { setEditingFromReview(true); setStep(9); }} className="ml-3 px-3 py-1.5 text-xs font-medium text-[#00ff00] border border-[#00ff00]/30 rounded-lg hover:bg-[#00ff00]/10 transition-colors">
                     Edit
                   </button>
                 </div>
@@ -1259,7 +1362,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           disabled={!isStepValid()}
           className="w-full bg-[#00ff00] text-black font-bold py-4 rounded-2xl text-base hover:bg-[#00dd00] transition-all active:scale-[0.98] disabled:opacity-30 disabled:hover:bg-[#00ff00] disabled:active:scale-100 flex items-center justify-center gap-2"
         >
-          {step === 9 ? 'Get Maxed' : editingFromReview ? 'Save & Back' : 'Continue'}
+          {step === 10 ? 'Get Maxed' : editingFromReview ? 'Save & Back' : 'Continue'}
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>

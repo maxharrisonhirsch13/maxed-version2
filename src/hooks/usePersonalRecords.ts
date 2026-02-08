@@ -36,5 +36,32 @@ export function usePersonalRecords() {
     return records.find(r => r.exerciseName === exerciseName && r.prType === type)
   }
 
-  return { records, loading, getPR, refetch: fetchPRs }
+  async function upsertPR(exerciseName: string, value: number) {
+    if (!user) return
+    const { error } = await supabase
+      .from('personal_records')
+      .upsert({
+        user_id: user.id,
+        exercise_name: exerciseName,
+        pr_type: 'weight',
+        value,
+        unit: 'lbs',
+        achieved_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,exercise_name,pr_type' })
+    if (error) console.error('Failed to upsert PR:', error)
+  }
+
+  async function upsertBig3PRs(bench: number, squat: number, deadlift: number) {
+    const entries: [string, number][] = [
+      ['Bench Press', bench],
+      ['Squat', squat],
+      ['Deadlift', deadlift],
+    ]
+    for (const [name, value] of entries) {
+      if (value > 0) await upsertPR(name, value)
+    }
+    await fetchPRs()
+  }
+
+  return { records, loading, getPR, upsertPR, upsertBig3PRs, refetch: fetchPRs }
 }

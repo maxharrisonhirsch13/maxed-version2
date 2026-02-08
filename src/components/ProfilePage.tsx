@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon, Home as HomeIcon, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, X, Calendar, Share2, Users as UsersIcon, Mail, MapPin, Calendar as CalendarIcon, Edit, Copy, Check, Link2, Heart, Bike, TrendingUp, Ruler, Activity, Shield, LogOut, Loader2, Zap, Moon, Home as HomeIcon, Search, Trophy, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { FriendProfileModal } from './FriendProfileModal';
 import { ViewAllFriendsModal } from './ViewAllFriendsModal';
@@ -11,6 +11,8 @@ import { useOuraStatus } from '../hooks/useOuraStatus';
 import { useGymSearch } from '../hooks/useGymSearch';
 import { usePrivacySettings } from '../hooks/usePrivacySettings';
 import { useFriendships } from '../hooks/useFriendships';
+import { usePersonalRecords } from '../hooks/usePersonalRecords';
+import { useAICoach } from '../hooks/useAICoach';
 import type { UserProfile } from '../types';
 
 interface ProfilePageProps {
@@ -49,6 +51,8 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const { connected: ouraConnected } = useOuraStatus();
   const { settings: privacyFromDb, updateSettings: updatePrivacyInDb } = usePrivacySettings();
   const { friends } = useFriendships();
+  const { getPR, upsertBig3PRs, loading: prsLoading } = usePersonalRecords();
+  const { fetchEstimatePRs, estimatePRsLoading } = useAICoach();
 
   // Convert real workout data to calendar-friendly format
   const workoutHistory: WorkoutLog[] = rawWorkouts.map(w => ({
@@ -125,6 +129,13 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
   const [editCustomDays, setEditCustomDays] = useState(3);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
+
+  // Big 3 PRs state
+  const [showEditPRs, setShowEditPRs] = useState(false);
+  const [prBench, setPrBench] = useState(0);
+  const [prSquat, setPrSquat] = useState(0);
+  const [prDeadlift, setPrDeadlift] = useState(0);
+  const [prSaving, setPrSaving] = useState(false);
 
   // Edit Training Setup state
   const [showEditTraining, setShowEditTraining] = useState(false);
@@ -354,6 +365,51 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Big 3 PRs */}
+        <div className="bg-[#0a0a0a] rounded-2xl p-4 border border-gray-900">
+          <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-[#00ff00]" />
+            Big 3 PRs
+          </h3>
+          {prsLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Bench', value: getPR('Bench Press', 'weight')?.value },
+                { label: 'Squat', value: getPR('Squat', 'weight')?.value },
+                { label: 'Deadlift', value: getPR('Deadlift', 'weight')?.value },
+              ].map((lift) => (
+                <div key={lift.label} className="bg-black/30 rounded-xl p-3 text-center">
+                  <div className="text-lg font-bold text-[#00ff00]">{lift.value || '—'}</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">{lift.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {!prsLoading && (getPR('Bench Press', 'weight')?.value || getPR('Squat', 'weight')?.value || getPR('Deadlift', 'weight')?.value) && (
+            <div className="mt-3 bg-black/30 rounded-xl p-2.5 text-center">
+              <span className="text-xs text-gray-500">Total: </span>
+              <span className="text-sm font-bold text-white">
+                {(getPR('Bench Press', 'weight')?.value || 0) + (getPR('Squat', 'weight')?.value || 0) + (getPR('Deadlift', 'weight')?.value || 0)} lbs
+              </span>
+            </div>
+          )}
+          <button
+            onClick={() => {
+              setPrBench(getPR('Bench Press', 'weight')?.value || 0);
+              setPrSquat(getPR('Squat', 'weight')?.value || 0);
+              setPrDeadlift(getPR('Deadlift', 'weight')?.value || 0);
+              setShowEditPRs(true);
+            }}
+            className="w-full mt-3 bg-[#1a1a1a] hover:bg-[#252525] text-white font-medium py-2.5 rounded-xl text-xs transition-colors"
+          >
+            {getPR('Bench Press', 'weight') || getPR('Squat', 'weight') || getPR('Deadlift', 'weight') ? 'Edit PRs' : 'Add Your PRs'}
+          </button>
         </div>
 
         {/* Training Setup */}
@@ -1259,6 +1315,96 @@ export function ProfilePage({ userData, onIntegrationsClick }: ProfilePageProps)
                   </>
                 ) : (
                   'Save Training Setup'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit PRs Modal */}
+      {showEditPRs && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-gradient-to-b from-[#0f0f0f] to-black rounded-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-900">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-[#00ff00]/10 rounded-xl">
+                  <Trophy className="w-4 h-4 text-[#00ff00]" />
+                </div>
+                <h3 className="font-bold text-lg">Big 3 PRs</h3>
+              </div>
+              <button onClick={() => setShowEditPRs(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              <p className="text-xs text-gray-500">Enter your 1-rep max for each lift (in lbs)</p>
+
+              {[
+                { label: 'Bench Press', value: prBench, setter: setPrBench },
+                { label: 'Squat', value: prSquat, setter: setPrSquat },
+                { label: 'Deadlift', value: prDeadlift, setter: setPrDeadlift },
+              ].map((lift) => (
+                <div key={lift.label}>
+                  <label className="text-sm font-medium text-gray-400 mb-2 block">{lift.label}</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="1500"
+                      value={lift.value || ''}
+                      onChange={(e) => lift.setter(Math.min(parseInt(e.target.value) || 0, 1500))}
+                      placeholder="0"
+                      className="w-28 bg-[#1a1a1a] border border-gray-800 rounded-xl px-4 py-3 text-white text-center text-lg font-bold focus:outline-none focus:border-[#00ff00] transition-colors"
+                    />
+                    <span className="text-gray-500 text-sm">lbs</span>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                onClick={async () => {
+                  const result = await fetchEstimatePRs({
+                    bodyweightLbs: userData?.weight || 175,
+                    experience: userData?.experience || 'beginner',
+                  });
+                  if (result) {
+                    setPrBench(result.benchPress);
+                    setPrSquat(result.squat);
+                    setPrDeadlift(result.deadlift);
+                  }
+                }}
+                disabled={estimatePRsLoading}
+                className="w-full p-3 rounded-xl border-2 border-gray-800 bg-[#1a1a1a] hover:border-gray-700 transition-all flex items-center justify-center gap-2"
+              >
+                {estimatePRsLoading ? (
+                  <Loader2 className="w-4 h-4 text-[#00ff00] animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-[#00ff00]" />
+                )}
+                <span className="text-sm font-semibold">{estimatePRsLoading ? 'Estimating...' : 'Guess my PRs'}</span>
+              </button>
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-900">
+              <button
+                onClick={async () => {
+                  setPrSaving(true);
+                  await upsertBig3PRs(prBench, prSquat, prDeadlift);
+                  setPrSaving(false);
+                  setShowEditPRs(false);
+                }}
+                disabled={prSaving}
+                className="w-full bg-[#00ff00] text-black font-bold py-3.5 rounded-2xl text-sm hover:bg-[#00dd00] transition-all active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {prSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save PRs'
                 )}
               </button>
             </div>

@@ -5,6 +5,7 @@ import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useWhoopData } from '../hooks/useWhoopData';
 import { useAuth } from '../context/AuthContext';
 import { useAICoach } from '../hooks/useAICoach';
+import { usePersonalRecords } from '../hooks/usePersonalRecords';
 import { ShareWorkoutPrompt } from './ShareWorkoutPrompt';
 import type { HomeEquipment } from '../types';
 
@@ -294,6 +295,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 20 });
   const { data: whoopData } = useWhoopData();
   const { workoutSuggestions, workoutLoading, fetchWorkoutSuggestions, fetchSetUpdate } = useAICoach();
+  const { getPR } = usePersonalRecords();
   const startedAt = useRef(new Date().toISOString());
   const userModifiedWeight = useRef(false);
   const liveUpdateActive = useRef(false);
@@ -423,6 +425,11 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
         goal: profile?.goal || null,
         weightLbs: profile?.weight || null,
         homeEquipment: trainingAtHome ? (profile?.homeEquipment || null) : null,
+        prs: {
+          benchPress: getPR('Bench Press', 'weight')?.value || 0,
+          squat: getPR('Squat', 'weight')?.value || 0,
+          deadlift: getPR('Deadlift', 'weight')?.value || 0,
+        },
       },
       recovery: whoopData?.recovery ? {
         score: whoopData.recovery.score,

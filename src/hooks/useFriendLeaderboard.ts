@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { computeStreak } from '../utils/streaks'
 
-interface LeaderboardEntry {
+export interface LeaderboardEntry {
   userId: string
   name: string
   username: string | null
@@ -11,6 +11,9 @@ interface LeaderboardEntry {
   workoutsThisWeek: number
   streak: number
   isCurrentUser: boolean
+  benchPR: number | null
+  squatPR: number | null
+  deadliftPR: number | null
 }
 
 export function useFriendLeaderboard() {
@@ -98,12 +101,43 @@ export function useFriendLeaderboard() {
         )
       }
 
-      // Step 5: Assemble leaderboard
+      // Step 5: Fetch Big 3 PRs and privacy settings
+      const [{ data: prData }, { data: privacyData }] = await Promise.all([
+        supabase
+          .from('personal_records')
+          .select('user_id, exercise_name, value')
+          .in('user_id', allUserIds)
+          .in('exercise_name', ['Bench Press', 'Squat', 'Deadlift'])
+          .eq('pr_type', 'weight'),
+        supabase
+          .from('privacy_settings')
+          .select('user_id, share_prs')
+          .in('user_id', allUserIds),
+      ])
+
+      const prMap = new Map<string, { bench: number; squat: number; deadlift: number }>()
+      for (const pr of prData ?? []) {
+        if (!prMap.has(pr.user_id)) prMap.set(pr.user_id, { bench: 0, squat: 0, deadlift: 0 })
+        const entry = prMap.get(pr.user_id)!
+        if (pr.exercise_name === 'Bench Press') entry.bench = Number(pr.value)
+        else if (pr.exercise_name === 'Squat') entry.squat = Number(pr.value)
+        else if (pr.exercise_name === 'Deadlift') entry.deadlift = Number(pr.value)
+      }
+
+      const privacyMap = new Map<string, boolean>()
+      for (const p of privacyData ?? []) {
+        privacyMap.set(p.user_id, p.share_prs === true)
+      }
+
+      // Step 6: Assemble leaderboard
       const entries: LeaderboardEntry[] = allUserIds.map((uid) => {
         const profile = profileMap.get(uid)
         const workoutsThisWeek = weeklyCountByUser.get(uid) ?? 0
         const dates = workoutDatesByUser.get(uid) ?? []
         const streak = computeStreak(dates)
+        const prs = prMap.get(uid)
+        const sharePRs = privacyMap.get(uid) ?? true
+        const showPRs = uid === user.id || sharePRs
 
         return {
           userId: uid,
@@ -113,6 +147,9 @@ export function useFriendLeaderboard() {
           workoutsThisWeek,
           streak,
           isCurrentUser: uid === user.id,
+          benchPR: showPRs && prs ? prs.bench || null : null,
+          squatPR: showPRs && prs ? prs.squat || null : null,
+          deadliftPR: showPRs && prs ? prs.deadlift || null : null,
         }
       })
 

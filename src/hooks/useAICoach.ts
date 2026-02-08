@@ -15,6 +15,12 @@ export interface AISetUpdate {
   note: string
 }
 
+export interface AIEstimatedPRs {
+  benchPress: number
+  squat: number
+  deadlift: number
+}
+
 export interface AIReadinessResult {
   readinessScore: number
   coachingText: string
@@ -32,6 +38,9 @@ export function useAICoach() {
   // Live set update state
   const [setUpdateLoading, setSetUpdateLoading] = useState(false)
   const setUpdateAbortRef = useRef<AbortController | null>(null)
+
+  // PR estimation state
+  const [estimatePRsLoading, setEstimatePRsLoading] = useState(false)
 
   // Readiness state
   const [readiness, setReadiness] = useState<AIReadinessResult | null>(null)
@@ -53,6 +62,7 @@ export function useAICoach() {
       goal: string | null
       weightLbs: number | null
       homeEquipment?: any
+      prs?: { benchPress: number; squat: number; deadlift: number }
     }
     recovery: {
       score: number | null
@@ -159,9 +169,39 @@ export function useAICoach() {
     return null
   }, [session?.access_token])
 
+  const fetchEstimatePRs = useCallback(async (payload: {
+    bodyweightLbs: number
+    experience: string
+  }): Promise<AIEstimatedPRs | null> => {
+    if (!session?.access_token) return null
+    setEstimatePRsLoading(true)
+    try {
+      const res = await fetch('/api/ai-coach', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ type: 'estimate-prs', ...payload }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.benchPress != null) {
+          setEstimatePRsLoading(false)
+          return data as AIEstimatedPRs
+        }
+      }
+    } catch {
+      // Silently fail
+    }
+    setEstimatePRsLoading(false)
+    return null
+  }, [session?.access_token])
+
   return {
     workoutSuggestions, workoutLoading, fetchWorkoutSuggestions,
     setUpdateLoading, fetchSetUpdate,
     readiness, readinessLoading, fetchReadiness,
+    estimatePRsLoading, fetchEstimatePRs,
   }
 }
