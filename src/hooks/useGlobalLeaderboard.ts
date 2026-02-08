@@ -50,7 +50,7 @@ export function useGlobalLeaderboard() {
       const allUserIds = [...prMap.keys()]
 
       // Step 2: Fetch profiles and privacy settings
-      const [profilesResult, privacyResult] = await Promise.all([
+      const [{ data: profiles }, { data: privacyData }] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, name, username, avatar_url')
@@ -60,11 +60,6 @@ export function useGlobalLeaderboard() {
           .select('user_id, share_prs, profile_visibility')
           .in('user_id', allUserIds),
       ])
-      console.log('[GLOBAL LB DEBUG] allUserIds:', allUserIds)
-      console.log('[GLOBAL LB DEBUG] profiles:', profilesResult)
-      console.log('[GLOBAL LB DEBUG] privacy:', privacyResult)
-      const profiles = profilesResult.data
-      const privacyData = privacyResult.data
 
       const profileMap = new Map(
         (profiles ?? []).map((p) => [p.id, p])
