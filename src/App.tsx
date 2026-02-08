@@ -136,6 +136,7 @@ export default function App() {
   const readinessAvailable = hasWearable || workoutDaysLast2Weeks >= 4;
 
   const [currentPage, setCurrentPage] = useState<'today' | 'progress' | 'community' | 'profile'>('today');
+  const [showReadinessInfo, setShowReadinessInfo] = useState(false);
   const [showPreWorkout, setShowPreWorkout] = useState(false);
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
   const [activeMuscleGroup, setActiveMuscleGroup] = useState('');
@@ -303,31 +304,36 @@ export default function App() {
                 <Lock className="w-4 h-4 text-gray-500" />
                 <p className="text-gray-400 text-xs font-semibold">Readiness Score</p>
               </div>
-              <div className="flex items-baseline gap-1.5 mb-3">
+              <div className="flex items-baseline gap-1.5 mb-2">
                 <span className="text-4xl lg:text-5xl font-bold text-gray-700">--</span>
                 <span className="text-lg text-gray-700">/ 100</span>
               </div>
-              <p className="text-gray-400 text-xs font-semibold mb-2">Multi-Factor Algorithm</p>
-              <div className="space-y-1.5 mb-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-[#00ff00] font-bold mt-0.5 shrink-0">40%</span>
-                  <p className="text-[11px] text-gray-500 leading-snug"><span className="text-gray-400 font-medium">Recovery Data</span> — HRV, resting heart rate, and wearable recovery metrics</p>
+              <p className="text-gray-500 text-xs leading-relaxed mb-2">Connect a wearable or log 2 weeks of workouts to unlock your daily readiness score.</p>
+              <button onClick={() => setShowReadinessInfo(!showReadinessInfo)} className="text-[10px] font-semibold text-[#00ff00] hover:text-[#00dd00] transition-colors">
+                {showReadinessInfo ? 'Hide Details' : 'Learn More →'}
+              </button>
+              {showReadinessInfo && (
+                <div className="mt-3 pt-3 border-t border-gray-800 space-y-1.5">
+                  <p className="text-gray-400 text-[10px] font-semibold mb-1.5">Multi-Factor Algorithm</p>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] text-[#00ff00] font-bold mt-0.5 shrink-0">40%</span>
+                    <p className="text-[11px] text-gray-500 leading-snug"><span className="text-gray-400 font-medium">Recovery Data</span> — HRV, resting heart rate, wearable metrics</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] text-[#00ff00] font-bold mt-0.5 shrink-0">25%</span>
+                    <p className="text-[11px] text-gray-500 leading-snug"><span className="text-gray-400 font-medium">Sleep Quality</span> — Duration, deep sleep, efficiency</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] text-[#00ff00] font-bold mt-0.5 shrink-0">20%</span>
+                    <p className="text-[11px] text-gray-500 leading-snug"><span className="text-gray-400 font-medium">HRV Analysis</span> — Autonomic nervous system balance</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] text-[#00ff00] font-bold mt-0.5 shrink-0">15%</span>
+                    <p className="text-[11px] text-gray-500 leading-snug"><span className="text-gray-400 font-medium">Training Load</span> — Volume, frequency, recovery windows</p>
+                  </div>
+                  <p className="text-[10px] text-gray-600 leading-relaxed pt-1">This score directly adjusts your AI workout recommendations — lighter loads on low-recovery days, harder pushes when you're primed.</p>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-[#00ff00] font-bold mt-0.5 shrink-0">25%</span>
-                  <p className="text-[11px] text-gray-500 leading-snug"><span className="text-gray-400 font-medium">Sleep Quality</span> — Duration, deep sleep stages, and sleep efficiency</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-[#00ff00] font-bold mt-0.5 shrink-0">20%</span>
-                  <p className="text-[11px] text-gray-500 leading-snug"><span className="text-gray-400 font-medium">HRV Analysis</span> — Autonomic nervous system balance</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-[#00ff00] font-bold mt-0.5 shrink-0">15%</span>
-                  <p className="text-[11px] text-gray-500 leading-snug"><span className="text-gray-400 font-medium">Training Load</span> — Volume, frequency, and muscle group recovery</p>
-                </div>
-              </div>
-              <p className="text-[10px] text-gray-600 leading-relaxed mb-1">This score directly adjusts your AI workout recommendations — reducing intensity on low-recovery days and pushing progressive overload when you're primed for peak performance.</p>
-              <p className="text-[10px] text-gray-500 font-medium">Connect a wearable or log 2 weeks of workouts to activate.</p>
+              )}
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800" />
             </div>
             )}
