@@ -572,7 +572,7 @@ export function CommunityPage() {
                     {/* Header */}
                     <div className="flex items-center gap-2 px-2 pb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                       <span className="w-6">#</span>
-                      <span className="flex-1">Name</span>
+                      <span className="flex-1">User</span>
                       <span className="w-14 text-right">Bench</span>
                       <span className="w-14 text-right">Squat</span>
                       <span className="w-14 text-right">Dead</span>
@@ -589,12 +589,11 @@ export function CommunityPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <p className="font-semibold text-xs truncate">{person.name}</p>
+                              <p className="font-semibold text-xs truncate">{person.username ? `@${person.username}` : person.name}</p>
                               {person.isCurrentUser && (
                                 <span className="px-1.5 py-0.5 bg-[#00ff00] text-black text-[8px] font-bold rounded-full">YOU</span>
                               )}
                             </div>
-                            {person.username && <p className="text-[10px] text-gray-500">@{person.username}</p>}
                           </div>
                           <span className="w-14 text-right text-xs font-medium">{person.benchPR || '—'}</span>
                           <span className="w-14 text-right text-xs font-medium">{person.squatPR || '—'}</span>
