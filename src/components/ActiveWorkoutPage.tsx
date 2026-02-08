@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
-import { X, Settings, Sparkles, ChevronLeft, ChevronRight, Check, Eye, EyeOff, RefreshCw, Plus, List, Search, Dumbbell, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { X, Settings, Sparkles, ChevronLeft, ChevronRight, Check, Eye, EyeOff, RefreshCw, Plus, List, Search, Dumbbell, Loader2, Lock } from 'lucide-react';
 import { useWorkouts } from '../hooks/useWorkouts';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useWhoopData } from '../hooks/useWhoopData';
 import { useAuth } from '../context/AuthContext';
-import { useAICoach } from '../hooks/useAICoach';
+import { useAICoach, type AIWorkoutScore } from '../hooks/useAICoach';
 import { usePersonalRecords } from '../hooks/usePersonalRecords';
 import { useWorkoutTemplates } from '../hooks/useWorkoutTemplates';
 import { ShareWorkoutPrompt } from './ShareWorkoutPrompt';
@@ -291,47 +291,148 @@ function WorkoutFinishedAutoSave({ onSave }: { onSave: () => void }) {
   );
 }
 
+// Animated circular score gauge
+function ScoreGauge({ score, loading, locked }: { score: number | null; loading: boolean; locked: boolean }) {
+  const [animatedScore, setAnimatedScore] = useState(0);
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+  const strokeWidth = 8;
+
+  useEffect(() => {
+    if (score == null || locked || loading) return;
+    let frame: number;
+    const start = performance.now();
+    const duration = 1200;
+    const animate = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setAnimatedScore(Math.round(eased * score));
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [score, locked, loading]);
+
+  const displayScore = locked ? null : loading ? null : animatedScore;
+  const progress = locked ? 0 : loading ? 0 : (animatedScore / 100);
+  const dashOffset = circumference * (1 - progress);
+  const scoreColor = (displayScore ?? 0) >= 75 ? '#00ff00' : (displayScore ?? 0) >= 60 ? '#facc15' : '#f97316';
+
+  return (
+    <div className="relative mx-auto w-44 h-44 mb-5">
+      <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
+        <circle cx="80" cy="80" r={radius} fill="none" stroke="#1a1a1a" strokeWidth={strokeWidth} />
+        {!locked && !loading && (
+          <circle
+            cx="80" cy="80" r={radius} fill="none"
+            stroke={scoreColor}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            style={{ transition: 'stroke 0.3s' }}
+          />
+        )}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {locked ? (
+          <>
+            <Lock className="w-8 h-8 text-gray-600 mb-1" />
+            <span className="text-3xl font-bold text-gray-600">?</span>
+          </>
+        ) : loading ? (
+          <Loader2 className="w-10 h-10 text-[#00ff00] animate-spin" />
+        ) : (
+          <>
+            <span className="text-4xl font-bold" style={{ color: scoreColor }}>{displayScore}</span>
+            <span className="text-xs text-gray-500">/ 100</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Celebration screen shown after saving
-function WorkoutCelebration({ muscleGroup, stats, onContinue }: {
+function WorkoutCelebration({ muscleGroup, stats, score, scoreLoading, scoreLocked, onContinue }: {
   muscleGroup: string;
   stats: { exerciseCount: number; durationMinutes: number; totalVolume: number };
+  score: AIWorkoutScore | null;
+  scoreLoading: boolean;
+  scoreLocked: boolean;
   onContinue: () => void;
 }) {
-  useEffect(() => {
-    const timer = setTimeout(onContinue, 2500);
-    return () => clearTimeout(timer);
-  }, [onContinue]);
-
   const formatVolume = (vol: number) => vol >= 1000 ? `${(vol / 1000).toFixed(1).replace(/\.0$/, '')}k` : vol.toLocaleString();
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[60] flex items-center justify-center p-4" onClick={onContinue}>
-      <div className="text-center">
-        <div className="relative mx-auto mb-6 w-20 h-20">
-          <div className="absolute inset-0 bg-[#00ff00]/20 rounded-full animate-ping" />
-          <div className="relative w-20 h-20 bg-[#00ff00] rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(0,255,0,0.3)]">
-            <Check className="w-10 h-10 text-black" />
-          </div>
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
+      <div className="w-full max-w-sm text-center py-8">
+        <h1 className="text-3xl font-bold mb-1">Finished {muscleGroup || 'Workout'}!</h1>
+        <p className="text-gray-400 text-sm mb-6">Great work. Keep showing up.</p>
+
+        {/* Score Gauge */}
+        <ScoreGauge score={score?.score ?? null} loading={scoreLoading} locked={scoreLocked} />
+
+        {/* AI Analysis or Locked Explanation */}
+        <div className="bg-[#111] border border-gray-800 rounded-2xl p-4 mb-4 text-left">
+          {scoreLocked ? (
+            <>
+              <p className="text-xs font-semibold text-gray-300 mb-2">Performance Score — Locked</p>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Keep logging workouts to unlock your Performance Score. After 2 weeks of training data, our AI will analyze your progressive overload, goal alignment, volume completion, and training consistency to score each session on a 0-100 scale.
+              </p>
+            </>
+          ) : scoreLoading ? (
+            <p className="text-xs text-gray-500 text-center">Analyzing your workout...</p>
+          ) : score ? (
+            <>
+              <p className="text-xs font-semibold text-gray-300 mb-1.5">Performance Analysis</p>
+              <p className="text-xs text-gray-400 leading-relaxed">{score.analysis}</p>
+            </>
+          ) : (
+            <p className="text-xs text-gray-500 text-center">Score unavailable</p>
+          )}
         </div>
-        <h1 className="text-3xl font-bold mb-2">Finished {muscleGroup || 'Workout'}!</h1>
-        <p className="text-gray-400 text-sm mb-8">Great work. Keep showing up.</p>
-        <div className="flex items-center justify-center gap-6">
+
+        {/* Stats Row */}
+        <div className="flex items-center justify-center gap-5 mb-4">
           <div className="text-center">
-            <p className="text-2xl font-bold text-[#00ff00]">{stats.exerciseCount}</p>
+            <p className="text-xl font-bold text-[#00ff00]">{stats.exerciseCount}</p>
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Exercises</p>
           </div>
-          <div className="w-px h-8 bg-gray-800" />
+          <div className="w-px h-7 bg-gray-800" />
           <div className="text-center">
-            <p className="text-2xl font-bold">{stats.durationMinutes}</p>
+            <p className="text-xl font-bold">{stats.durationMinutes}</p>
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">Minutes</p>
           </div>
-          <div className="w-px h-8 bg-gray-800" />
+          <div className="w-px h-7 bg-gray-800" />
           <div className="text-center">
-            <p className="text-2xl font-bold text-yellow-500">{formatVolume(stats.totalVolume)}</p>
+            <p className="text-xl font-bold text-yellow-500">{formatVolume(stats.totalVolume)}</p>
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">lbs Volume</p>
           </div>
         </div>
-        <p className="text-gray-600 text-xs mt-8">Tap anywhere to continue</p>
+
+        {/* Tip Card */}
+        {scoreLocked ? (
+          <div className="bg-[#0a0a0a] border border-gray-900 rounded-xl p-3 mb-6 text-left">
+            <p className="text-[10px] text-gray-600 leading-relaxed">
+              Your score is calculated using 4 metrics: progressive overload (35%), goal alignment (25%), volume completion (20%), and consistency (20%).
+            </p>
+          </div>
+        ) : score?.tip ? (
+          <div className="bg-[#0a0a0a] border border-gray-900 rounded-xl p-3 mb-6 text-left">
+            <p className="text-[10px] font-semibold text-[#00ff00] mb-1">Next Session Tip</p>
+            <p className="text-xs text-gray-400">{score.tip}</p>
+          </div>
+        ) : <div className="mb-6" />}
+
+        {/* Continue Button */}
+        <button
+          onClick={onContinue}
+          className="w-full bg-[#00ff00] hover:bg-[#00dd00] text-black font-bold py-3.5 rounded-xl transition-colors text-sm"
+        >
+          Continue
+        </button>
       </div>
     </div>
   );
@@ -405,7 +506,7 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const { profile } = useAuth();
   const { workouts: recentWorkouts } = useWorkoutHistory({ limit: 20 });
   const { data: whoopData } = useWhoopData();
-  const { workoutSuggestions, workoutLoading, fetchWorkoutSuggestions, fetchSetUpdate } = useAICoach();
+  const { workoutSuggestions, workoutLoading, fetchWorkoutSuggestions, fetchSetUpdate, fetchWorkoutScore } = useAICoach();
   const { getPR } = usePersonalRecords();
   const startedAt = useRef(new Date().toISOString());
   const userModifiedWeight = useRef(false);
@@ -484,6 +585,18 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
   const [showCelebration, setShowCelebration] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const { saveTemplate } = useWorkoutTemplates();
+
+  // Score state
+  const [scoreResult, setScoreResult] = useState<AIWorkoutScore | null>(null);
+  const [scoreLoading, setScoreLoading] = useState(false);
+
+  // Score locked: same gating as readiness — need wearable or 4+ workout days in 14 days
+  const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const workoutDaysLast2Weeks = new Set(
+    recentWorkouts.filter(w => new Date(w.startedAt) >= twoWeeksAgo).map(w => w.startedAt.split('T')[0])
+  ).size;
+  const hasWearable = whoopData?.connected;
+  const scoreLocked = !hasWearable && workoutDaysLast2Weeks < 4;
 
   // Settings state
   const [showSettings, setShowSettings] = useState(false);
@@ -746,6 +859,36 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
       if (workoutId) {
         setSavedWorkoutId(workoutId);
         setShowCelebration(true);
+
+        // Fire score fetch in background (non-blocking)
+        if (!scoreLocked) {
+          setScoreLoading(true);
+          const completedExercises = exercisesToSave.map(ex => ({
+            name: ex.exerciseName,
+            sets: ex.sets.map(s => ({ weight: s.weightLbs, reps: s.reps })),
+          }));
+          // Find the most recent workout of the same type for comparison
+          const prevWorkout = recentWorkouts.find(w => w.workoutType === (muscleGroup || 'Workout'));
+          const previousSession = prevWorkout
+            ? prevWorkout.exercises.map(ex => ({
+                name: ex.exerciseName,
+                sets: ex.sets.map(s => ({ weight: s.weightLbs ?? 0, reps: s.reps ?? 0 })),
+              }))
+            : null;
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          const workoutsThisWeek = recentWorkouts.filter(w => new Date(w.startedAt) >= sevenDaysAgo).length;
+
+          fetchWorkoutScore({
+            completedExercises,
+            previousSession,
+            goal: profile?.goal ?? null,
+            workoutsThisWeek,
+            durationMinutes,
+          }).then(result => {
+            if (result) setScoreResult(result);
+            setScoreLoading(false);
+          });
+        }
       } else {
         onClose();
       }
@@ -1439,6 +1582,9 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
             totalVolume: Object.values(loggedData).reduce((total, sets) =>
               total + Object.values(sets).reduce((sum, s) => sum + (s.weight * s.reps), 0), 0),
           }}
+          score={scoreResult}
+          scoreLoading={scoreLoading}
+          scoreLocked={scoreLocked}
           onContinue={() => {
             setShowCelebration(false);
             if (customBuild) {

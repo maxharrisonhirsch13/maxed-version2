@@ -28,6 +28,12 @@ export interface AIReadinessResult {
   recommendation: string
 }
 
+export interface AIWorkoutScore {
+  score: number
+  analysis: string
+  tip: string
+}
+
 export function useAICoach() {
   const { session } = useAuth()
 
@@ -198,10 +204,38 @@ export function useAICoach() {
     return null
   }, [session?.access_token])
 
+  const fetchWorkoutScore = useCallback(async (payload: {
+    completedExercises: { name: string; sets: { weight: number; reps: number }[] }[]
+    previousSession: { name: string; sets: { weight: number; reps: number }[] }[] | null
+    goal: string | null
+    workoutsThisWeek: number
+    durationMinutes: number
+  }): Promise<AIWorkoutScore | null> => {
+    if (!session?.access_token) return null
+    try {
+      const res = await fetch('/api/ai-coach', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ type: 'workout-score', ...payload }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.score != null) return data as AIWorkoutScore
+      }
+    } catch {
+      // Silently fail
+    }
+    return null
+  }, [session?.access_token])
+
   return {
     workoutSuggestions, workoutLoading, fetchWorkoutSuggestions,
     setUpdateLoading, fetchSetUpdate,
     readiness, readinessLoading, fetchReadiness,
     estimatePRsLoading, fetchEstimatePRs,
+    fetchWorkoutScore,
   }
 }

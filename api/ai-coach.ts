@@ -33,8 +33,12 @@ PROGRESSIVE OVERLOAD:
   - "muscle": increase weight by 2.5-5 lbs OR add 1-2 reps
   - "lean": increase reps by 1-2, only increase weight when they exceed 15+ reps easily
   - If last session shows they struggled (fewer reps than target or dropped weight), maintain or slightly decrease
-- Adjust for recovery data:
-  - If recovery is below 50, reduce weight by ~5-10%. If above 80, allow more aggressive progression
+- READINESS-BASED INTENSITY ADJUSTMENT (apply as a hard rule, not a suggestion):
+  - recovery.score < 55: reduce ALL weights by 10-15%. Increase reps to compensate. Add note: "Recovery-adjusted: lighter load today"
+  - recovery.score 55-65: reduce weights by 5-10%. Add note: "Moderate recovery — backing off slightly"
+  - recovery.score 66-79: normal programming, no adjustment needed
+  - recovery.score >= 80: allow 5% INCREASE over normal progressive overload. Add note: "Peak recovery — push it today"
+  - If recovery is null: no adjustment, use normal progression
 - Consider experience level: beginners progress faster, advanced lifters in smaller increments
 
 OTHER RULES:
@@ -111,6 +115,37 @@ Rules:
 
 You must respond with valid JSON matching this schema:
 { "readinessScore": number, "coachingText": string, "intensityRecommendation": string, "recommendation": string }`
+
+const WORKOUT_SCORE_SYSTEM_PROMPT = `You are a sports science AI that evaluates workout performance on a 0-100 scale.
+
+SCORING METHODOLOGY (use these exact weightings):
+- Progressive Overload (35%): Compare today's weights/reps vs the user's most recent session for the same exercises. Weight increases, rep increases, or volume increases score higher. If no previous session data, score this category at 70 (neutral — first tracked session).
+- Goal Alignment (25%): Evaluate whether the user's rep ranges and intensities match their stated goal:
+  - "strength": heavy weight, 4-6 reps = high score. Light weight, 15 reps = low score.
+  - "muscle": 8-12 reps at moderate-heavy weight = high score.
+  - "lean": 12-15+ reps with short rest = high score.
+  - "fitness": 8-12 reps, balanced = high score.
+  - null: default to "fitness" criteria.
+- Volume Completion (20%): Did the user complete a solid number of sets per exercise? 4+ sets per exercise = full marks. 1-2 sets = lower.
+- Consistency Bonus (20%): Training frequency in the last 7 days. 3-5 sessions/week = high. 1 session after a long gap = lower. 6+ = slight concern about overtraining.
+
+SCORE RANGES:
+- 90-100: Exceptional. Personal records or significant progressive overload achieved.
+- 75-89: Strong session. Good alignment with goals and solid effort.
+- 60-74: Decent workout. Room for improvement in intensity or volume.
+- 45-59: Below average. Significant deviations from goals or incomplete sets.
+Never score below 45. Even showing up is worth something.
+
+ANALYSIS:
+- Provide a 2-3 sentence "analysis" that sounds scientific but motivating.
+- Reference specific metrics from the data: volume changes, rep range alignment, progressive overload percentages.
+- Be specific: "Your bench press volume increased 12% from last session" not "You did well."
+
+TIP:
+- One actionable sentence for their next session. Be specific to their exercises and goal.
+
+You must respond with valid JSON matching this schema:
+{ "score": number, "analysis": string, "tip": string }`
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -189,6 +224,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         whoopData: body.whoopData,
         recentWorkouts: body.recentWorkouts,
         userProfile: body.userProfile,
+      })
+    } else if (body.type === 'workout-score') {
+      systemPrompt = WORKOUT_SCORE_SYSTEM_PROMPT
+      userPrompt = JSON.stringify({
+        completedExercises: body.completedExercises,
+        previousSession: body.previousSession,
+        goal: body.goal,
+        workoutsThisWeek: body.workoutsThisWeek,
+        durationMinutes: body.durationMinutes,
       })
     } else {
       return res.status(400).json({ error: 'Invalid request type' })
