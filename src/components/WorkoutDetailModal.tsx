@@ -178,7 +178,7 @@ export function WorkoutDetailModal({ item, onClose, toggleReaction, addComment, 
           {/* Post image */}
           {post.imageUrl && (
             <div className="mb-4 rounded-2xl overflow-hidden">
-              <img src={post.imageUrl} alt="Post" className="w-full object-cover" />
+              <img src={post.imageUrl} alt="Post" className="w-full aspect-square object-cover" />
             </div>
           )}
 

@@ -241,7 +241,7 @@ export function CommunityPage() {
                         {/* Post image */}
                         {item.post.imageUrl && (
                           <div className="mb-3 rounded-xl overflow-hidden">
-                            <img src={item.post.imageUrl} alt="Post" className="w-full max-h-64 object-cover" />
+                            <img src={item.post.imageUrl} alt="Post" className="w-full aspect-square object-cover" />
                           </div>
                         )}
 

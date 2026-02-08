@@ -182,7 +182,7 @@ export function ShareWorkoutPrompt({ workoutId, workoutSummary, onDone }: ShareW
             />
             {imagePreview ? (
               <div className="relative">
-                <img src={imagePreview} alt="Post photo" className="w-full max-h-48 object-cover rounded-xl" />
+                <img src={imagePreview} alt="Post photo" className="w-full aspect-square object-cover rounded-xl" />
                 <button
                   onClick={removeImage}
                   className="absolute top-2 right-2 p-1.5 bg-black/70 rounded-full hover:bg-black/90 transition-colors"
