@@ -53,11 +53,11 @@ export function useGlobalLeaderboard() {
       const [{ data: profiles }, { data: privacyData }] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, name, username, avatar_url, profile_visibility')
+          .select('id, name, username, avatar_url')
           .in('id', allUserIds),
         supabase
           .from('privacy_settings')
-          .select('user_id, share_prs')
+          .select('user_id, share_prs, profile_visibility')
           .in('user_id', allUserIds),
       ])
 
@@ -65,16 +65,17 @@ export function useGlobalLeaderboard() {
         (profiles ?? []).map((p) => [p.id, p])
       )
       const privacyMap = new Map(
-        (privacyData ?? []).map((p) => [p.user_id, p.share_prs])
+        (privacyData ?? []).map((p) => [p.user_id, p])
       )
 
       // Step 3: Filter and build entries
       const result: GlobalLeaderboardEntry[] = []
       for (const [uid, prs] of prMap) {
         const profile = profileMap.get(uid)
-        const sharePRs = privacyMap.get(uid) ?? true
+        const privacy = privacyMap.get(uid)
+        const sharePRs = privacy?.share_prs ?? true
         const isCurrentUser = uid === user.id
-        const visibility = profile?.profile_visibility
+        const visibility = privacy?.profile_visibility
 
         // Include if current user, or if share_prs=true and not private profile
         if (!isCurrentUser && (!sharePRs || visibility === 'private')) continue
