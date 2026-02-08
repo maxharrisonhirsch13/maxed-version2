@@ -13,10 +13,31 @@ export function useWorkoutPosts() {
     setFeedLoading(true)
 
     try {
-      // Step 1: Fetch workout_posts (raw columns only, no FK joins)
+      // Step 0: Get accepted friend IDs
+      const [{ data: asRequester }, { data: asAddressee }] = await Promise.all([
+        supabase
+          .from('friendships')
+          .select('addressee_id')
+          .eq('requester_id', user.id)
+          .eq('status', 'accepted'),
+        supabase
+          .from('friendships')
+          .select('requester_id')
+          .eq('addressee_id', user.id)
+          .eq('status', 'accepted'),
+      ])
+
+      const friendIds: string[] = [
+        ...(asRequester ?? []).map((r) => r.addressee_id),
+        ...(asAddressee ?? []).map((r) => r.requester_id),
+      ]
+      const feedUserIds = [...friendIds, user.id]
+
+      // Step 1: Fetch workout_posts from friends + self only
       const { data: posts, error: postsErr } = await supabase
         .from('workout_posts')
         .select('id, user_id, workout_id, caption, tagged_user_ids, created_at')
+        .in('user_id', feedUserIds)
         .order('created_at', { ascending: false })
         .limit(20)
 

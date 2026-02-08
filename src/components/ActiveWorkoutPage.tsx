@@ -425,11 +425,13 @@ export function ActiveWorkoutPage({ onClose, muscleGroup, fewerSets, quickVersio
         goal: profile?.goal || null,
         weightLbs: profile?.weight || null,
         homeEquipment: trainingAtHome ? (profile?.homeEquipment || null) : null,
-        prs: {
-          benchPress: getPR('Bench Press', 'weight')?.value || 0,
-          squat: getPR('Squat', 'weight')?.value || 0,
-          deadlift: getPR('Deadlift', 'weight')?.value || 0,
-        },
+        prs: (getPR('Bench Press', 'weight')?.value || getPR('Squat', 'weight')?.value || getPR('Deadlift', 'weight')?.value)
+          ? {
+              benchPress: getPR('Bench Press', 'weight')?.value || 0,
+              squat: getPR('Squat', 'weight')?.value || 0,
+              deadlift: getPR('Deadlift', 'weight')?.value || 0,
+            }
+          : undefined,
       },
       recovery: whoopData?.recovery ? {
         score: whoopData.recovery.score,

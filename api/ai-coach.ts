@@ -17,7 +17,7 @@ You must respond with valid JSON matching this schema:
 
 const WORKOUT_SYSTEM_PROMPT = `You are a concise fitness coach AI. Given a user's exercise list with their recent history, wearable data, and fitness goal, generate personalized weight and rep recommendations.
 
-If prs are provided in userProfile, use bench/squat/deadlift PRs to calibrate working set weights (~75-85% of PR for the corresponding exercise). For related exercises (e.g. incline bench from bench PR, front squat from squat PR), adjust proportionally downward.
+If prs are provided in userProfile, use bench/squat/deadlift PRs to calibrate working set weights (~75-85% of PR for the corresponding exercise). For related exercises (e.g. incline bench from bench PR, front squat from squat PR), adjust proportionally downward. IMPORTANT: A PR value of 0 means the user has NOT set that lift — completely ignore 0-value PRs and use history/defaults instead.
 
 GOAL-BASED PROGRAMMING (the user's goal is in userProfile.goal — this is CRITICAL):
 - "strength": heavy weight, low reps. Target 4-6 reps per set, heavier loads. Push progressive overload aggressively on compound lifts. Rest periods should be long (implied by fewer reps).
